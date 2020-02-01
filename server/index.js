@@ -36,7 +36,10 @@ const getCompanyInformationString = (req) => {
     const slackMessage = req.body.text;
     [, companyInformationString] = slackMessage.split(' ');
 
-    return companyInformationString;
+    // sanitize string
+    const sanitizedString = companyInformationString.trim().replace(/[<>]/g, '');
+
+    return sanitizedString;
 }
 
 app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
