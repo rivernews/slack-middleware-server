@@ -11,7 +11,7 @@ const getTravisCiRequestHeaders = () => {
     };
 }
 
-const triggerQualitativeReviewRepoBuild = async (companyInformationString) => {
+const asyncTriggerQualitativeReviewRepoBuild = async (companyInformationString) => {
     const username = 'rivernews';
     const repo = 'review-scraper-java-development-environment';
     const fullRepoName = `${username}/${repo}`;
@@ -33,5 +33,5 @@ const triggerQualitativeReviewRepoBuild = async (companyInformationString) => {
 }
 
 module.exports = {
-    triggerQualitativeReviewRepoBuild
+    asyncTriggerQualitativeReviewRepoBuild
 };

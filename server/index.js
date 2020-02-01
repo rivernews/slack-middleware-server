@@ -58,7 +58,7 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
     console.log(`Company info string is ${companyInformationString}`);
     
     console.log('Ready to trigger travis')
-    const triggerRes = await travis.triggerQualitativeReviewRepoBuild(companyInformationString);
+    const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild(companyInformationString);
 
     if (triggerRes.status >= 400) {
         console.log('travis return abnormal response');
@@ -70,7 +70,7 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
         }).status(triggerRes.status);
     }
 
-    const slackRes = await slack.sendSlackMessage("Trigger travis success. Below is the travis response:\n" + JSON.stringify(triggerRes.data, null, 2));
+    const slackRes = await slack.asyncSendSlackMessage("Trigger travis success. Below is the travis response:\n" + JSON.stringify(triggerRes.data, null, 2));
     console.log("Slack res", slackRes);
 
     console.log('trigger result:\n', triggerRes.data);
