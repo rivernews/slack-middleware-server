@@ -3,6 +3,8 @@
 const express = require('express');
 const axios = require('axios').default;
 
+const slack = require('./slack');
+
 // Constants
 const PORT = parseInt(process.env.PORT);
 const HOST = process.env.HOST;
@@ -92,6 +94,9 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
             'travisResponse': triggerRes.data
         }).status(triggerRes.status);
     }
+
+    const slackRes = await slack.sendSlackMessage("Trigger travis success. Below is the travis response:\n" + JSON.stringify(triggerRes.data));
+    console.log("Slack res", slackRes);
 
     console.log('trigger result:\n', triggerRes.data);
     return res.json(triggerRes.data);
