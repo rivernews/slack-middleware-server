@@ -5,7 +5,7 @@ const axios = require('axios').default;
 
 // Constants
 const PORT = parseInt(process.env.PORT);
-const HOST = process.env.PUBLIC_URL;
+const HOST = process.env.HOST;
 
 // App
 const app = express();
@@ -17,7 +17,7 @@ app.use(express.urlencoded({
 }));
 
 app.get('/', (req, res) => {
-    res.send('Hello! This is our slack service');
+    res.send('Hello! This is our slack service.');
 });
 
 const getCompanyInformationString = (req) => {
@@ -102,5 +102,6 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
 
 // Bootstrap server
 
-app.listen(PORT, HOST);
-console.log(`Running on http://${HOST}:${PORT}`);
+app.listen(PORT, () => {
+    console.log(`Running on http://${HOST}:${PORT}`);
+});

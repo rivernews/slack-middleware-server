@@ -1,5 +1,5 @@
 IMAGE_NAME=shaungc/slack-middleware-service
-VERSION=0.0.1
+VERSION=0.0.2
 
 docker build -f prod.Dockerfile -t ${IMAGE_NAME}:latest .
 

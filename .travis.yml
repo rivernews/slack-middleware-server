@@ -1,0 +1,29 @@
+language: minimal
+install: skip
+env:
+- IMAGE_NAME=shaungc/slack-middleware-service
+jobs:
+  include:
+  - stage: build_push
+    name: Build and push docker image
+    script:
+    - docker build -f ./Dockerfile -t $IMAGE_NAME:latest .
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
+    - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
+    - docker push $IMAGE_NAME:latest
+    - docker push $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
+notifications:
+  slack:
+    rooms:
+      secure: t2q9RU1UzJKcszkMYKqunEuofekThh6sBn4BnNws+ZPJ8X3fTDk9HfQ8xI1cVRIOxH4vsAuC7nCzSM5twl7ZjQ/n6tljKHnRfK0McQPniiTmcQ1qSNnKv4ytKTwQEgzqwgJIXm7lhoLsC4agBBkt9e8hl8iML95HBUtekW33MkpTvWEL4OYumKCVX8ph5VE0/asfjUIsBwMD4IDrD+WJRoTZizbhUBzUzxZCkgBEPBkvOm0+gNJr+hh1LTHu3heMAUBwbjyfz/Dfpw5EsOeo+E+vjZ8nU+25qFJ30iFQs+ChJepfb+kU9uRKFJzLlCxB4r6BWKVgUTSRN8V0btF2nC7UkSb3OSHo9Mqi31aNdQ3/Jx9dfaYzwNnjZy+QtgEsjLiV63OAkD3RwezMwjjtAdA566B/nKsHZPXzmexmiELxbOwBqDZxCLemSdi/cARu3zojT/pK9yG1nsuuIv3/KGHh24qiP8p6p390/LhvYQnrzZwFdJFv7vLxraRwHhhYFbUXW0lGjWMYlg+DxDaSA4guSikk0R5fWONYOjSkW0pWksezwA7Hu1f9/w19vdh4u6Gj4FD0GDNCachyq/SW1WmcuTfGHUvwM+Z+fH1gkINPG1LvhEtTg9dWYFHMmy+AyqiOVUbqCITm7zTzIzOUNoG/WQ3VfJIhgi3x2iOaaoI=
+    on_start: always
+    on_success: always
+    on_failure: always
+    template:
+    - "*%{repository_slug}: %{message}*"
+    - "*Git commit:* %{commit_message}"
+    - 'Build result: %{result} in %{duration}'
+    - 'Docker image tag: `%{commit}`'
+    - 'Dockerhub page: https://hub.docker.com/repository/docker/shaungc/slack-middleware-service'
+    - 'Build details: %{build_url}'
