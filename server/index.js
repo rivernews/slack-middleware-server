@@ -4,6 +4,7 @@ const express = require('express');
 const axios = require('axios').default;
 
 const slack = require('./slack');
+const travis = require('./travis');
 
 // Constants
 const PORT = parseInt(process.env.PORT);
@@ -38,14 +39,6 @@ const getCompanyInformationString = (req) => {
     return companyInformationString;
 }
 
-const getTravisCiRequestHeaders = () => {
-    return {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Travis-API-Version': '3',
-        'Authorization': 'token ' + process.env.TRAVIS_TOKEN
-    };
-}
 
 app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
     console.log(req.body);
@@ -64,26 +57,9 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
     }
 
     console.log(`Company info string is ${companyInformationString}`);
-
-    const username = 'rivernews';
-    const repo = 'review-scraper-java-development-environment';
-    const fullRepoName = `${username}/${repo}`;
-    const urlEncodedRepoName = encodeURIComponent(fullRepoName);
     
     console.log('Ready to trigger travis')
-    const triggerRes = await axios.post(
-        `https://api.travis-ci.com/repo/${urlEncodedRepoName}/requests`,
-        {
-            config: {
-                env: {
-                    TEST_COMPANY_INFORMATION_STRING: companyInformationString
-                }
-            }
-        },
-        {
-            headers: getTravisCiRequestHeaders()
-        }
-    );
+    const triggerRes = travis.triggerQualitativeReviewRepoBuild(companyInformationString);
 
     if (triggerRes.status >= 400) {
         console.log('travis return abnormal response');
