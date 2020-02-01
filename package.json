@@ -7,13 +7,16 @@
     "scripts": {
         "start": "node /usr/src/server/index.js",
         "dev": "nodemon server/index.js",
-        "proxy": "ngrok http 8080"
+        "proxy": "ngrok http 8080",
+        "test": "mocha server/index.test.js"
     },
     "dependencies": {
         "axios": "^0.19.2",
         "express": "^4.17.1"
     },
     "devDependencies": {
+        "chai": "^4.2.0",
+        "mocha": "^7.0.1",
         "ngrok": "^3.2.7",
         "nodemon": "^2.0.2"
     }
