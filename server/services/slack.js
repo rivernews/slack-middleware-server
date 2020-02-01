@@ -15,6 +15,21 @@ const asyncSendSlackMessage = async (message) => {
     );
 }
 
+
+const parseArgsFromSlackMessage = (slackReq) => {
+    if (!slackReq.body.text) {
+        return null;
+    }
+
+    const argsString = slackReq.body.text;
+
+    const [, ...args] = argsString.split(' ').filter((argString) => argString.trim() !== '');
+
+    return args;
+}
+
+
 module.exports = {
-    asyncSendSlackMessage
+    asyncSendSlackMessage,
+    parseArgsFromSlackMessage
 };

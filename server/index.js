@@ -33,8 +33,7 @@ const getCompanyInformationString = (req) => {
         return null;
     }
 
-    const slackMessage = req.body.text;
-    [, companyInformationString] = slackMessage.split(' ');
+    [companyInformationString,] = slack.parseArgsFromSlackMessage(req);
 
     // sanitize string
     const sanitizedString = companyInformationString.trim().replace(/[<>]/g, '');
@@ -88,3 +87,8 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
 });
+
+
+module.exports = {
+    app
+};
