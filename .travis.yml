@@ -8,7 +8,7 @@ jobs:
     name: Build and push docker image
     script:
     - docker build -f ./prod-debug.Dockerfile -t $IMAGE_NAME:latest .
-    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
     - docker push $IMAGE_NAME:latest
