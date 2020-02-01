@@ -1,13 +1,13 @@
 language: minimal
 install: skip
 env:
-- IMAGE_NAME=shaungc/slack-middleware-service
+- IMAGE_NAME=shaungc/slack-middleware-service-debug
 jobs:
   include:
   - stage: build_push
     name: Build and push docker image
     script:
-    - docker build -f ./Dockerfile -t $IMAGE_NAME:latest .
+    - docker build -f ./prod-debug.Dockerfile -t $IMAGE_NAME:latest .
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
