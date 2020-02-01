@@ -3,8 +3,8 @@
 const express = require('express');
 const axios = require('axios').default;
 
-const slack = require('./slack');
-const travis = require('./travis');
+const slack = require('./services/slack');
+const travis = require('./services/travis');
 
 // Constants
 const PORT = parseInt(process.env.PORT);
@@ -19,7 +19,7 @@ app.use(express.urlencoded({
     extended: true
 }));
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     res.send('Hello! This is our slack service.');
 });
 
@@ -38,7 +38,6 @@ const getCompanyInformationString = (req) => {
 
     return companyInformationString;
 }
-
 
 app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
     console.log(req.body);
@@ -59,7 +58,7 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
     console.log(`Company info string is ${companyInformationString}`);
     
     console.log('Ready to trigger travis')
-    const triggerRes = travis.triggerQualitativeReviewRepoBuild(companyInformationString);
+    const triggerRes = await travis.triggerQualitativeReviewRepoBuild(companyInformationString);
 
     if (triggerRes.status >= 400) {
         console.log('travis return abnormal response');
@@ -71,7 +70,7 @@ app.post('/qualitative-org-review/slack-to-travisci', async (req, res) => {
         }).status(triggerRes.status);
     }
 
-    const slackRes = await slack.sendSlackMessage("Trigger travis success. Below is the travis response:\n" + JSON.stringify(triggerRes.data));
+    const slackRes = await slack.sendSlackMessage("Trigger travis success. Below is the travis response:\n" + JSON.stringify(triggerRes.data, null, 2));
     console.log("Slack res", slackRes);
 
     console.log('trigger result:\n', triggerRes.data);

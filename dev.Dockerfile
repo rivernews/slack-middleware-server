@@ -3,10 +3,10 @@
 
 FROM node:13-slim
 
-ENV NODE_SRC_ROOT=/usr/src
+# ENV NODE_SRC_ROOT=/usr/src
 # ENV NODE_SERVER_ROOT=${NODE_SRC_ROOT}/server
 
-WORKDIR ${NODE_SRC_ROOT}
+# WORKDIR ${NODE_SRC_ROOT}
 
 COPY package*.json ${NODE_SRC_ROOT}/
 

@@ -31,3 +31,7 @@ const triggerQualitativeReviewRepoBuild = async (companyInformationString) => {
         }
     );
 }
+
+module.exports = {
+    triggerQualitativeReviewRepoBuild
+};
