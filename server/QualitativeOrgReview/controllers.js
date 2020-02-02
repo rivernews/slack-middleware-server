@@ -108,7 +108,7 @@ const getListOrgsControllerSlackMessage = (results, queryUrl) => {
     return (
         "Company list (1st page):\n\n" +
         beautifyCompanyListResultString(results)+
-        "\n\nUse `launch <url>` to start scraper. If you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n" +
+        "\n\nUse `::launch <url>` to start scraper. If you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n" +
         queryUrl
     );
 };
@@ -132,7 +132,7 @@ const listOrgsController = async (req, res, next) => {
         const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
         if (singleResultTest === "OVERVIEW") {
             console.log("single test: " + singleResultTest);
-            await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nSingle result. Use \`launch ${companyNameKeyword}\` to start the scraper.`);
+            await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nSingle result. Use \`::launch ${companyNameKeyword}\` to start the scraper.`);
             return res.json({ 'message': 'Single result' });
         }
 
