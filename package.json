@@ -14,18 +14,18 @@
         "axios": "^0.19.2",
         "cheerio": "^1.0.0-rc.3",
         "express": "^4.17.1",
-        "husky": "^4.2.1",
         "lodash": "^4.17.15"
     },
     "devDependencies": {
         "chai": "^4.2.0",
+        "husky": "^4.2.1",
         "mocha": "^7.0.1",
         "ngrok": "^3.2.7",
         "nodemon": "^2.0.2"
     },
     "husky": {
         "hooks": {
-            "pre-commit": "(. devcontainer.env || true) && npm test",
+            "pre-commit": "pwd && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\"  && npm test",
             "pre-push": "(. devcontainer.env || true) && npm test "
         }
     }
