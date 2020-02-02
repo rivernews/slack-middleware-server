@@ -18,6 +18,8 @@ const authenticateSlack = (slackReq) => {
 }
 
 const asyncSendSlackMessage = async (message, overrideChannel = '') => {
+    let finalMessage = message;
+
     let channelOption = {};
     if (overrideChannel) {
         channelOption['channel'] = overrideChannel;
@@ -30,6 +32,9 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
         process.env.USER === 'travis'
     ) {
         channelOption['channel'] = '#build';
+
+        // add mark into message
+        finalMessage = '(FROM TRAVIS TEST) ' + finalMessage;
     }
 
     return axios.post(

@@ -31,5 +31,5 @@ notifications:
     - "*Git commit:* %{commit_message}"
     - 'Build result: %{result} in %{duration}'
     - 'Docker image tag: `%{commit}`'
-    - 'Dockerhub page: https://hub.docker.com/repository/docker/shaungc/slack-middleware-service'
+    - '<https://hub.docker.com/repository/docker/shaungc/slack-middleware-service | Dockerhub page>'
     - 'Build details: %{build_url}'
