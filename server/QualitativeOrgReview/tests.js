@@ -27,9 +27,7 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
         it("Multiple", async () => {
             const data = await simulateSlackTriggerWordListOrgRequest('stanford');
 
-            console.log('\n\n\ndata is', data);
-
-            expect(data)
+            expect(data.results)
                 .to.be.an.instanceof(Array)
                 .to.have.lengthOf.greaterThan(0);
             return;

@@ -191,15 +191,16 @@ const listOrgsController = async (req, res, next) => {
             },
             $
         );
-        console.log(`1st method: we got ${Object.keys(companyTable).length} results`);
-        if (!isEmpty(companyTable)) {
+        let companyList = Object.values(companyTable);
+        console.log(`1st method: we got ${Object.keys(companyList).length} results`);
+        if (!isEmpty(companyList)) {
             console.log('picking up results');
             await slack.asyncSendSlackMessage(
                 `You searched ${companyNameKeyword.raw} =\n` +
-                getListOrgsControllerSlackMessage(Object.values(companyTable), queryUrl)
+                getListOrgsControllerSlackMessage(Object.values(companyList), queryUrl)
             );
             return res.json({
-                results: companyTable,
+                results: companyList,
                 html: glassRes.data
             });
         }
@@ -223,15 +224,16 @@ const listOrgsController = async (req, res, next) => {
             },
             $
         );
-        console.log(`2nd method: we got ${companyTable.length} results`);
-        if (!isEmpty(companyTable)) {
+        companyList = Object.values(companyTable);
+        console.log(`2nd method: we got ${companyList.length} results`);
+        if (!isEmpty(companyList)) {
             console.log('picking up results');
             await slack.asyncSendSlackMessage(
                 `You searched ${companyNameKeyword.raw} =\n` +
-                getListOrgsControllerSlackMessage(Object.values(companyTable), queryUrl)
+                getListOrgsControllerSlackMessage(Object.values(companyList), queryUrl)
             );
             return res.json({
-                results: companyTable,
+                results: companyList,
                 html: glassRes.data
             });
         }
