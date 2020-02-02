@@ -48,8 +48,6 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
 }
 
 const parseArgsFromSlackMessage = (slackReq) => {
-    
-
     if (!slackReq.body.text) {
         return [];
     }
@@ -62,10 +60,30 @@ const parseArgsFromSlackMessage = (slackReq) => {
 }
 
 const parseArgsFromSlackForLaunch = (slackReq) => {
-    if (!authenticateSlack(slackReq, process.env.SLACK_TOKEN_OUTGOING_LAUNCH)) {
-        throw new NotAuthenticatedResponse();
+    let companyInformationString = slackReq.body.company || slackReq.query.company;
+    if (!companyInformationString) {
+        if (!authenticateSlack(slackReq, process.env.SLACK_TOKEN_OUTGOING_LAUNCH)) {
+            throw new NotAuthenticatedResponse();
+        }
+        [companyInformationString, ] = parseArgsFromSlackMessage(slackReq);
     }
-    return parseArgsFromSlackMessage(slackReq);
+
+    if (!companyInformationString) {
+        return null;
+    }
+
+    // sanitize string
+    // url in slack message will be auto-transformed into <...>
+    // so we have to get rid of those braces
+    const sanitizedString = companyInformationString
+        .trim()
+        .replace(/[<]([^<>\|]+)([\|][^<>\|]+)?[>]/g, (match, cap1, cap2, offset, originalString) => {
+            console.log(`\noriginal string:\n${originalString}`);
+            console.log(`\nhyperlink removed:\n${cap1}`);
+            return cap1;
+        }).trim();
+
+    return sanitizedString;
 }
 
 const parseArgsFromSlackForListOrg = (slackReq) => {

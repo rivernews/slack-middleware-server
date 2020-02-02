@@ -12,32 +12,11 @@ const ParameterRequirementNotMet = require("../utilities/serverUtilities")
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
 
 
-const getCompanyInformationString = req => {
-    let companyInformationString = req.body.company || req.query.company;
-
-    if (!companyInformationString) {
-        [companyInformationString] = slack.parseArgsFromSlackForLaunch(req);
-    }
-
-    if (!companyInformationString) {
-        return null;
-    }
-
-    // sanitize string
-    // url in slack message will be auto-transformed into <...>
-    // so we have to get rid of those braces
-    const sanitizedString = companyInformationString
-        .trim()
-        .replace(/[<>]/g, "");
-
-    return sanitizedString;
-};
-
 const slackToTravisCIController = async (req, res, next) => {
     let companyInformationString;
 
     try {
-        companyInformationString = getCompanyInformationString(req);
+        companyInformationString = slack.parseArgsFromSlackForLaunch(req);
         if (!companyInformationString) {
             console.log("No company included");
             throw new ParameterRequirementNotMet(
@@ -155,6 +134,7 @@ const listOrgsController = async (req, res, next) => {
         const companyNameKeyword = slack.parseArgsFromSlackForListOrg(req);
 
         const queryUrl = getGlassdoorQueryUrl(companyNameKeyword.encoded);
+        console.log('querying url:', queryUrl);
         const glassRes = await axios(queryUrl);
         const $ = cheerio.load(glassRes.data);
 
