@@ -25,7 +25,7 @@
     },
     "husky": {
         "hooks": {
-            "pre-commit": "pwd && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\"  && npm test"
+            "pre-push": "pwd && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\"  && npm test"
         }
     }
 }
