@@ -2,9 +2,7 @@
 
 const axios = require('axios').default;
 
-const STATUS_CODE = require('../../utilities/serverUtilities').STATUS_CODE;
 const NotAuthenticatedResponse = require('../../utilities/serverUtilities').NotAuthenticatedResponse;
-const ParameterRequirementNotMet = require('../../utilities/serverUtilities').ParameterRequirementNotMet;
 
 const SLACK_TOKEN_INCOMING_URL = process.env.SLACK_TOKEN_INCOMING_URL;
 
@@ -19,11 +17,25 @@ const authenticateSlack = (slackReq) => {
     return true;
 }
 
-const asyncSendSlackMessage = async (message) => {
+const asyncSendSlackMessage = async (message, overrideChannel = '') => {
+    let channelOption = {};
+    if (overrideChannel) {
+        channelOption['channel'] = overrideChannel;
+    }
+
+    // run in travis ci env - direct all message to #build
+    if (
+        process.env.TRAVIS && process.env.CI &&
+        process.env.USER === 'travis'
+    ) {
+        channelOption['channel'] = '#build';
+    }
+
     return axios.post(
         SLACK_TOKEN_INCOMING_URL,
         {
-            text: message
+            text: message,
+            ...channelOption
         }
     );
 }

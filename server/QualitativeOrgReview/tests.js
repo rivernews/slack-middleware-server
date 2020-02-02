@@ -12,13 +12,40 @@ const listOrgsEndpoint = require("./routes").listOrgsEndpoint;
 const slackToTravisCIEndpoint = require("./routes").slackToTravisCIEndpoint;
 // add more endpoints of controllers...
 
+const launchListOrgRequest = async (companyNameKeyword) => {
+    const res = await axios.post(
+        `${baseUrl}${qualitativeOrgReviewbaseUrl}${listOrgsEndpoint}`,
+        { token: process.env.SLACK_TOKEN, text: `list ${companyNameKeyword}` }
+    );
+    expect(res.status).to.equal(STATUS_CODE.SUCCESS);
+
+    return res.data;
+}
+
 const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integration test", () => {
-    it("List org endpoint", async () => {
-        const res = await axios.post(
-            `${baseUrl}${qualitativeOrgReviewbaseUrl}${listOrgsEndpoint}`
-        );
-        expect(res.status).to.equal(STATUS_CODE.SUCCESS);
-        return;
+    describe('List org endpoint', () => {
+        it("Multiple", async () => {
+            const data = await launchListOrgRequest('stanford');
+
+            console.log('\n\n\ndata is', data);
+
+            expect(data)
+                .to.be.an.instanceof(Array)
+                .to.have.lengthOf.greaterThan(0);
+            return;
+        });
+
+        it("Single", async () => {
+            const data = await launchListOrgRequest('healthcrowd');
+            expect(data.message).to.equal('Single result');
+            return;
+        });
+
+        it("No result", async () => {
+            const data = await launchListOrgRequest('xxxjojojojoxxx');
+            expect(data.message).to.equal('No result');
+            return;
+        });
     });
 
     describe("Slack To TravisCI endpoint", () => {

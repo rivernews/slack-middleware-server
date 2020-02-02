@@ -78,31 +78,33 @@ const slackToTravisCIController = async (req, res, next) => {
     }
 };
 
-const parseGlassdoorResultPage = (locater) => {
+const parseGlassdoorResultPage = locater => {
     const glassBaseUrl = `http://glassdoor.com`;
 
     let results = locater();
     let companyList = [];
     results.each((index, element) => {
         companyList.push({
-            'name': element.firstChild.data.trim(),
-            'url': `${glassBaseUrl}${element.attribs.href}`
-        })
+            name: element.firstChild.data.trim(),
+            url: `${glassBaseUrl}${element.attribs.href}`
+        });
     });
 
     return companyList;
-}
+};
 
-const getGlassdoorQueryUrl = (companyNameKeyword) => {
+const getGlassdoorQueryUrl = companyNameKeyword => {
     return `https://www.glassdoor.com/Reviews/company-reviews.htm?suggestCount=10&suggestChosen=false&clickSource=searchBtn&typedKeyword=${companyNameKeyword}&sc.keyword=${companyNameKeyword}&locT=C&locId=&jobType=`;
-}
+};
 
 const getListOrgsControllerSlackMessage = (results, queryUrl) => {
-    return 'Company list (1st page):\n\n' + 
-        JSON.stringify(results, null, 4) + 
-        '\n\n\nIf you don\'t find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n\n' +
-        queryUrl;
-}
+    return (
+        "Company list (1st page):\n\n" +
+        JSON.stringify(results, null, 4) +
+        "\n\n\nIf you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n\n" +
+        queryUrl
+    );
+};
 
 const listOrgsController = async (req, res, next) => {
     console.log("qualitative-org-review/list-org");
@@ -113,61 +115,55 @@ const listOrgsController = async (req, res, next) => {
     // error to next()
     // https://expressjs.com/en/guide/error-handling.html
     try {
-        const [companyNameKeyword,] = slack.parseArgsFromSlackMessage(req);
-
-        // const companyNameKeyword = 'healthcrowd';
+        const [companyNameKeyword] = slack.parseArgsFromSlackMessage(req);
 
         const queryUrl = getGlassdoorQueryUrl(companyNameKeyword);
-
         const glassRes = await axios(queryUrl);
         const $ = cheerio.load(glassRes.data);
 
-        // #MainCol > div > div:nth-child(2) > div > div.col-lg-7 > div > div.col-9.pr-0 > h2 > a
-
+        // single result test
         const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
-
         if (singleResultTest === "OVERVIEW") {
             console.log("single test: " + singleResultTest);
-            await slack.asyncSendSlackMessage(`OK by ${companyNameKeyword}.`);
-        } else if (true) {
-            console.log("multiple results!");
-            // first attempt
-            let results = parseGlassdoorResultPage(() => {
-                return $('#MainCol').find('div.module').find('div.margBotXs > a');
-            });
-            console.log(`1st method: we got ${results.length} results`);
-            if (results && results.length) {
-                await slack.asyncSendSlackMessage(getListOrgsControllerSlackMessage(results, queryUrl));
-                return res.send(JSON.stringify(results));
-            }
-
-            // 2nd attempt
-            results = parseGlassdoorResultPage(() => {
-                return $('#MainCol').find('div.single-company-result').find('h2 > a');
-            })
-            console.log(`2nd method: we got ${results.length} results`);
-            if (results && results.length) {
-                await slack.asyncSendSlackMessage(getListOrgsControllerSlackMessage(results, queryUrl));
-                return res.send(JSON.stringify(results));
-            }
-        } else {
-            // TODO: handle no result case
+            await slack.asyncSendSlackMessage(`Single result by ${companyNameKeyword}.`);
+            return res.json({ 'message': 'Single result' });
         }
 
-        // const [searchKeyword, ] = slack.parseArgsFromSlackMessage(req);
+        // handle multiple result
+        console.log("multiple results!");
+        // first attempt
+        let results = parseGlassdoorResultPage(() => {
+            return $("#MainCol")
+                .find("div.module")
+                .find("div.margBotXs > a");
+        });
+        console.log(`1st method: we got ${results.length} results`);
+        if (results && results.length) {
+            await slack.asyncSendSlackMessage(
+                getListOrgsControllerSlackMessage(results, queryUrl)
+            );
+            return res.json(results);
+        }
+        // 2nd attempt
+        results = parseGlassdoorResultPage(() => {
+            return $("#MainCol")
+                .find("div.single-company-result")
+                .find("h2 > a");
+        });
+        console.log(`2nd method: we got ${results.length} results`);
+        if (results && results.length) {
+            await slack.asyncSendSlackMessage(
+                getListOrgsControllerSlackMessage(results, queryUrl)
+            );
+            return res.json(results);
+        }
 
-        // sanitize
-        // const sanitizedString = searchKeyword.trim();
+        console.log('No results');
 
-        // TODO: query glassdoor
-
-        // TODO: get html page
-
-        // TODO: parse html, find overview evidence
-
-        // TODO: if not overview, ready to parse company url list
-
-        res.send(glassRes.data);
+        res.json({
+            'message': 'No result',
+            'html': glassRes.data
+        });
     } catch (error) {
         next(error);
     }
