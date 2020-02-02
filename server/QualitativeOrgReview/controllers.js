@@ -137,7 +137,7 @@ const listOrgsController = async (req, res, next) => {
         }
 
         // handle multiple result
-        console.log("multiple results!");
+        console.log("Not single. Check if it\'s multiple results...");
         // first attempt
         let results = parseGlassdoorResultPage(() => {
             return $("#MainCol")
