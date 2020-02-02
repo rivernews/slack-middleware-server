@@ -2,12 +2,15 @@
 
 const cheerio = require("cheerio");
 const axios = require("axios").default;
+const isEmpty = require('lodash/isEmpty');
 
 const slack = require("../services/slack/slack");
 const travis = require("../services/travis");
-const STATUS_CODE = require("../utilities/serverUtilities").STATUS_CODE;
 const ParameterRequirementNotMet = require("../utilities/serverUtilities")
     .ParameterRequirementNotMet;
+
+const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
+
 
 const getCompanyInformationString = req => {
     let companyInformationString = req.body.company || req.query.company;
@@ -78,53 +81,83 @@ const slackToTravisCIController = async (req, res, next) => {
     }
 };
 
-const parseGlassdoorResultPage = locater => {
-    const glassBaseUrl = `http://glassdoor.com`;
+const parseGlassdoorResultPage = (locator, $) => {
+    
+    const {
+        singleOrgElements,
+        getOverviewLinkElement,
+        getReviewLinkElement
+    } = locator();
 
-    let results = locater();
-    let companyList = [];
-    results.each((index, element) => {
-        companyList.push({
-            name: element.firstChild.data.trim(),
-            url: `${glassBaseUrl}${element.attribs.href}`
-        });
+    console.log("INFO: single org list size: ", singleOrgElements.length);
+    
+    let companyTable = {};
+    singleOrgElements.each((index, singleOrgElement) => {
+        // get located Cheerio object
+        const overviewLinkElement = getOverviewLinkElement($(singleOrgElement));
+        const reviewLinkElement = getReviewLinkElement($(singleOrgElement));
+
+        // Cheerio object returned by find() needs a existence check
+        // Because the glassdoor page may have different version
+        // If both Cheerio object is empty DOM, then just abort (hopefully will be retrieved by next attempt)
+        if (!(overviewLinkElement.length && reviewLinkElement.length)) {
+            return;
+        }
+
+        let companyMetadata = null;
+        try {
+            const url = `${GLASSDOOR_BASE_URL}${overviewLinkElement[0].attribs.href}`;
+            const name = overviewLinkElement[0].firstChild.data.trim();
+            const globalReviewNumberText = reviewLinkElement[0].firstChild.data.trim();
+
+            companyMetadata = {
+                name,
+                url,
+                globalReviewNumberText
+            }
+            companyTable[url] = companyMetadata;
+        } catch (error) {
+            if (error instanceof TypeError) {
+                console.log('Even if single org element located, still cannot retrieve data. Possibly the page structure has changed, please try to fetch the page source and investigate.', error)
+            } else {
+                throw error;
+            }
+        }
     });
 
-    return companyList;
+    return companyTable;
 };
 
 const getGlassdoorQueryUrl = companyNameKeyword => {
-    return `https://www.glassdoor.com/Reviews/company-reviews.htm?suggestCount=10&suggestChosen=false&clickSource=searchBtn&typedKeyword=${companyNameKeyword}&sc.keyword=${companyNameKeyword}&locT=C&locId=&jobType=`;
+    return `${GLASSDOOR_BASE_URL}/Reviews/company-reviews.htm?suggestCount=10&suggestChosen=false&clickSource=searchBtn&typedKeyword=${companyNameKeyword}&sc.keyword=${companyNameKeyword}&locT=C&locId=&jobType=`;
 };
 
-const beautifyCompanyListResultString = (results) => {
-    return results.reduce((accumulate, current) => {
-        const newResultString = `<${current.url} | ${current.name}>\n\n`;
+const beautifyCompanyTableResultString = companyList => {
+    return companyList.reduce((accumulate, current) => {
+        const newResultString = `${current.globalReviewNumberText} global review(s), <${current.url} | ${current.name}>\n\n`;
         return accumulate + newResultString;
-    }, '');
-}
+    }, "");
+};
 
-const getListOrgsControllerSlackMessage = (results, queryUrl) => {
+const getListOrgsControllerSlackMessage = (companyList, queryUrl) => {
     return (
         "Company list (1st page):\n\n" +
-        beautifyCompanyListResultString(results)+
+        beautifyCompanyTableResultString(companyList) +
         "\n\nUse `::launch <url>` to start scraper. If you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n" +
         queryUrl
     );
 };
 
 const listOrgsController = async (req, res, next) => {
-    console.log("qualitative-org-review/list-org");
-    console.log(req.body);
-    console.log(req.query);
+    console.log("listOrgsController() invoked");
 
     // when using async function, needs to handle the error and then pass
     // error to next()
     // https://expressjs.com/en/guide/error-handling.html
     try {
-        const [companyNameKeyword] = slack.parseArgsFromSlackForListOrg(req);
+        const companyNameKeyword = slack.parseArgsFromSlackForListOrg(req);
 
-        const queryUrl = getGlassdoorQueryUrl(companyNameKeyword);
+        const queryUrl = getGlassdoorQueryUrl(companyNameKeyword.encoded);
         const glassRes = await axios(queryUrl);
         const $ = cheerio.load(glassRes.data);
 
@@ -132,46 +165,86 @@ const listOrgsController = async (req, res, next) => {
         const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
         if (singleResultTest === "OVERVIEW") {
             console.log("single test: " + singleResultTest);
-            await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nSingle result. Use \`::launch ${companyNameKeyword}\` to start the scraper.`);
-            return res.json({ 'message': 'Single result' });
+            await slack.asyncSendSlackMessage(
+                `You searched ${companyNameKeyword.raw}:\nSingle result. Use \`::launch ${companyNameKeyword.raw}\` to start the scraper.`
+            );
+            return res.json({ message: "Single result" });
         }
 
         // handle multiple result
-        console.log("Not single. Check if it\'s multiple results...");
+        console.log("Not single. Check if it's multiple results...");
+
         // first attempt
-        let results = parseGlassdoorResultPage(() => {
-            return $("#MainCol")
-                .find("div.module")
-                .find("div.margBotXs > a");
-        });
-        console.log(`1st method: we got ${results.length} results`);
-        if (results && results.length) {
+        let companyTable = parseGlassdoorResultPage(
+            () => {
+                return {
+                    singleOrgElements: $("#MainCol").find("div.module"),
+                    getOverviewLinkElement: singleOrgElement =>
+                        singleOrgElement.find("div.margBotXs > a").first(),
+                    getReviewLinkElement: singleOrgElement =>
+                        singleOrgElement
+                            .find("div.empLinks")
+                            .find("a.eiCell.reviews")
+                            .find("span.num")
+                            .first()
+                };
+            },
+            $
+        );
+        console.log(`1st method: we got ${Object.keys(companyTable).length} results`);
+        if (!isEmpty(companyTable)) {
+            console.log('picking up results');
             await slack.asyncSendSlackMessage(
-                getListOrgsControllerSlackMessage(results, queryUrl)
+                `You searched ${companyNameKeyword.raw} =\n` +
+                getListOrgsControllerSlackMessage(Object.values(companyTable), queryUrl)
             );
-            return res.json(results);
+            return res.json({
+                results: companyTable,
+                html: glassRes.data
+            });
         }
+        
         // 2nd attempt
-        results = parseGlassdoorResultPage(() => {
-            return $("#MainCol")
-                .find("div.single-company-result")
-                .find("h2 > a");
-        });
-        console.log(`2nd method: we got ${results.length} results`);
-        if (results && results.length) {
+        companyTable = parseGlassdoorResultPage(
+            () => {
+                return {
+                    singleOrgElements: $("#MainCol").find(
+                        "div.single-company-result"
+                    ),
+                    getOverviewLinkElement: singleOrgElement =>
+                        singleOrgElement.find("h2 > a").first(),
+                    getReviewLinkElement: singleOrgElement =>
+                        singleOrgElement
+                            .find("div.ei-contribution-wrap")
+                            .find("a.eiCell.reviews")
+                            .find("span.num")
+                            .first()
+                };
+            },
+            $
+        );
+        console.log(`2nd method: we got ${companyTable.length} results`);
+        if (!isEmpty(companyTable)) {
+            console.log('picking up results');
             await slack.asyncSendSlackMessage(
-                getListOrgsControllerSlackMessage(results, queryUrl)
+                `You searched ${companyNameKeyword.raw} =\n` +
+                getListOrgsControllerSlackMessage(Object.values(companyTable), queryUrl)
             );
-            return res.json(results);
+            return res.json({
+                results: companyTable,
+                html: glassRes.data
+            });
         }
 
         // No result
-        console.log('No results');
-        await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nNo result. You may <${queryUrl} |take a look at the actual result page> to double check.`);
+        console.log("No results");
+        await slack.asyncSendSlackMessage(
+            `You searched ${companyNameKeyword.raw}:\nNo result. You may <${queryUrl} |take a look at the actual result page> to double check.`
+        );
 
         res.json({
-            'message': 'No result',
-            'html': glassRes.data
+            message: "No result",
+            html: glassRes.data
         });
     } catch (error) {
         next(error);

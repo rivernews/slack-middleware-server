@@ -71,7 +71,21 @@ const parseArgsFromSlackForListOrg = (slackReq) => {
     if (!authenticateSlack(slackReq, process.env.SLACK_TOKEN_OUTGOING_LIST_ORG)) {
         throw new NotAuthenticatedResponse();
     }
-    return parseArgsFromSlackMessage(slackReq);
+
+    const args = parseArgsFromSlackMessage(slackReq);
+
+    // e.g. if company name keyword contains space - 
+    // so we have to recover these spaces, and
+    // url encode them
+    const spaceRecovered = args.join(' ');
+
+    // encode url component
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent
+    const urlEncoded = encodeURIComponent(spaceRecovered);
+    return {
+        raw: spaceRecovered, // useful for logging
+        encoded: urlEncoded // actual use in http request
+    };
 }
 
 module.exports = {
