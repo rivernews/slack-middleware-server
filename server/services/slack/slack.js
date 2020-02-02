@@ -28,13 +28,14 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
     // run in travis ci env - direct all message to #build
     // travis env var: https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
     if (
+        process.env.NODE_ENV !== 'production' ||
         process.env.TRAVIS && process.env.CI &&
         process.env.USER === 'travis'
     ) {
         channelOption['channel'] = '#build';
 
         // add mark into message
-        finalMessage = '(FROM TRAVIS TEST) ' + finalMessage;
+        finalMessage = '(DEBUG MODE / FROM TRAVIS TEST) ' + finalMessage;
     }
 
     return axios.post(
