@@ -34,9 +34,6 @@ const getCompanyInformationString = req => {
 };
 
 const slackToTravisCIController = async (req, res, next) => {
-    console.log(req.body);
-    console.log(req.query);
-
     let companyInformationString;
 
     try {
