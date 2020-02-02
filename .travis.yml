@@ -4,6 +4,11 @@ env:
 - IMAGE_NAME=shaungc/slack-middleware-service
 jobs:
   include:
+  - stage: test
+    name: Test the code
+    script:
+    - npm i
+    - npm test
   - stage: build_push
     name: Build and push docker image
     script:

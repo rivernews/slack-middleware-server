@@ -3,7 +3,6 @@
 const expect = require("chai").expect;
 const axios = require("axios").default;
 
-const routes = require("./routes");
 const STATUS_CODE = require("../utilities/serverUtilities").STATUS_CODE;
 
 const baseUrl = require("../utilities/serverUtilities").baseUrl;
@@ -26,7 +25,7 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
         it("No permission", async () => {
             // no token specified - should return 401 not authenticated
             try {
-                const res = await axios.post(
+                await axios.post(
                     `${baseUrl}${qualitativeOrgReviewbaseUrl}${slackToTravisCIEndpoint}`
                 );
                 throw new Error("Should trigger error");
