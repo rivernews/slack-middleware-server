@@ -12,10 +12,10 @@ const listOrgsEndpoint = require("./routes").listOrgsEndpoint;
 const slackToTravisCIEndpoint = require("./routes").slackToTravisCIEndpoint;
 // add more endpoints of controllers...
 
-const launchListOrgRequest = async (companyNameKeyword) => {
+const simulateSlackTriggerWordListOrgRequest = async (companyNameKeyword) => {
     const res = await axios.post(
         `${baseUrl}${qualitativeOrgReviewbaseUrl}${listOrgsEndpoint}`,
-        { token: process.env.SLACK_TOKEN, text: `list ${companyNameKeyword}` }
+        { token: process.env.SLACK_TOKEN_OUTGOING_LIST_ORG, text: `list ${companyNameKeyword}` }
     );
     expect(res.status).to.equal(STATUS_CODE.SUCCESS);
 
@@ -25,7 +25,7 @@ const launchListOrgRequest = async (companyNameKeyword) => {
 const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integration test", () => {
     describe('List org endpoint', () => {
         it("Multiple", async () => {
-            const data = await launchListOrgRequest('stanford');
+            const data = await simulateSlackTriggerWordListOrgRequest('stanford');
 
             console.log('\n\n\ndata is', data);
 
@@ -36,13 +36,13 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
         });
 
         it("Single", async () => {
-            const data = await launchListOrgRequest('healthcrowd');
+            const data = await simulateSlackTriggerWordListOrgRequest('healthcrowd');
             expect(data.message).to.equal('Single result');
             return;
         });
 
         it("No result", async () => {
-            const data = await launchListOrgRequest('xxxjojojojoxxx');
+            const data = await simulateSlackTriggerWordListOrgRequest('xxxjojojojoxxx');
             expect(data.message).to.equal('No result');
             return;
         });
@@ -71,7 +71,7 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
             try {
                 const res = await axios.post(
                     `${baseUrl}${qualitativeOrgReviewbaseUrl}${slackToTravisCIEndpoint}`,
-                    { token: process.env.SLACK_TOKEN }
+                    { token: process.env.SLACK_TOKEN_OUTGOING_LAUNCH }
                 );
                 throw new Error("Should trigger error");
             } catch (error) {

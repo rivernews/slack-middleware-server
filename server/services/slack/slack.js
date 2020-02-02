@@ -7,9 +7,9 @@ const NotAuthenticatedResponse = require('../../utilities/serverUtilities').NotA
 const SLACK_TOKEN_INCOMING_URL = process.env.SLACK_TOKEN_INCOMING_URL;
 
 
-const authenticateSlack = (slackReq) => {
+const authenticateSlack = (slackReq, verifySlackToken) => {
     const slackToken = slackReq.body.token || slackReq.query.token;
-    if (!slackToken || slackToken !== process.env.SLACK_TOKEN) {
+    if (!slackToken || slackToken !== verifySlackToken) {
         console.log('No token included or not correct.');
         return false;
     }
@@ -46,11 +46,8 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
     );
 }
 
-
 const parseArgsFromSlackMessage = (slackReq) => {
-    if (!authenticateSlack(slackReq)) {
-        throw new NotAuthenticatedResponse();
-    }
+    
 
     if (!slackReq.body.text) {
         return [];
@@ -63,8 +60,23 @@ const parseArgsFromSlackMessage = (slackReq) => {
     return args;
 }
 
+const parseArgsFromSlackForLaunch = (slackReq) => {
+    if (!authenticateSlack(slackReq, process.env.SLACK_TOKEN_OUTGOING_LAUNCH)) {
+        throw new NotAuthenticatedResponse();
+    }
+    return parseArgsFromSlackMessage(slackReq);
+}
+
+const parseArgsFromSlackForListOrg = (slackReq) => {
+    if (!authenticateSlack(slackReq, process.env.SLACK_TOKEN_OUTGOING_LIST_ORG)) {
+        throw new NotAuthenticatedResponse();
+    }
+    return parseArgsFromSlackMessage(slackReq);
+}
 
 module.exports = {
     asyncSendSlackMessage,
-    parseArgsFromSlackMessage
+    
+    parseArgsFromSlackForLaunch,
+    parseArgsFromSlackForListOrg
 };

@@ -13,7 +13,7 @@ const getCompanyInformationString = req => {
     let companyInformationString = req.body.company || req.query.company;
 
     if (!companyInformationString) {
-        [companyInformationString] = slack.parseArgsFromSlackMessage(req);
+        [companyInformationString] = slack.parseArgsFromSlackForLaunch(req);
     }
 
     if (!companyInformationString) {
@@ -122,7 +122,7 @@ const listOrgsController = async (req, res, next) => {
     // error to next()
     // https://expressjs.com/en/guide/error-handling.html
     try {
-        const [companyNameKeyword] = slack.parseArgsFromSlackMessage(req);
+        const [companyNameKeyword] = slack.parseArgsFromSlackForListOrg(req);
 
         const queryUrl = getGlassdoorQueryUrl(companyNameKeyword);
         const glassRes = await axios(queryUrl);
