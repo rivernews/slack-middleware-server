@@ -24,6 +24,7 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
     }
 
     // run in travis ci env - direct all message to #build
+    // travis env var: https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
     if (
         process.env.TRAVIS && process.env.CI &&
         process.env.USER === 'travis'

@@ -97,11 +97,18 @@ const getGlassdoorQueryUrl = companyNameKeyword => {
     return `https://www.glassdoor.com/Reviews/company-reviews.htm?suggestCount=10&suggestChosen=false&clickSource=searchBtn&typedKeyword=${companyNameKeyword}&sc.keyword=${companyNameKeyword}&locT=C&locId=&jobType=`;
 };
 
+const beautifyCompanyListResultString = (results) => {
+    return results.reduce((accumulate, current) => {
+        const newResultString = `<${current.url} | ${current.name}>\n\n`;
+        return accumulate + newResultString;
+    }, '');
+}
+
 const getListOrgsControllerSlackMessage = (results, queryUrl) => {
     return (
         "Company list (1st page):\n\n" +
-        JSON.stringify(results, null, 4) +
-        "\n\n\nIf you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n\n" +
+        beautifyCompanyListResultString(results)+
+        "\n\nUse `launch <url>` to start scraper. If you don't find the right company on the list, you may go to the url below to check for next pages yourself (if search result has multiple pages):\n" +
         queryUrl
     );
 };
@@ -125,7 +132,7 @@ const listOrgsController = async (req, res, next) => {
         const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
         if (singleResultTest === "OVERVIEW") {
             console.log("single test: " + singleResultTest);
-            await slack.asyncSendSlackMessage(`Single result by ${companyNameKeyword}.`);
+            await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nSingle result. Use \`launch ${companyNameKeyword}\` to start the scraper.`);
             return res.json({ 'message': 'Single result' });
         }
 
@@ -158,7 +165,9 @@ const listOrgsController = async (req, res, next) => {
             return res.json(results);
         }
 
+        // No result
         console.log('No results');
+        await slack.asyncSendSlackMessage(`You searched ${companyNameKeyword}:\nNo result. You may <${queryUrl} |take a look at the actual result page> to double check.`);
 
         res.json({
             'message': 'No result',
