@@ -1,9 +1,15 @@
-language: minimal
-install: skip
+language: node_js
+node_js: "13"
+
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
 jobs:
   include:
+  - stage: test
+    name: Test the code
+    script:
+    - npm i # default 1st-level `install:` already done this
+    - npm test
   - stage: build_push
     name: Build and push docker image
     script:
@@ -25,5 +31,5 @@ notifications:
     - "*Git commit:* %{commit_message}"
     - 'Build result: %{result} in %{duration}'
     - 'Docker image tag: `%{commit}`'
-    - 'Dockerhub page: https://hub.docker.com/repository/docker/shaungc/slack-middleware-service'
+    - '<https://hub.docker.com/r/shaungc/slack-middleware-service | Dockerhub page>'
     - 'Build details: %{build_url}'
