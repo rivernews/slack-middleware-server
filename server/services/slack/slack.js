@@ -40,7 +40,7 @@ const asyncSendSlackMessage = async (message, overrideChannel = '') => {
     return axios.post(
         SLACK_TOKEN_INCOMING_URL,
         {
-            text: message,
+            text: finalMessage,
             ...channelOption
         }
     );
