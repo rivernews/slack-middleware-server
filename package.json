@@ -25,6 +25,7 @@
     },
     "husky": {
         "hooks": {
+            "pre-commit": "(. devcontainer.env || true) && npm test ",
             "pre-push": "(. devcontainer.env || true) && npm test "
         }
     }
