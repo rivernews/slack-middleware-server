@@ -133,25 +133,31 @@ const listOrgsController = async (req, res, next) => {
     // https://expressjs.com/en/guide/error-handling.html
     try {
         const companyNameKeyword = slack.parseArgsFromSlackForListOrg(req);
-
         const queryUrl = getGlassdoorQueryUrl(companyNameKeyword.encoded);
+        
+        // hit glassdoor
         console.log('querying url:', queryUrl);
         const glassRes = await axios(queryUrl);
+        
         const $ = cheerio.load(glassRes.data);
+        const queryResultPageCheerioElement = $("#EI-Srch");
 
         // single result test
-        const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
+        const singleResultTest = (queryResultPageCheerioElement.data("page-type") || "").trim();
         if (singleResultTest === "OVERVIEW") {
             // also scrape global review count text
             const reviewCheerioElement = htmlParseHelper.cssSelectorToChainedFindFromCheerioElement(
-                $("#EI-Srch"), 'article[id*=WideCol] a.eiCell.reviews span.num'
+                queryResultPageCheerioElement, 'article[id*=WideCol] a.eiCell.reviews span.num'
             );
             const globalReviewNumberText = (reviewCheerioElement.length) ? reviewCheerioElement[0].firstChild.data.trim() : null;
             const globalReviewNumberSlackMessage = globalReviewNumberText ? `${globalReviewNumberText} global review(s).` : `Cannot get global review info, please check html content:\n\`\`\`${glassRes.data}\`\`\`\n`;
 
+            // get the redirected page: queryUrl -> company overview page
+            const companyOverviewPageUrl = glassRes.request.res.responseUrl;
+
             console.log("single test: " + singleResultTest);
             await slack.asyncSendSlackMessage(
-                `You searched ${companyNameKeyword.raw}:\n<${queryUrl}|Single result link>. ${globalReviewNumberSlackMessage}\nUse \`::launch ${companyNameKeyword.raw}\` to start the scraper.`
+                `You searched ${companyNameKeyword.raw}:\nIt's a single result! <${companyOverviewPageUrl}|Overview page link>. ${globalReviewNumberSlackMessage}\nUse \`::launch ${companyNameKeyword.raw}\` to start the scraper.`
             );
             return res.json({ message: "Single result" });
         }
