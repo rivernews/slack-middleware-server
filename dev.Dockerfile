@@ -3,24 +3,33 @@
 
 FROM node:13-slim
 
-# ENV NODE_SRC_ROOT=/usr/src
-# ENV NODE_SERVER_ROOT=${NODE_SRC_ROOT}/server
+ENV WORKSPACE=${OLDPWD:-/root}
 
-# WORKDIR ${NODE_SRC_ROOT}
-
-COPY package*.json ${NODE_SRC_ROOT}/
+WORKDIR ${WORKSPACE}
 
 # install packages earlier in dockerfile
 # so that it is cached and don't need to re-build
 # when yoru source code change
+COPY package*.json ${WORKSPACE}/
 RUN npm install
-# RUN if [ "A$NODE_ENV" == "Aproduction" ]; \
-#     then npm ci --only=production; \
-#     else npm install; \
-#     fi 
 
-# RUN mkdir -p $NODE_SERVER_ROOT
+# do not copy any source file while using vscode remote container
+# since vscode will automatically mount source file into container
+# if you copy over the source code, editing on them will not
+# reflect outside of the container and can lose your file change
 
-# COPY server/ ${NODE_SERVER_ROOT}/
+# install command
+ENV TERM=${TERM}
+ENV COLORTERM=${COLORTERM}
 
-# CMD ["node", "/usr/src/server/index.js"]
+RUN apt update \
+  && apt install -y git zsh nano vim fontconfig \
+  && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
+  && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
+  && cd ~/powerlevel10k \
+  && exec zsh
+
+RUN ls -la && mkdir -p ~/.font
+COPY .devcontainer/.fonts/. ~/.fonts/
+RUN cd ~/.font \
+  && fc-cache -f -v
