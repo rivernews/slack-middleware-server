@@ -8,6 +8,7 @@ const slack = require("../services/slack/slack");
 const travis = require("../services/travis");
 const ParameterRequirementNotMet = require("../utilities/serverUtilities")
     .ParameterRequirementNotMet;
+const htmlParseHelper = require('../services/htmlParser');
 
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
 
@@ -57,7 +58,7 @@ const slackToTravisCIController = async (req, res, next) => {
     }
 };
 
-const parseGlassdoorResultPage = (locator, $) => {
+const parseCompaniesFromGlassdoorMultipleResultPage = (locator, $) => {
     
     const {
         singleOrgElements,
@@ -141,9 +142,16 @@ const listOrgsController = async (req, res, next) => {
         // single result test
         const singleResultTest = ($("#EI-Srch").data("page-type") || "").trim();
         if (singleResultTest === "OVERVIEW") {
+            // also scrape global review count text
+            const reviewCheerioElement = htmlParseHelper.cssSelectorToChainedFindFromCheerioElement(
+                $("#EI-Srch"), 'article[id*=WideCol] a.eiCell.reviews span.num'
+            );
+            const globalReviewNumberText = (reviewCheerioElement.length) ? reviewCheerioElement[0].firstChild.data.trim() : null;
+            const globalReviewNumberSlackMessage = globalReviewNumberText ? `${globalReviewNumberText} global review(s).` : `Cannot get global review info, please check html content:\n\`\`\`${glassRes.data}\`\`\`\n`;
+
             console.log("single test: " + singleResultTest);
             await slack.asyncSendSlackMessage(
-                `You searched ${companyNameKeyword.raw}:\nSingle result. Use \`::launch ${companyNameKeyword.raw}\` to start the scraper.`
+                `You searched ${companyNameKeyword.raw}:\n<${queryUrl}|Single result link>. ${globalReviewNumberSlackMessage}\nUse \`::launch ${companyNameKeyword.raw}\` to start the scraper.`
             );
             return res.json({ message: "Single result" });
         }
@@ -152,7 +160,7 @@ const listOrgsController = async (req, res, next) => {
         console.log("Not single. Check if it's multiple results...");
 
         // first attempt
-        let companyTable = parseGlassdoorResultPage(
+        let companyTable = parseCompaniesFromGlassdoorMultipleResultPage(
             () => {
                 return {
                     singleOrgElements: $("#MainCol").find("div.module"),
@@ -183,7 +191,7 @@ const listOrgsController = async (req, res, next) => {
         }
         
         // 2nd attempt
-        companyTable = parseGlassdoorResultPage(
+        companyTable = parseCompaniesFromGlassdoorMultipleResultPage(
             () => {
                 return {
                     singleOrgElements: $("#MainCol").find(
