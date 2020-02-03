@@ -77,6 +77,7 @@ const parseArgsFromSlackForLaunch = (slackReq) => {
     // so we have to get rid of those braces
     const sanitizedString = companyInformationString
         .trim()
+        // remove hyperlink markdown like <http://.....|...> => http://...
         .replace(/[<]([^<>\|]+)([\|][^<>\|]+)?[>]/g, (match, cap1, cap2, offset, originalString) => {
             console.log(`\noriginal string:\n${originalString}`);
             console.log(`\nhyperlink removed:\n${cap1}`);
