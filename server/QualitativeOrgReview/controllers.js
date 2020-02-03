@@ -136,7 +136,6 @@ const listOrgsController = async (req, res, next) => {
         const queryUrl = getGlassdoorQueryUrl(companyNameKeyword.encoded);
         
         // hit glassdoor
-        console.log('querying url:', queryUrl);
         const glassRes = await axios(queryUrl);
         
         const $ = cheerio.load(glassRes.data);
