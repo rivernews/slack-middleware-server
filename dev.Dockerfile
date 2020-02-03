@@ -18,18 +18,13 @@ RUN npm install
 # if you copy over the source code, editing on them will not
 # reflect outside of the container and can lose your file change
 
-# install command
+# install powerlevel10k for better command line experience
 ENV TERM=${TERM}
 ENV COLORTERM=${COLORTERM}
-
 RUN apt update \
-  && apt install -y git zsh nano vim fontconfig \
+  && apt install -y git zsh nano vim \
   && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
   && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
   && cd ~/powerlevel10k \
   && exec zsh
-
-RUN ls -la && mkdir -p ~/.font
-COPY .devcontainer/.fonts/. ~/.fonts/
-RUN cd ~/.font \
-  && fc-cache -f -v
+# you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
