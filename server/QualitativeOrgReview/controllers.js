@@ -53,7 +53,7 @@ const slackToTravisCIController = async (req, res, next) => {
             config: triggerRes.data.request.config,
         }
         const slackRes = await slack.asyncSendSlackMessage(
-            "Trigger travis success. Below is the travis response:\n```" +
+            "Trigger travis success. Below is the travis response ~~:\n```" +
                 JSON.stringify(travisTriggerSummary, null, 2) +
                 "```"
         );
