@@ -39,7 +39,10 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
             return;
         });
 
-        it("No result", async () => {
+        it("No result", async function() {
+            // there're some case where this will timeout for some how
+            // so adding retry specifically for this case (only retrying for timeout but it'll retry twice whatever)
+            this.retries(2);
             const data = await simulateSlackTriggerWordListOrgRequest('xxxjojojojoxxx');
             expect(data.message).to.equal('No result');
             return;
