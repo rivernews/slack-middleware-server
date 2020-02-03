@@ -44,19 +44,22 @@ const slackToTravisCIController = async (req, res, next) => {
                 .status(triggerRes.status);
         }
 
-        const slackRes = await slack.asyncSendSlackMessage(
-            "Trigger travis success. Below is the travis response:\n```" +
-                JSON.stringify(triggerRes.data, null, 2) +
-                "```"
-        );
-        console.log("Slack res", slackRes);
-
         console.log("trigger result:\n", triggerRes.data);
-        return res.json({
+
+        // slack log the trigger response
+        const travisTriggerSummary = {
             remaining_requests: triggerRes.data,
             scraper_branch: triggerRes.data.request.branch,
             config: triggerRes.data.request.config,
-        });
+        }
+        const slackRes = await slack.asyncSendSlackMessage(
+            "Trigger travis success. Below is the travis response:\n```" +
+                JSON.stringify(travisTriggerSummary, null, 2) +
+                "```"
+        );
+        console.log("Slack res", slackRes);
+        
+        return res.json(triggerRes.data);
     } catch (error) {
         return next(error);
     }
