@@ -52,7 +52,11 @@ const slackToTravisCIController = async (req, res, next) => {
         console.log("Slack res", slackRes);
 
         console.log("trigger result:\n", triggerRes.data);
-        return res.json(triggerRes.data);
+        return res.json({
+            remaining_requests: triggerRes.data,
+            scraper_branch: triggerRes.data.request.branch,
+            config: triggerRes.data.request.config,
+        });
     } catch (error) {
         return next(error);
     }
