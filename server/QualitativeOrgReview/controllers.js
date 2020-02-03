@@ -48,7 +48,7 @@ const slackToTravisCIController = async (req, res, next) => {
 
         // slack log the trigger response
         const travisTriggerSummary = {
-            remaining_requests: triggerRes.data,
+            remaining_requests: triggerRes.data.remaining_requests,
             scraper_branch: triggerRes.data.request.branch,
             config: triggerRes.data.request.config,
         }
