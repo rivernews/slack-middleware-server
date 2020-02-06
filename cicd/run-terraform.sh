@@ -10,12 +10,12 @@
 # https://unix.stackexchange.com/a/10923
 set +o history
 
-docker run --rm -v $(pwd):$(pwd) -w $(pwd) shaungc/terraform-kubectl-image init \
+docker run --rm -v $(pwd):$(pwd) -w $(pwd) shaungc/terraform-kubectl-image <<EOL \
     -backend-config="access_key=${TF_VAR_aws_access_key}" \
     -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
     -backend-config="region=${TF_BACKEND_region}" \
     && terraform validate \
     && terraform plan -var="app_container_image_tag=${CIRCLE_SHA1}" \
     && terraform apply -auto-approve -var="app_container_image_tag=${CIRCLE_SHA1}"
-
+EOL
 set -o history
