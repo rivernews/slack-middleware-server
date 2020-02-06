@@ -25,7 +25,9 @@ jobs:
   - stage: deploy
     name: Run terraform and deploy
     install: skip
-    script: cd ./cicd && . ./run-terraform.sh
+    script: 
+    - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
+    - cd ./cicd && . ./run-terraform.sh
 
 notifications:
   slack:

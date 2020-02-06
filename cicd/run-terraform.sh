@@ -12,19 +12,24 @@ set -e
 # https://unix.stackexchange.com/a/10923
 set +o history
 
+echo "\n\nIn travisCI"
+env
+
 docker run --rm -v $(pwd):$(pwd) -w $(pwd) \
 --env TF_VAR_aws_access_key=${TF_VAR_aws_access_key} \
 --env TF_VAR_aws_secret_key=${TF_VAR_aws_secret_key} \
+--env TF_VAR_aws_region=${TF_VAR_aws_region} \
 --env TF_BACKEND_region=${TF_BACKEND_region} \
---env CIRCLE_SHA1=${CIRCLE_SHA1} \
+--env SHORT_TRAVIS_COMMIT=${SHORT_TRAVIS_COMMIT} \
 shaungc/terraform-kubectl-image bash -c '\
-    env \
+    echo "\n\nInside terraform temp container" \
+    && env \
     && /bin/terraform init -backend-config="access_key=${TF_VAR_aws_access_key}" \
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
         -backend-config="region=${TF_BACKEND_region}" \
     && /bin/terraform validate \
-    && /bin/terraform plan -var="app_container_image_tag=${CIRCLE_SHA1}" \
-    && /bin/terraform apply -auto-approve -var="app_container_image_tag=${CIRCLE_SHA1}" \
+    && /bin/terraform plan -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
+    && /bin/terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
 '
 
 set -o history
