@@ -20,7 +20,7 @@ app.use(express.urlencoded({
 // App Routes
 
 app.get('/', async (req, res) => {
-    res.send('Hello! This is our slack service. all-right.');
+    res.send('Hello! This is our slack service. all-right!');
 });
 app.use(require('./QualitativeOrgReview/routes').baseUrl, require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter);
 
