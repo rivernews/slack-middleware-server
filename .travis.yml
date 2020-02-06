@@ -25,8 +25,6 @@ jobs:
   - stage: deploy
     name: Run terraform and deploy
     install: skip
-    # before_install:
-    #   - docker pull shaungc/terraform-kubectl-image
     script: cd ./cicd && . ./run-terraform.sh
 
 notifications:
