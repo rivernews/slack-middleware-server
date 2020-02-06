@@ -12,10 +12,10 @@ jobs:
     script:
     - npm test
     - |
-    SLACK_MESSAGE="*Slack Middleware Service* - test success."
-    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
-      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
-    fi
+      SLACK_MESSAGE="*Slack Middleware Service* - test success."
+      if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+        curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+      fi
   
   - stage: build_push
     name: Build and push docker image
@@ -28,10 +28,10 @@ jobs:
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
     - |
-    SLACK_MESSAGE="*Slack Middleware Service* - docker built and pushed successfully."
-    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
-      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
-    fi
+      SLACK_MESSAGE="*Slack Middleware Service* - docker built and pushed successfully."
+      if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+        curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+      fi
   
   - stage: deploy
     name: Run terraform and deploy
@@ -40,10 +40,10 @@ jobs:
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - cd ./cicd && . ./run-terraform.sh
     - |
-    SLACK_MESSAGE="*Slack Middleware Service* - deployed successfully."
-    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
-      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
-    fi
+      SLACK_MESSAGE="*Slack Middleware Service* - deployed successfully."
+      if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+        curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+      fi
 
 notifications:
   slack:
