@@ -10,7 +10,7 @@ set -e
 
 # for avoiding secrets recorded in shell history
 # https://unix.stackexchange.com/a/10923
-set +o history
+# set +o history
 
 echo "\n\nIn travisCI"
 env
@@ -32,4 +32,4 @@ shaungc/terraform-kubectl-image bash -c '\
     && /bin/terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
 '
 
-set -o history
+# set -o history

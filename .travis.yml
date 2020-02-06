@@ -1,6 +1,8 @@
 language: node_js
 node_js: "13"
 
+# install: npm i # default
+
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
 jobs:
@@ -8,8 +10,12 @@ jobs:
   - stage: test
     name: Test the code
     script:
-    # - npm i # default 1st-level `install:` already done this
     - npm test
+    - |
+    SLACK_MESSAGE="*Slack Middleware Service* - test success."
+    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+    fi
   
   - stage: build_push
     name: Build and push docker image
@@ -21,6 +27,11 @@ jobs:
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
+    - |
+    SLACK_MESSAGE="*Slack Middleware Service* - docker built and pushed successfully."
+    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+    fi
   
   - stage: deploy
     name: Run terraform and deploy
@@ -28,6 +39,11 @@ jobs:
     script: 
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - cd ./cicd && . ./run-terraform.sh
+    - |
+    SLACK_MESSAGE="*Slack Middleware Service* - deployed successfully."
+    if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
+      curl -X POST --data-urlencode "payload={ \"text\": \"(TRAVIS) ${SLACK_MESSAGE}\", \"channel\": \"#build\"}" ${SLACK_TOKEN_INCOMING_URL}
+    fi
 
 notifications:
   slack:
@@ -38,8 +54,7 @@ notifications:
     on_failure: always
     template:
     - "*%{repository_slug}: %{message}*"
+    - "Published successfully: https://slack.api.shaungc.com"
     - "*Git commit:* %{commit_message}"
-    - 'Build result: %{result} in %{duration}'
-    - 'Docker image tag: `%{commit}`'
-    - '<https://hub.docker.com/r/shaungc/slack-middleware-service | Dockerhub page>'
+    - 'Result: %{result} in %{duration}'
     - 'Build details: %{build_url}'
