@@ -19,6 +19,15 @@ jobs:
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
     - docker push $IMAGE_NAME:latest
     - docker push $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
+  - stage: deploy
+    name: Run terraform and deploy
+    # before_install:
+    #   - docker pull shaungc/terraform-kubectl-image
+    script:
+    - cd cicd
+    - ls -l
+    - chmod +x run-terraform.sh
+    - . ./run-terraform.sh
 notifications:
   slack:
     rooms:
