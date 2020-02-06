@@ -28,6 +28,7 @@ jobs:
     # before_install:
     #   - docker pull shaungc/terraform-kubectl-image
     script: cd ./cicd && . ./run-terraform.sh
+
 notifications:
   slack:
     rooms:
