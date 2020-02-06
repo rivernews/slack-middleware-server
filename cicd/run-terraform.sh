@@ -12,12 +12,19 @@ set -e
 # https://unix.stackexchange.com/a/10923
 set +o history
 
-docker run --rm -v $(pwd):$(pwd) -w $(pwd) shaungc/terraform-kubectl-image bash -c '\
-    /bin/terraform init -backend-config="access_key=${TF_VAR_aws_access_key}" \
+docker run --rm -v $(pwd):$(pwd) -w $(pwd) \
+--env TF_VAR_aws_access_key=${TF_VAR_aws_access_key} \
+--env TF_VAR_aws_secret_key=${TF_VAR_aws_secret_key} \
+--env TF_BACKEND_region=${TF_BACKEND_region} \
+--env CIRCLE_SHA1=${CIRCLE_SHA1} \
+shaungc/terraform-kubectl-image bash -c '\
+    env \
+    && /bin/terraform init -backend-config="access_key=${TF_VAR_aws_access_key}" \
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
         -backend-config="region=${TF_BACKEND_region}" \
     && /bin/terraform validate \
     && /bin/terraform plan -var="app_container_image_tag=${CIRCLE_SHA1}" \
     && /bin/terraform apply -auto-approve -var="app_container_image_tag=${CIRCLE_SHA1}" \
 '
+
 set -o history
