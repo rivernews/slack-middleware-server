@@ -56,5 +56,6 @@ notifications:
     - "*%{repository_slug}: %{message}*"
     - "Published successfully: https://slack.api.shaungc.com"
     - "*Git commit:* %{commit_message}"
+    - 'Commit hash: `%{commit}`'
     - 'Result: %{result} in %{duration}'
-    - 'Build details: %{build_url}'
+    - 'Build details: <%{build_url}|Link>'

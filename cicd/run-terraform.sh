@@ -10,9 +10,11 @@ set -e
 
 # for avoiding secrets recorded in shell history
 # https://unix.stackexchange.com/a/10923
-# set +o history
+set +o history
 
-echo "\n\nIn travisCI"
+echo ""
+echo ""
+echo "In travisCI"
 env
 
 docker run --rm -v $(pwd):$(pwd) -w $(pwd) \
@@ -22,7 +24,9 @@ docker run --rm -v $(pwd):$(pwd) -w $(pwd) \
 --env TF_BACKEND_region=${TF_BACKEND_region} \
 --env SHORT_TRAVIS_COMMIT=${SHORT_TRAVIS_COMMIT} \
 shaungc/terraform-kubectl-image bash -c '\
-    echo "\n\nInside terraform temp container" \
+    echo "" \
+    && echo "" \
+    && echo "Inside terraform temp container" \
     && env \
     && /bin/terraform init -backend-config="access_key=${TF_VAR_aws_access_key}" \
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
@@ -32,4 +36,4 @@ shaungc/terraform-kubectl-image bash -c '\
     && /bin/terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
 '
 
-# set -o history
+set -o history
