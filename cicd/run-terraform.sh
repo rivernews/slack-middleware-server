@@ -28,7 +28,8 @@ shaungc/terraform-kubectl-image bash -c '\
     && echo "" \
     && echo "Inside terraform temp container" \
     && env \
-    && /bin/terraform init -backend-config="access_key=${TF_VAR_aws_access_key}" \
+    && /bin/terraform init \
+        -backend-config="access_key=${TF_VAR_aws_access_key}" \
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
         -backend-config="region=${TF_BACKEND_region}" \
     && /bin/terraform validate \
