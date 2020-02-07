@@ -38,7 +38,7 @@ jobs:
     install: skip
     script: 
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
-    - cd ./cicd && . ./run-terraform.sh
+    - cd ./cicd && . ./production.run-terraform.sh
     - |
       SLACK_MESSAGE="*Slack Middleware Service* - deployed successfully."
       if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
