@@ -42,8 +42,7 @@
     },
     "lint-staged": {
         "server/**/*.ts": [
-            "prettier-standard",
-            "git add"
+            "prettier-standard"
         ]
     }
 }
