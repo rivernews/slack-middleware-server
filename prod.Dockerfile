@@ -5,6 +5,7 @@ FROM node:13-slim
 
 ENV NODE_SRC_ROOT=/usr/src
 ENV NODE_SERVER_ROOT=${NODE_SRC_ROOT}/server
+ENV NODE_DIST_ROOT=${NODE_SRC_ROOT}/dist
 
 WORKDIR ${NODE_SRC_ROOT}
 
@@ -19,4 +20,6 @@ RUN mkdir -p $NODE_SERVER_ROOT
 
 COPY server/ ${NODE_SERVER_ROOT}/
 
-CMD ["node", "/usr/src/server/index.js"]
+RUN npm run build
+
+CMD ["node", "/usr/src/dist/index.js"]

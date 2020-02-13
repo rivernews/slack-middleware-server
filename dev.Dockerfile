@@ -9,14 +9,7 @@ WORKDIR ${WORKSPACE}
 
 # install packages earlier in dockerfile
 # so that it is cached and don't need to re-build
-# when yoru source code change
-COPY package*.json ${WORKSPACE}/
-RUN npm install
-
-# do not copy any source file while using vscode remote container
-# since vscode will automatically mount source file into container
-# if you copy over the source code, editing on them will not
-# reflect outside of the container and can lose your file change
+# when your source code change
 
 # install powerlevel10k for better command line experience
 ENV TERM=${TERM}
@@ -27,4 +20,12 @@ RUN apt update \
   && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
   && cd ~/powerlevel10k \
   && exec zsh
-# you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
+  # you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
+
+COPY package*.json ${WORKSPACE}/
+RUN npm install
+
+# do not copy any source file while using vscode remote container
+# since vscode will automatically mount source file into container
+# if you copy over the source code, editing on them will not
+# reflect outside of the container and can lose your file change

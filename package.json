@@ -5,12 +5,12 @@
     "author": "rivernews",
     "main": "./dist/index.js",
     "scripts": {
-        "build": "tsc",
-        "dev": "ts-node server/index.ts",
-        "start": "nodemon ./dist/index.js",
         "format": "prettier-standard '**/*.ts'",
         "proxy": "ngrok http 8080",
-        "test": "mocha dist/index.test.js --timeout 30000"
+        "build": "tsc",
+        "dev": "ts-node-dev --respawn --transpileOnly server/index.ts",
+        "start": "nodemon ./dist/index.js",
+        "test": "tsc && mocha dist/index.test.js --timeout 10000"
     },
     "dependencies": {
         "@types/cheerio": "^0.22.16",

@@ -39,12 +39,13 @@ app.use(
 // https://expressjs.com/en/guide/error-handling.html
 app.use(
     (
-        err: express.ErrorRequestHandler,
+        err: ErrorResponse,
         req: express.Request,
         res: express.Response,
         next: express.NextFunction
     ) => {
-        if (err instanceof ErrorResponse) {
+        // if it is indeed an ErrorResponse object
+        if (err.status && err.message) {
             res.status(err.status).json({
                 message: err.message,
                 status: err.status

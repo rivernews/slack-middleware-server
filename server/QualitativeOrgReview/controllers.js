@@ -61,6 +61,7 @@ const slackToTravisCIController = async (req, res, next) => {
         
         return res.json(triggerRes.data);
     } catch (error) {
+        console.log('hey we are in controller....error.message:', error.message)
         return next(error);
     }
 };

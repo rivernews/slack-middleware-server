@@ -11,7 +11,7 @@
         "esModuleInterop": true,
         "outDir": "./dist",
 
-        "noImplicitAny": true
+        // "noImplicitAny": true
     },
     "include": [
         "server/**/*.ts",

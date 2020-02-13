@@ -34,7 +34,7 @@ const qualitativeOrgReviewOrgDescribe = describe("QualitativeOrgReview integrati
         });
 
         it("Single", async () => {
-            const data = await simulateSlackTriggerWordListOrgRequest('healthcrowd');
+            const data = await simulateSlackTriggerWordListOrgRequest('digitalocean');
             expect(data.message).to.equal('Single result');
             return;
         });
