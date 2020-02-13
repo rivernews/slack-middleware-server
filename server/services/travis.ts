@@ -1,17 +1,17 @@
-'use strict';
-
-const axios = require('axios').default;
+import axios from 'axios';
 
 const getTravisCiRequestHeaders = () => {
     return {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Travis-API-Version': '3',
-        'Authorization': 'token ' + process.env.TRAVIS_TOKEN
+        Authorization: 'token ' + process.env.TRAVIS_TOKEN
     };
-}
+};
 
-const asyncTriggerQualitativeReviewRepoBuild = async (companyInformationString) => {
+export const asyncTriggerQualitativeReviewRepoBuild = async (
+    companyInformationString: string
+) => {
     const username = 'rivernews';
     const repo = 'review-scraper-java-development-environment';
     const fullRepoName = `${username}/${repo}`;
@@ -30,8 +30,4 @@ const asyncTriggerQualitativeReviewRepoBuild = async (companyInformationString) 
             headers: getTravisCiRequestHeaders()
         }
     );
-}
-
-module.exports = {
-    asyncTriggerQualitativeReviewRepoBuild
 };
