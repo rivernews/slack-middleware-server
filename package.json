@@ -10,7 +10,7 @@
         "start": "nodemon ./dist/index.js",
         "format": "prettier-standard '**/*.ts'",
         "proxy": "ngrok http 8080",
-        "test": "mocha server/index.test.js --timeout 30000"
+        "test": "mocha dist/index.test.js --timeout 30000"
     },
     "dependencies": {
         "@types/cheerio": "^0.22.16",
@@ -38,11 +38,9 @@
         }
     },
     "lint-staged": {
-        "linters": {
-            "server/**/*.ts": [
-                "prettier-standard",
-                "git add"
-            ]
-        }
+        "server/**/*.ts": [
+            "prettier-standard",
+            "git add"
+        ]
     }
 }
