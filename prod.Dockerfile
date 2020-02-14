@@ -14,7 +14,7 @@ COPY ./src/ ${NODE_SRC_ROOT}/
 # install packages earlier in dockerfile
 # so that it is cached and don't need to re-build
 # when yoru source code change
-RUN ls -la && npm i && npm run build
+RUN ls -la && rm -rf node_modules && npm i && npm run build
 # RUN npm ci --only=production && npm run build
 
 
