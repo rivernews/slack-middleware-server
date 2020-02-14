@@ -25,13 +25,13 @@ RUN pwd \
 
 
 
-FROM node:13.7-alpine3.11
+# FROM node:13.7-alpine3.11
 
-ENV NODE_SRC_ROOT=/usr/src
-ENV NODE_DIST_ROOT=${NODE_SRC_ROOT}/dist
-WORKDIR ${NODE_DIST_ROOT}
-RUN mkdir -p ${NODE_DIST_ROOT}
+# ENV NODE_SRC_ROOT=/usr/src
+# ENV NODE_DIST_ROOT=${NODE_SRC_ROOT}/dist
+# WORKDIR ${NODE_DIST_ROOT}
+# RUN mkdir -p ${NODE_DIST_ROOT}
 
-COPY --from=build_stage ${NODE_DIST_ROOT}/ ${NODE_DIST_ROOT}/
+# COPY --from=build_stage ${NODE_DIST_ROOT}/ ${NODE_DIST_ROOT}/
 
 CMD ["node", "/usr/src/dist/index.js"]
