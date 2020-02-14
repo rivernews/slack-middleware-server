@@ -1,7 +1,7 @@
 language: node_js
 node_js: "13"
 
-install: cd ./src && npm i # default
+install: skip
 
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
@@ -9,6 +9,9 @@ jobs:
   include:
   - stage: test
     name: Test the code
+    install:
+    - cd ./src
+    - npm i
     script:
     - cd ./src
     - npm test
