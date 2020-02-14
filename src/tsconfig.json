@@ -16,8 +16,8 @@
         "removeComments": true
     },
     "include": [
-        "server/**/*.ts",
-        "server/**/*.js", "index.test.js", "index.ts"
+        "**/*.ts",
+        "**/*.js"
     ],
     "exclude": [
         "node_modules"

@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        
+    },
+    "include": [
+        "**/*.ts",
+        "**/*.js"
+    ],
+    "exclude": [
+        "**/*.test.ts",
+        "**/*.test.js"
+    ]
+}

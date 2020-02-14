@@ -1,7 +1,7 @@
 # ngrok not working on alpine
 # FROM node:13.7-alpine3.11
 
-FROM node:13-slim
+FROM node:13-slim as build_stage
 
 ENV NODE_SRC_ROOT=/usr/src
 ENV NODE_SERVER_ROOT=${NODE_SRC_ROOT}/server
@@ -14,6 +14,17 @@ COPY ./src/ ${NODE_SRC_ROOT}/
 # install packages earlier in dockerfile
 # so that it is cached and don't need to re-build
 # when yoru source code change
-RUN npm ci --only=production && npm run build
+RUN npm i && npm run build-production
+# RUN npm ci --only=production && npm run build
+
+
+
+
+FROM node:13.7-alpine3.11
+
+WORKDIR ${NODE_DIST_ROOT}
+RUN mkdir -p ${NODE_DIST_ROOT}
+
+COPY --from=build_stage ${NODE_DIST_ROOT}/ ${NODE_DIST_ROOT}/
 
 CMD ["node", "/usr/src/dist/index.js"]

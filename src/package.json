@@ -8,6 +8,7 @@
         "format": "prettier-standard '**/*.ts'",
         "proxy": "ngrok http 8080",
         "build": "tsc",
+        "build-production": "tsc -p tsconfig.production.json",
         "dev": "ts-node-dev --respawn --transpileOnly server/index.ts",
         "start": "nodemon ./dist/index.js",
         "test": "tsc && mocha dist/index.test.js --timeout 10000"
