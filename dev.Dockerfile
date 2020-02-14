@@ -11,15 +11,19 @@ WORKDIR ${WORKSPACE}
 # so that it is cached and don't need to re-build
 # when your source code change
 
-# install powerlevel10k for better command line experience
+# install tools that are useful for development
 ENV TERM=${TERM}
 ENV COLORTERM=${COLORTERM}
 # install latest git 2.20, husky requires > X.13
 RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/apt/sources.list.d/stretch-backports.list \
   && apt-get update -y \
   && apt-get install -t stretch-backports git -y \
-  && apt-get install zsh -y \
   && git --version \
+  # install zsh
+  && apt-get install zsh -y \
+  # install oh-my-zsh for useful cli alias: https://github.com/ohmyzsh/ohmyzsh
+  && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
+  # install powerlevel10k
   && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
   && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
   && cd ~/powerlevel10k \
