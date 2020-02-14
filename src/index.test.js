@@ -14,7 +14,7 @@ describe('App integration test', () => {
         return;
     });
 
-    require('./QualitativeOrgReview/tests').qualitativeOrgReviewOrgDescribe;
+    require('./QualitativeOrgReview/QualitativeOrgReview.test').qualitativeOrgReviewOrgDescribe;
 });
 
 after(done => {

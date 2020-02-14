@@ -1,0 +1,49 @@
+{
+    "name": "slack-middleware-server",
+    "version": "1.0.0",
+    "description": "This server act as a middleware to communicate with Slack API.",
+    "author": "rivernews",
+    "main": "./dist/index.js",
+    "scripts": {
+        "format": "prettier-standard '**/*.ts'",
+        "proxy": "ngrok http 8080",
+        "build-ts": "tsc",
+        "build-ts-production": "tsc -p tsconfig.production.json",
+        "dev": "ts-node-dev --respawn --transpileOnly server/index.ts",
+        "start": "nodemon ./dist/index.js",
+        "test": "tsc && mocha dist/index.test.js --timeout 10000"
+    },
+    "dependencies": {
+        "@types/cheerio": "^0.22.16",
+        "@types/express": "^4.17.2",
+        "@types/lodash": "^4.14.149",
+        "axios": "^0.19.2",
+        "cheerio": "^1.0.0-rc.3",
+        "express": "^4.17.1",
+        "lodash": "^4.17.15",
+        "typescript": "^3.7.5"
+    },
+    "devDependencies": {
+        "@types/chai": "^4.2.9",
+        "@types/mocha": "^7.0.1",
+        "chai": "^4.2.0",
+        "husky": "^4.2.3",
+        "lint-staged": "^10.0.7",
+        "mocha": "^7.0.1",
+        "ngrok": "^3.2.7",
+        "nodemon": "^2.0.2",
+        "prettier-standard": "^16.1.0",
+        "ts-node-dev": "^1.0.0-pre.44"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged",
+            "pre-push": "cd .. && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\" && cd src && npm test"
+        }
+    },
+    "lint-staged": {
+        "**/*.ts": [
+            "prettier-standard"
+        ]
+    }
+}

@@ -1,23 +1,28 @@
-const cheerio = require('cheerio');
+import cheerio from 'cheerio';
 
-
-const cheerioFindReducer = (baseCheerioElement, cssSelectorList) => {
+const cheerioFindReducer = (
+    baseCheerioElement: Cheerio,
+    cssSelectorList: string[] = []
+) => {
     return cssSelectorList.reduce((accumulated, newSelector) => {
         return accumulated.find(newSelector);
     }, baseCheerioElement);
-}
+};
 
-const cssSelectorListToChainedFindFromHTML = (html, cssSelector = '') => {
+export const cssSelectorListToChainedFindFromHTML = (
+    html: string,
+    cssSelector = ''
+) => {
     const $ = cheerio.load(html);
 
     const cssSelectorList = cssSelector.split(' ');
-    
+
     if (!cssSelectorList.length) {
         return $;
     }
 
-    const [firstSelector, ] = cssSelectorList;
-    
+    const [firstSelector] = cssSelectorList;
+
     if (!firstSelector) {
         // not likely to fall in this condition
         // since we already ensure cssSelectorList.length >= 1
@@ -33,15 +38,13 @@ const cssSelectorListToChainedFindFromHTML = (html, cssSelector = '') => {
         return firstLevelCheerioElement;
     }
 
-    return cheerioFindReducer(firstLevelCheerioElement, )
-}
+    return cheerioFindReducer(firstLevelCheerioElement);
+};
 
-const cssSelectorToChainedFindFromCheerioElement = (cheerioElement, cssSelector) => {
+export const cssSelectorToChainedFindFromCheerioElement = (
+    cheerioElement: Cheerio,
+    cssSelector: string
+) => {
     const cssSelectorList = cssSelector.split(' ');
     return cheerioFindReducer(cheerioElement, cssSelectorList);
-}
-
-module.exports = {
-    cssSelectorListToChainedFindFromHTML,
-    cssSelectorToChainedFindFromCheerioElement
-}
+};

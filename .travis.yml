@@ -1,7 +1,7 @@
 language: node_js
 node_js: "13"
 
-# install: npm i # default
+# install: skip
 
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
@@ -9,7 +9,12 @@ jobs:
   include:
   - stage: test
     name: Test the code
+    install:
+    - cd ./src
+    - npm i
     script:
+    # will continue using the previous working directory
+    # - cd ./src
     - npm test
     - |
       SLACK_MESSAGE="*Slack Middleware Service* - test success."
@@ -21,7 +26,9 @@ jobs:
     name: Build and push docker image
     install: skip
     script:
-    - docker build -f ./prod.Dockerfile -t $IMAGE_NAME:latest .
+    - pwd
+    - ls
+    - docker build -f ./prod.Dockerfile -t $IMAGE_NAME:latest . || exit 1
     - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
@@ -34,6 +41,10 @@ jobs:
       fi
   
   - stage: deploy
+    
+    # only deploy if it's master branch
+    if: branch = master
+
     name: Run terraform and deploy
     install: skip
     script: 
