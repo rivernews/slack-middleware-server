@@ -25,7 +25,7 @@ app.use(
 // App Routes
 
 app.get('/', async (req, res) => {
-    res.send('Hello! This is our slack service.. switched to typescript!');
+    res.send('Hello! This is our slack service.. switch to TS!');
 });
 app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
