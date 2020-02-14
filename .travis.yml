@@ -13,7 +13,8 @@ jobs:
     - cd ./src
     - npm i
     script:
-    - cd ./src
+    # will continue using the previous working directory
+    # - cd ./src
     - npm test
     - |
       SLACK_MESSAGE="*Slack Middleware Service* - test success."
