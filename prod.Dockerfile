@@ -14,7 +14,7 @@ COPY ./src/ ${NODE_SRC_ROOT}/
 # install packages earlier in dockerfile
 # so that it is cached and don't need to re-build
 # when yoru source code change
-RUN ls -la && npm i && npm run build-production
+RUN ls -la && npm i && npm run build
 # RUN npm ci --only=production && npm run build
 
 
@@ -22,6 +22,8 @@ RUN ls -la && npm i && npm run build-production
 
 FROM node:13.7-alpine3.11
 
+ENV NODE_SRC_ROOT=/usr/src
+ENV NODE_DIST_ROOT=${NODE_SRC_ROOT}/dist
 WORKDIR ${NODE_DIST_ROOT}
 RUN mkdir -p ${NODE_DIST_ROOT}
 

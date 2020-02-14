@@ -28,7 +28,7 @@ jobs:
     script:
     - pwd
     - ls
-    - docker build -f ./prod.Dockerfile -t $IMAGE_NAME:latest .
+    - docker build -f ./prod.Dockerfile -t $IMAGE_NAME:latest . || exit 1
     - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
     - docker tag $IMAGE_NAME:latest $IMAGE_NAME:$SHORT_TRAVIS_COMMIT
