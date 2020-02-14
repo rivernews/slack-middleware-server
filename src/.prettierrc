@@ -1,0 +1,6 @@
+{
+    "@comment": "see more options at https://prettier.io/docs/en/options.html",
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 4
+}
