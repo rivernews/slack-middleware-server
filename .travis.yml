@@ -26,6 +26,8 @@ jobs:
     name: Build and push docker image
     install: skip
     script:
+    - pwd
+    - ls
     - docker build -f ./prod.Dockerfile -t $IMAGE_NAME:latest .
     - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin
     - export SHORT_TRAVIS_COMMIT=$(git rev-parse --short ${TRAVIS_COMMIT})
