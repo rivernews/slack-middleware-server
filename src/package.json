@@ -37,7 +37,7 @@
     "husky": {
         "hooks": {
             "pre-commit": "lint-staged",
-            "pre-push": "cd .. && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\" && npm test"
+            "pre-push": "cd .. && . ./devcontainer.env && export $(cut -d= -f1 ./devcontainer.env) || true && echo \"Port is running on ${PORT}\" && cd src && npm test"
         }
     },
     "lint-staged": {
