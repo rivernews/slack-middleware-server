@@ -14,8 +14,11 @@ WORKDIR ${WORKSPACE}
 # install powerlevel10k for better command line experience
 ENV TERM=${TERM}
 ENV COLORTERM=${COLORTERM}
-RUN apt update \
-  && apt install -y git zsh \
+RUN apt-get update -y \
+  && apt-get install software-properties-common -y \
+  && add-apt-repository ppa:git-core/ppa -y \
+  && apt-get install -y git zsh \
+  && git --version \
   && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
   && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
   && cd ~/powerlevel10k \
