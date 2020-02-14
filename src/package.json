@@ -26,13 +26,13 @@
         "@types/chai": "^4.2.9",
         "@types/mocha": "^7.0.1",
         "chai": "^4.2.0",
-        "husky": "^4.2.1",
+        "husky": "^4.2.3",
         "lint-staged": "^10.0.7",
         "mocha": "^7.0.1",
         "ngrok": "^3.2.7",
-        "ts-node-dev": "^1.0.0-pre.44",
         "nodemon": "^2.0.2",
-        "prettier-standard": "^16.1.0"
+        "prettier-standard": "^16.1.0",
+        "ts-node-dev": "^1.0.0-pre.44"
     },
     "husky": {
         "hooks": {
