@@ -1,7 +1,7 @@
 language: node_js
 node_js: "13"
 
-# install: npm i # default
+install: cd ./src && npm i # default
 
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
@@ -10,6 +10,7 @@ jobs:
   - stage: test
     name: Test the code
     script:
+    - cd ./src
     - npm test
     - |
       SLACK_MESSAGE="*Slack Middleware Service* - test success."
