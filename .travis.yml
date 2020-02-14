@@ -1,7 +1,7 @@
 language: node_js
 node_js: "13"
 
-install: skip
+# install: skip
 
 env:
 - IMAGE_NAME=shaungc/slack-middleware-service
