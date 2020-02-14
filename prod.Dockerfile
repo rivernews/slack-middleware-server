@@ -1,7 +1,7 @@
 # ngrok not working on alpine
-# FROM node:13.7-alpine3.11
+FROM node:13.7-alpine3.11
 
-FROM node:13-slim as build_stage
+# FROM node:13-slim as build_stage
 
 ENV NODE_SRC_ROOT=/usr/src
 ENV NODE_SERVER_ROOT=${NODE_SRC_ROOT}/server
