@@ -11,7 +11,7 @@
         "build-ts-production": "tsc -p tsconfig.production.json",
         "dev": "ts-node-dev --respawn --transpileOnly index.ts",
         "start": "nodemon ./dist/index.js",
-        "test": "tsc && mocha dist/index.test.js --timeout 10000",
+        "test": "rm -rf dist && tsc && mocha dist/index.test.js --timeout 10000",
         "gen-kubeconfig": "cd ../cicd && doctl kubernetes cluster kubeconfig show project-shaungc-digitalocean-cluster > kubeconfig.yaml && cd ../src",
         "redis-dev": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster port-forward deploy/redis-cluster-deployment 6379:6379 && cd ../src"
     },
