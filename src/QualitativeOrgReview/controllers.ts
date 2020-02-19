@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import cheerio from 'cheerio';
 import axios from 'axios';
 import isEmpty from 'lodash/isEmpty';
-import * as slack from '../services/slack/slack';
+import * as slack from '../services/slack';
 import * as travis from '../services/travis';
 import { ParameterRequirementNotMet } from '../utilities/serverUtilities';
 import * as htmlParseHelper from '../services/htmlParser';
