@@ -2,6 +2,9 @@
 
 import express from 'express';
 import { ErrorResponse } from './utilities/serverUtilities';
+import { UI } from 'bull-board';
+import { gdOrgReviewRenewalCronjob } from './services/job/cronjobs/gdOrgReviewRenewalCronjob';
+import { jobUISetQueuesQueueNames } from './services/job/jobDashboard';
 
 // Constants
 if (!process.env.PORT) {
@@ -30,6 +33,12 @@ app.get('/', async (req, res) => {
 app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
+);
+console.log('registered cronjob', gdOrgReviewRenewalCronjob);
+app.use('/admin/queues', UI);
+console.log(
+    'registered job queues to job UI dashboard',
+    jobUISetQueuesQueueNames
 );
 
 // TODO: explore travisCI API

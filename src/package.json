@@ -11,15 +11,19 @@
         "build-ts-production": "tsc -p tsconfig.production.json",
         "dev": "ts-node-dev --respawn --transpileOnly index.ts",
         "start": "nodemon ./dist/index.js",
-        "test": "tsc && mocha dist/index.test.js --timeout 10000"
+        "test": "tsc && mocha dist/index.test.js --timeout 10000",
+        "gen-kubeconfig": "cd ../cicd && doctl kubernetes cluster kubeconfig show project-shaungc-digitalocean-cluster > kubeconfig.yaml && cd ../src",
+        "redis-dev": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster port-forward deploy/redis-cluster-deployment 6379:6379 && cd ../src"
     },
     "dependencies": {
         "@types/bull": "^3.12.0",
+        "@types/bull-board": "^0.6.0",
         "@types/cheerio": "^0.22.16",
         "@types/express": "^4.17.2",
         "@types/lodash": "^4.14.149",
         "axios": "^0.19.2",
         "bull": "^3.13.0",
+        "bull-board": "^0.6.0",
         "cheerio": "^1.0.0-rc.3",
         "express": "^4.17.1",
         "lodash": "^4.17.15",
