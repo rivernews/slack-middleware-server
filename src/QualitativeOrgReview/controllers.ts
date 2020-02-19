@@ -61,7 +61,7 @@ export const slackToTravisCIController = async (
 
         return res.json(triggerRes.data);
     } catch (error) {
-        console.log(
+        console.error(
             'hey we are in controller....error.message:',
             error.message
         );

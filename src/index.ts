@@ -58,8 +58,6 @@ app.use(
 
 // Bootstrap server
 
-const nodeServer = app.listen(PORT, () => {
+export const nodeServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
 });
-
-module.exports = nodeServer;
