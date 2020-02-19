@@ -2,6 +2,7 @@
 
 import express from 'express';
 import { ErrorResponse } from './utilities/serverUtilities';
+import { CronJob, cronjobQueue } from './services/asyncJob/cronjob';
 
 // Constants
 if (!process.env.PORT) {
@@ -25,6 +26,12 @@ app.use(
 // App Routes
 
 app.get('/', async (req, res) => {
+    // const cronjob = await cronjobQueue.add(new CronJob({
+    //     scheduler: '1 2 3 4 5 *',
+    //     data: 'haha'
+    // }));
+    // console.log('started a cronjon!');
+    // console.log(cronjob.id);
     res.send('Hello! This is our slack service.');
 });
 app.use(
@@ -58,8 +65,6 @@ app.use(
 
 // Bootstrap server
 
-const nodeServer = app.listen(PORT, () => {
+export const nodeServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
 });
-
-module.exports = nodeServer;

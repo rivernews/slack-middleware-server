@@ -14,7 +14,7 @@ describe('App integration test', () => {
         return;
     });
 
-    require('./QualitativeOrgReview/QualitativeOrgReview.test').qualitativeOrgReviewOrgDescribe;
+    require('./ScraperCommand/index.test').qualitativeOrgReviewOrgDescribe;
 });
 
 after(done => {

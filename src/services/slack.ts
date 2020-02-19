@@ -5,7 +5,7 @@ import express from 'express';
 import {
     NotAuthenticatedResponse,
     ServerError
-} from '../../utilities/serverUtilities';
+} from '../utilities/serverUtilities';
 
 const SLACK_TOKEN_INCOMING_URL: string =
     process.env.SLACK_TOKEN_INCOMING_URL || '';
