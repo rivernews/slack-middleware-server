@@ -34,12 +34,12 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-console.log('registered cronjob', gdOrgReviewRenewalCronjob);
-app.use('/admin/queues', UI);
-console.log(
-    'registered job queues to job UI dashboard',
-    jobUISetQueuesQueueNames
-);
+// console.log('registered cronjob', gdOrgReviewRenewalCronjob);
+// app.use('/admin/queues', UI);
+// console.log(
+//     'registered job queues to job UI dashboard',
+//     jobUISetQueuesQueueNames
+// );
 
 // TODO: explore travisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
