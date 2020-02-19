@@ -3,7 +3,7 @@
 const expect  = require('chai').expect;
 const axios = require('axios').default;
 
-const server = require('./index');
+const server = require('./index').nodeServer;
 const baseUrl = require('./utilities/serverUtilities').baseUrl;
 
 
