@@ -9,13 +9,16 @@
         "proxy": "ngrok http 8080",
         "build-ts": "tsc",
         "build-ts-production": "tsc -p tsconfig.production.json",
-        "dev": "ts-node-dev --respawn --transpileOnly index.ts",
-        "start": "nodemon ./dist/index.js",
+        "dev-ts-fast": "ts-node-dev --respawn --transpileOnly index.ts",
+        "dev": "nodemon --exec ts-node index.ts",
+        "start": "npm run dev",
+        "production": "tsc && node ./dist/index.js",
         "test": "rm -rf dist && tsc && mocha dist/index.test.js --timeout 10000",
         "gen-kubeconfig": "cd ../cicd && doctl kubernetes cluster kubeconfig show project-shaungc-digitalocean-cluster > kubeconfig.yaml && cd ../src",
         "redis-dev": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster port-forward deploy/redis-cluster-deployment 6379:6379 && cd ../src"
     },
     "dependencies": {
+        "@godaddy/terminus": "^4.3.1",
         "@types/bull": "^3.12.0",
         "@types/bull-board": "^0.6.0",
         "@types/cheerio": "^0.22.16",
