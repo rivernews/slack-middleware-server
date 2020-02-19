@@ -1,16 +1,21 @@
 import Bull = require('bull');
 import { gdOrgReviewRenewalCronjobQueue } from '..';
 import path from 'path';
+import fs from 'fs';
 
-gdOrgReviewRenewalCronjobQueue.process(
-    path.join(
-        __dirname,
-        // use js since we are still transpiling ts to js
-        process.env.NODE_ENV === 'development'
-            ? './gdOrgReviewRenewalJob.ts'
-            : './gdOrgReviewRenewalJob.js'
-    )
+const processTypescriptPath = path.join(
+    __dirname,
+    './gdOrgReviewRenewalJob.ts'
 );
+const processJavascriptPath = path.join(
+    __dirname,
+    './gdOrgReviewRenewalJob.js'
+);
+const processFileName = fs.existsSync(processTypescriptPath)
+    ? processTypescriptPath
+    : processJavascriptPath;
+
+gdOrgReviewRenewalCronjobQueue.process(processFileName);
 
 // Events API
 // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
