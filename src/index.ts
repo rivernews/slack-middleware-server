@@ -3,11 +3,9 @@
 import express from 'express';
 import { ErrorResponse } from './utilities/serverUtilities';
 import { UI } from 'bull-board';
-import { gdOrgReviewRenewalCronjob } from './services/job/cronjobs/gdOrgReviewRenewalCronjob';
-import { jobUISetQueuesQueueNames } from './services/job/jobDashboard';
-import { gdOrgReviewRenewalCronjobQueue } from './services/job';
+import { jobUISetQueuesQueueNames } from './services/jobQueue/dashboard';
+import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
-import { resolve } from 'url';
 
 // Constants
 if (!process.env.PORT) {
@@ -38,11 +36,11 @@ app.use(
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
 // console.log('registered cronjob', gdOrgReviewRenewalCronjob);
-app.use('/admin/queues', UI);
-console.log(
-    'registered job queues to job UI dashboard',
-    jobUISetQueuesQueueNames
-);
+// app.use('/admin/queues', UI);
+// console.log(
+//     'registered job queues to job UI dashboard',
+//     jobUISetQueuesQueueNames
+// );
 
 // TODO: explore travisCI API
 // https://developer.travis-ci.com/resource/requests#Requests

@@ -1,5 +1,5 @@
 import { setQueues } from 'bull-board';
-import { gdOrgReviewRenewalCronjobQueue } from '.';
+import { gdOrgReviewRenewalCronjobQueue } from './gdOrgReviewRenewal/cronjob/queue';
 
 // bull-board repo & doc
 // https://github.com/vcapretz/bull-board
