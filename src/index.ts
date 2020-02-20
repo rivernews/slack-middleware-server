@@ -4,8 +4,12 @@ import express from 'express';
 import { ErrorResponse } from './utilities/serverUtilities';
 import { UI } from 'bull-board';
 import { jobUISetQueuesQueueNames } from './services/jobQueue/dashboard';
-import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
+import {
+    gdOrgReviewRenewalCronjobQueue,
+    gdOrgReviewRenewalCronjob
+} from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
+import { gdOrgReviewScraperJobQueue } from './services/jobQueue/gdOrgReviewRenewal/scraperJob/queue';
 
 // Constants
 if (!process.env.PORT) {
@@ -35,12 +39,12 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-// console.log('registered cronjob', gdOrgReviewRenewalCronjob);
-// app.use('/admin/queues', UI);
-// console.log(
-//     'registered job queues to job UI dashboard',
-//     jobUISetQueuesQueueNames
-// );
+console.log('registered cronjob', gdOrgReviewRenewalCronjob);
+app.use('/admin/queues', UI);
+console.log(
+    'registered job queues to job UI dashboard',
+    jobUISetQueuesQueueNames
+);
 
 // TODO: explore travisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
@@ -76,10 +80,16 @@ const expressServer = app.listen(PORT, () => {
 
 const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
+
+    // Queue.empty to delete all existing jobs
+    // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
+    await gdOrgReviewRenewalCronjobQueue.empty();
+
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
     await gdOrgReviewRenewalCronjobQueue.close();
-    console.log('cronjob queue closed');
+    await gdOrgReviewScraperJobQueue.close();
+    console.log('job queues closed');
 
     // Add more clean up here ...
 

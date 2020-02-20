@@ -1,5 +1,7 @@
 import { ServerError } from '../utilities/serverUtilities';
-import IORedis from 'ioredis';
+
+// node-redis doc
+// https://github.com/NodeRedis/node-redis
 
 if (
     !(process.env.REDIS_HOST && process.env.REDIS_PORT && process.env.REDIS_DB)
@@ -17,8 +19,12 @@ if (process.env.NODE_ENV === 'development') {
     console.debug('REDIS_DB', REDIS_DB);
 }
 
-export const redisConnectionConfig: IORedis.RedisOptions = {
+export const redisConnectionConfig = {
     host: REDIS_HOST,
     port: parseInt(REDIS_PORT),
     db: parseInt(REDIS_DB)
 };
+
+export enum RedisPubSubChannelName {
+    SCRAPER_JOB_CHANNEL = 'scraperJobChannel'
+}
