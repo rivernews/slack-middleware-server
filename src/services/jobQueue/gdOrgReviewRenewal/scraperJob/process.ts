@@ -79,12 +79,10 @@ const onReceiveScraperJobMessage = (
         console.log('progress reported', payload);
         return;
     } else if (type === ScraperJobMessageType.FINISH) {
-        return abortSubscription(
-            'scraper job reported finish',
-            payload,
-            timeoutTimer,
-            scraperSupervisorReject
-        );
+        clearTimeout(timeoutTimer);
+        const message = 'scraper job reported finish: ' + payload;
+        console.log(message);
+        return scraperSupervisorResolve(message);
     } else if (type === ScraperJobMessageType.ERROR) {
         return abortSubscription(
             'scraper job reported error',
