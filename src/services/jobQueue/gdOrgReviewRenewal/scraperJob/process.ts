@@ -1,5 +1,5 @@
 import Bull from 'bull';
-import Redis, { RedisClient } from 'redis';
+import Redis from 'redis';
 import { redisConnectionConfig, RedisPubSubChannelName } from '../../../redis';
 import { ScraperJobData } from './queue';
 import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
@@ -10,10 +10,28 @@ import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
 const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 10 * 1000;
 
 enum ScraperJobMessageType {
+    PREFLIGHT = 'preflight',
     PROGRESS = 'progress',
     FINISH = 'finish',
     ERROR = 'error'
 }
+
+enum ScraperJobMessageTo {
+    SLACK_MD_SVC = 'slackMiddlewareService',
+    SCRAPER = 'scraper'
+}
+
+const abortSubscription = (
+    message: string,
+    payload: string[],
+    timeoutTimer: NodeJS.Timer,
+    rejector: (reason?: string) => void
+) => {
+    const errorMessage = `${message}, payload:` + payload;
+    console.warn(errorMessage);
+    clearTimeout(timeoutTimer);
+    return rejector(errorMessage);
+};
 
 /**
  *
@@ -25,6 +43,7 @@ enum ScraperJobMessageType {
 const onReceiveScraperJobMessage = (
     channel: string,
     message: string,
+    redisClientPublish: Redis.RedisClient,
     scraperSupervisorResolve: (
         value?: string | PromiseLike<string> | undefined
     ) => void,
@@ -33,26 +52,53 @@ const onReceiveScraperJobMessage = (
 ) => {
     console.log('received message from channel', channel);
 
-    const [type, ...payload] = message.split(':');
-    if (type === ScraperJobMessageType.PROGRESS) {
+    const [type, messageTo, ...payload] = message.split(':');
+
+    if (messageTo !== ScraperJobMessageTo.SLACK_MD_SVC) {
+        console.debug('ignoring messages that are not for us', message);
+        return;
+    }
+
+    if (type === ScraperJobMessageType.PREFLIGHT) {
+        console.log('preflight received', payload);
+        if (
+            !redisClientPublish.publish(
+                RedisPubSubChannelName.SCRAPER_JOB_CHANNEL,
+                `${ScraperJobMessageType.PREFLIGHT}:${ScraperJobMessageTo.SCRAPER}:acknowledged`
+            )
+        ) {
+            return abortSubscription(
+                'fail to respond to preflight message',
+                payload,
+                timeoutTimer,
+                scraperSupervisorReject
+            );
+        }
+        return;
+    } else if (type === ScraperJobMessageType.PROGRESS) {
         console.log('progress reported', payload);
         return;
     } else if (type === ScraperJobMessageType.FINISH) {
-        const message = 'scraper job reported finish: ' + payload;
-        console.log(message);
-        clearTimeout(timeoutTimer);
-        return scraperSupervisorResolve(message);
+        return abortSubscription(
+            'scraper job reported finish',
+            payload,
+            timeoutTimer,
+            scraperSupervisorReject
+        );
     } else if (type === ScraperJobMessageType.ERROR) {
-        const errorMessage = 'scraper job reported error: ' + payload;
-        console.warn(errorMessage);
-        clearTimeout(timeoutTimer);
-        return scraperSupervisorReject(errorMessage);
+        return abortSubscription(
+            'scraper job reported error',
+            payload,
+            timeoutTimer,
+            scraperSupervisorReject
+        );
     } else {
-        const errorMessage =
-            'Received unknown type message: ' + type + ', payload: ' + payload;
-        console.error(errorMessage);
-        clearTimeout(timeoutTimer);
-        return scraperSupervisorReject(errorMessage);
+        return abortSubscription(
+            `Received unknown type '${type}'`,
+            payload,
+            timeoutTimer,
+            scraperSupervisorReject
+        );
     }
 };
 
@@ -73,7 +119,8 @@ const getMessageTimeoutTimer = (
 
 const superviseScraper = (
     orgInfo: string,
-    redisClientSubscription: Redis.RedisClient
+    redisClientSubscription: Redis.RedisClient,
+    redisClientPublish: Redis.RedisClient
 ) => {
     return new Promise<string>(
         (scraperSupervisorResolve, scraperSupervisorReject) => {
@@ -117,6 +164,7 @@ const superviseScraper = (
                 return onReceiveScraperJobMessage(
                     channel,
                     message,
+                    redisClientPublish,
                     scraperSupervisorResolve,
                     scraperSupervisorReject,
                     timeoutTimer
@@ -130,7 +178,8 @@ const superviseScraper = (
 };
 
 const cleanupRedisSubscriptionConnection = (
-    redisClientSubscription: RedisClient,
+    redisClientSubscription: Redis.RedisClient,
+    redisClientPublish: Redis.RedisClient,
     orgInfo: string
 ) => {
     if (redisClientSubscription.unsubscribe()) {
@@ -139,6 +188,7 @@ const cleanupRedisSubscriptionConnection = (
             orgInfo
         );
         redisClientSubscription.quit();
+        redisClientPublish.quit();
     } else {
         console.error(
             `Failed to unsubscribe pubsub for travis scraper job, orgInfo: ${orgInfo}`
@@ -151,17 +201,20 @@ module.exports = async function (
     done: Bull.DoneCallback
 ) {
     const redisClientSubscription = Redis.createClient(redisConnectionConfig);
+    const redisClientPublish = redisClientSubscription.duplicate();
 
     let resultMessage;
     try {
         // only let job finish if receive finish signal from pubsub
         resultMessage = await superviseScraper(
             job.data.orgInfo,
-            redisClientSubscription
+            redisClientSubscription,
+            redisClientPublish
         );
     } catch (error) {
         cleanupRedisSubscriptionConnection(
             redisClientSubscription,
+            redisClientPublish,
             job.data.orgInfo
         );
         return done(error);
@@ -169,6 +222,7 @@ module.exports = async function (
 
     cleanupRedisSubscriptionConnection(
         redisClientSubscription,
+        redisClientPublish,
         job.data.orgInfo
     );
 

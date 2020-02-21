@@ -1,7 +1,7 @@
 import { ServerError } from '../utilities/serverUtilities';
 
-// node-redis doc
-// https://github.com/NodeRedis/node-redis
+// node-redis pubsub doc
+// https://github.com/NodeRedis/node-redis#pubsub
 
 if (
     !(process.env.REDIS_HOST && process.env.REDIS_PORT && process.env.REDIS_DB)
