@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// Travis API
+// https://docs.travis-ci.com/user/triggering-builds/
+
+export interface TravisJobOption {
+    branch?: string;
+}
+
 const getTravisCiRequestHeaders = () => {
     return {
         'Content-Type': 'application/json',
@@ -10,7 +17,8 @@ const getTravisCiRequestHeaders = () => {
 };
 
 export const asyncTriggerQualitativeReviewRepoBuild = async (
-    companyInformationString: string
+    companyInformationString: string,
+    travisJobOption: TravisJobOption = {}
 ) => {
     const username = 'rivernews';
     const repo = 'review-scraper-java-development-environment';
@@ -24,7 +32,8 @@ export const asyncTriggerQualitativeReviewRepoBuild = async (
                 env: {
                     TEST_COMPANY_INFORMATION_STRING: companyInformationString
                 }
-            }
+            },
+            ...travisJobOption
         },
         {
             headers: getTravisCiRequestHeaders()

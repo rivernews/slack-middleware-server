@@ -7,7 +7,7 @@ import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
 
-const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 10 * 1000;
+const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 30 * 60 * 1000;
 
 enum ScraperJobMessageType {
     PREFLIGHT = 'preflight',
@@ -133,7 +133,10 @@ const superviseScraper = (
                 );
                 // TODO: POST travis API to trigger scraper job
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                    orgInfo
+                    orgInfo,
+                    {
+                        branch: '024_cronjob_support'
+                    }
                 );
                 if (triggerTravisJobRequest.status >= 400) {
                     const errorMessage =

@@ -26,7 +26,7 @@ export const gdOrgReviewRenewalCronjobQueue = new Bull<
         repeat: {
             // cron expression descriptor
             // https://cronexpressiondescriptor.azurewebsites.net/
-            cron: '* * * * 0'
+            cron: '* * * * *'
         }
     }
 });
