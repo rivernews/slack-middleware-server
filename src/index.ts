@@ -3,13 +3,10 @@
 import express from 'express';
 import { ErrorResponse } from './utilities/serverUtilities';
 import { UI } from 'bull-board';
-import { jobUISetQueuesQueueNames } from './services/jobQueue/dashboard';
-import {
-    gdOrgReviewRenewalCronjobQueue,
-    gdOrgReviewRenewalCronjob
-} from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
+import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
 import { gdOrgReviewScraperJobQueue } from './services/jobQueue/gdOrgReviewRenewal/scraperJob/queue';
+import { startJobQueues } from './services/jobQueue';
 
 // Constants
 if (!process.env.PORT) {
@@ -39,12 +36,7 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-console.log('registered cronjob', gdOrgReviewRenewalCronjob);
 app.use('/admin/queues', UI);
-console.log(
-    'registered job queues to job UI dashboard',
-    jobUISetQueuesQueueNames
-);
 
 // TODO: explore travisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
@@ -74,6 +66,7 @@ app.use(
 
 const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
+    startJobQueues();
 });
 
 // Clean up server resources & any external connections

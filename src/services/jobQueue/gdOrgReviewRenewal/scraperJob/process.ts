@@ -131,7 +131,6 @@ const superviseScraper = (
                 console.log(
                     `subscribed to channel ${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL}`
                 );
-                // TODO: POST travis API to trigger scraper job
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
                     orgInfo,
                     {

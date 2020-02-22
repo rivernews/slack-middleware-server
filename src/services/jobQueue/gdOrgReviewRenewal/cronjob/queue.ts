@@ -1,8 +1,8 @@
 import Bull = require('bull');
-import { JobQueueName } from '../..';
 import path from 'path';
 import fs from 'fs';
 import { redisConnectionConfig } from '../../../redis';
+import { JobQueueName } from '../../jobQueueName';
 
 export interface GdOrgReviewRenewalCronjobData {}
 
@@ -96,5 +96,3 @@ gdOrgReviewRenewalCronjobQueue.on('removed', function (job) {
     // A job successfully removed.
     console.log('cronjob removed');
 });
-
-export const gdOrgReviewRenewalCronjob = gdOrgReviewRenewalCronjobQueue.add({});

@@ -1,8 +1,8 @@
 import Bull = require('bull');
-import { JobQueueName } from '../..';
 import path from 'path';
 import fs from 'fs';
 import { redisConnectionConfig } from '../../../redis';
+import { JobQueueName } from '../../jobQueueName';
 
 export interface ScraperJobData {
     orgInfo: string;
