@@ -26,7 +26,7 @@ export const gdOrgReviewRenewalCronjobQueue = new Bull<
         repeat: {
             // cron expression descriptor
             // https://cronexpressiondescriptor.azurewebsites.net/
-            cron: '* * * * 0'
+            cron: '*/1 * * * *'
         }
     }
 });
@@ -97,6 +97,7 @@ gdOrgReviewRenewalCronjobQueue.on('removed', function (job) {
     console.log('cronjob removed');
 });
 
-gdOrgReviewRenewalCronjobQueue.empty().then(() => {
-    gdOrgReviewRenewalCronjobQueue.add({});
+gdOrgReviewRenewalCronjobQueue.empty().then(async () => {
+    await gdOrgReviewRenewalCronjobQueue.add({});
+    console.log('added cronjob');
 });

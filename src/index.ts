@@ -39,7 +39,7 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-// console.log('registered cronjob', gdOrgReviewRenewalCronjob);
+console.log('registered cronjob', gdOrgReviewRenewalCronjobQueue.clientName());
 app.use('/admin/queues', UI);
 console.log(
     'registered job queues to job UI dashboard',
