@@ -97,4 +97,6 @@ gdOrgReviewRenewalCronjobQueue.on('removed', function (job) {
     console.log('cronjob removed');
 });
 
-export const gdOrgReviewRenewalCronjob = gdOrgReviewRenewalCronjobQueue.add({});
+gdOrgReviewRenewalCronjobQueue.empty().then(() => {
+    gdOrgReviewRenewalCronjobQueue.add({});
+});

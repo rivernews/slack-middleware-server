@@ -5,8 +5,8 @@ import { ErrorResponse } from './utilities/serverUtilities';
 import { UI } from 'bull-board';
 import { jobUISetQueuesQueueNames } from './services/jobQueue/dashboard';
 import {
-    gdOrgReviewRenewalCronjobQueue,
-    gdOrgReviewRenewalCronjob
+    gdOrgReviewRenewalCronjobQueue
+    // gdOrgReviewRenewalCronjob
 } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
 import { gdOrgReviewScraperJobQueue } from './services/jobQueue/gdOrgReviewRenewal/scraperJob/queue';
@@ -39,7 +39,7 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-console.log('registered cronjob', gdOrgReviewRenewalCronjob);
+// console.log('registered cronjob', gdOrgReviewRenewalCronjob);
 app.use('/admin/queues', UI);
 console.log(
     'registered job queues to job UI dashboard',

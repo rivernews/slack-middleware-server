@@ -10,7 +10,8 @@ const getTravisCiRequestHeaders = () => {
 };
 
 export const asyncTriggerQualitativeReviewRepoBuild = async (
-    companyInformationString: string
+    companyInformationString: string,
+    branch: string = 'master'
 ) => {
     const username = 'rivernews';
     const repo = 'review-scraper-java-development-environment';
@@ -24,7 +25,8 @@ export const asyncTriggerQualitativeReviewRepoBuild = async (
                 env: {
                     TEST_COMPANY_INFORMATION_STRING: companyInformationString
                 }
-            }
+            },
+            branch
         },
         {
             headers: getTravisCiRequestHeaders()
