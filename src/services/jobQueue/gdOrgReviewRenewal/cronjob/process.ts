@@ -32,6 +32,7 @@ module.exports = async function (job: Bull.Job<any>, done: Bull.DoneCallback) {
         console.warn(
             'Previous pending scraper jobs exist, will ignore this cronjob'
         );
+        done();
         return;
     }
 
