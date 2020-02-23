@@ -4,7 +4,7 @@ const expect  = require('chai').expect;
 const axios = require('axios').default;
 
 const server = require('./index').gracefulExpressServer;
-const baseUrl = require('./utilities/serverUtilities').baseUrl;
+const baseUrl = require('./utilities/serverExceptions').baseUrl;
 
 
 describe('App integration test', () => {

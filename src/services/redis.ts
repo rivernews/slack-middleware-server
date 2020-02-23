@@ -1,5 +1,5 @@
-import { ServerError } from '../utilities/serverUtilities';
-import { RuntimeEnvironment } from '..';
+import { ServerError } from '../utilities/serverExceptions';
+import { RuntimeEnvironment } from '../utilities/runtime';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub

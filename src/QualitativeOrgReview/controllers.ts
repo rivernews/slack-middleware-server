@@ -4,7 +4,7 @@ import axios from 'axios';
 import isEmpty from 'lodash/isEmpty';
 import * as slack from '../services/slack';
 import * as travis from '../services/travis';
-import { ParameterRequirementNotMet } from '../utilities/serverUtilities';
+import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import * as htmlParseHelper from '../services/htmlParser';
 
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;

@@ -1,12 +1,13 @@
 'use strict';
 
 import express from 'express';
-import { ErrorResponse } from './utilities/serverUtilities';
+import { ErrorResponse } from './utilities/serverExceptions';
 import { UI } from 'bull-board';
 import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
 import { gdOrgReviewScraperJobQueue } from './services/jobQueue/gdOrgReviewRenewal/scraperJob/queue';
 import { startJobQueues } from './services/jobQueue';
+import { RuntimeEnvironment } from './utilities/runtime';
 
 // Constants
 if (!process.env.PORT) {
@@ -14,13 +15,6 @@ if (!process.env.PORT) {
 }
 const PORT = parseInt(process.env.PORT);
 const HOST = process.env.HOST;
-
-export enum RuntimeEnvironment {
-    PRODUCTION = 'prodocution',
-    DEVELOPMENT = 'development',
-
-    TESTING = 'testing'
-}
 
 // App
 

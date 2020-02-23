@@ -3,7 +3,7 @@
 import { expect } from 'chai';
 import axios from 'axios';
 import { describe, it } from 'mocha';
-import { STATUS_CODE, baseUrl } from '../utilities/serverUtilities';
+import { STATUS_CODE, baseUrl } from '../utilities/serverExceptions';
 import {
     baseUrl as qualitativeOrgReviewbaseUrl,
     listOrgsEndpoint,
