@@ -22,3 +22,20 @@ export const startJobQueues = () => {
         jobUISetQueuesQueueNames
     );
 };
+
+export const cleanupJobQueues = async () => {
+    // Queue.empty to delete all existing jobs
+    //github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
+    https: await gdOrgReviewRenewalCronjobQueue.empty();
+    console.log('cronjob queue cleaned to empty');
+
+    // Queue.close
+    // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
+    await gdOrgReviewRenewalCronjobQueue.close();
+    await gdOrgReviewScraperJobQueue.close();
+    console.log('all job queues closed');
+
+    // Add more clean up here ...
+
+    return;
+};

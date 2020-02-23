@@ -3,11 +3,9 @@
 import express from 'express';
 import { ErrorResponse } from './utilities/serverExceptions';
 import { UI } from 'bull-board';
-import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 import { createTerminus } from '@godaddy/terminus';
-import { gdOrgReviewScraperJobQueue } from './services/jobQueue/gdOrgReviewRenewal/scraperJob/queue';
-import { startJobQueues } from './services/jobQueue';
-import { RuntimeEnvironment } from './utilities/runtime';
+import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
+import { RuntimeEnvironment, RUNTIME_ENVIRONMENT } from './utilities/runtime';
 
 // Constants
 if (!process.env.PORT) {
@@ -67,9 +65,7 @@ app.use(
 
 const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
-    if (!process.env.CI || process.env.CI !== RuntimeEnvironment.TESTING) {
-        startJobQueues();
-    }
+    RUNTIME_ENVIRONMENT != RuntimeEnvironment.TESTING && startJobQueues();
 });
 
 // Clean up server resources & any external connections
@@ -77,17 +73,7 @@ const expressServer = app.listen(PORT, () => {
 const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
-    // Queue.empty to delete all existing jobs
-    // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
-    await gdOrgReviewRenewalCronjobQueue.empty();
-
-    // Queue.close
-    // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    await gdOrgReviewRenewalCronjobQueue.close();
-    await gdOrgReviewScraperJobQueue.close();
-    console.log('job queues closed');
-
-    // Add more clean up here ...
+    await cleanupJobQueues();
 
     return;
 };

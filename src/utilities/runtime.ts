@@ -4,3 +4,5 @@ export enum RuntimeEnvironment {
 
     TESTING = 'testing'
 }
+
+export const RUNTIME_ENVIRONMENT = process.env.CI || '';
