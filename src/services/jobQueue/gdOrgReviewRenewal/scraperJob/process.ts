@@ -188,7 +188,7 @@ const superviseScraper = (
                     `subscribed to channel ${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL}`
                 );
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                    job.data.orgInfo,
+                    job.data,
                     {
                         branch: '026_dataintegrity_review_helpfulcount'
                     }

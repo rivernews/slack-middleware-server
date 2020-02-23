@@ -28,9 +28,9 @@ export const slackToTravisCIController = async (
         console.log(`Company info string is ${companyInformationString}`);
 
         console.log('Ready to trigger travis');
-        const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild(
-            companyInformationString
-        );
+        const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
+            orgInfo: companyInformationString
+        });
 
         if (triggerRes.status >= 400) {
             console.log('travis return abnormal response');
