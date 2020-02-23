@@ -15,6 +15,13 @@ if (!process.env.PORT) {
 const PORT = parseInt(process.env.PORT);
 const HOST = process.env.HOST;
 
+export enum RuntimeEnvironment {
+    PRODUCTION = 'prodocution',
+    DEVELOPMENT = 'development',
+
+    TESTING = 'testing'
+}
+
 // App
 
 const app: express.Application = express();
@@ -66,7 +73,9 @@ app.use(
 
 const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
-    startJobQueues();
+    if (!process.env.CI || process.env.CI !== RuntimeEnvironment.TESTING) {
+        startJobQueues();
+    }
 });
 
 // Clean up server resources & any external connections
