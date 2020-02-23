@@ -4,8 +4,25 @@ import fs from 'fs';
 import { redisConnectionConfig } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
 
+export interface ScraperProgressData {
+    procressed: number;
+    wentThrough: number;
+    total: number;
+}
+
+export enum ScraperMode {
+    REGULAR = 'regular',
+    RENEWAL = 'renewal'
+}
+
 export interface ScraperJobData {
     orgInfo: string;
+
+    // especially for renewal job
+    orgId?: string;
+    lastProgress?: ScraperProgressData;
+    lastReviewPage?: string;
+    scrapeMode?: ScraperMode;
 }
 
 const processTypescriptPath = path.join(__dirname, './process.ts');

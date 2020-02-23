@@ -6,7 +6,10 @@ import { gdOrgReviewScraperJobQueue } from '../scraperJob/queue';
 
 const getOrgListFromS3 = () => {
     // TODO: implement fetching S3 objects
-    return ['healthcrowd'];
+    return [
+        'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
+    ];
+    // return ['healthcrowd'];
 };
 
 /**
@@ -47,7 +50,8 @@ module.exports = async function (job: Bull.Job<any>, done: Bull.DoneCallback) {
         )
     ).map(job => job.id);
 
-    console.log('cronjob finish dispatching jobs');
+    console.log('cronjob finish dispatching jobs', jobIds);
+    console.log('total of jobs', jobIds.length);
 
     const result = {
         message: 'dispatch success',
