@@ -3,15 +3,12 @@ import path from 'path';
 import fs from 'fs';
 import { redisConnectionConfig } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
-import {
-    RUNTIME_ENVIRONMENT,
-    RuntimeEnvironment
-} from '../../../../utilities/runtime';
 
 export interface ScraperProgressData {
     procressed: number;
     wentThrough: number;
     total: number;
+    durationInMilli: string;
 }
 
 export enum ScraperMode {
@@ -24,6 +21,7 @@ export interface ScraperJobData {
 
     // especially for renewal job
     orgId?: string;
+    orgName?: string;
     lastProgress?: ScraperProgressData;
     lastReviewPage?: string;
     scrapeMode?: ScraperMode;
@@ -32,6 +30,7 @@ export interface ScraperJobData {
 export interface ScraperEnvironmentVariable {
     TEST_COMPANY_INFORMATION_STRING?: string;
     TEST_COMPANY_ID?: string;
+    TEST_COMPANY_NAME?: string;
     TEST_COMPANY_LAST_PROGRESS_PROCESSED?: string;
     TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH?: string;
     TEST_COMPANY_LAST_PROGRESS_TOTAL?: string;

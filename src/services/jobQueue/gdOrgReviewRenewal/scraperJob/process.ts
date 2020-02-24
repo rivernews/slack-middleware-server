@@ -51,6 +51,7 @@ const parsePayload = (payload: string[]) => {
 
 type ScraperCrossRequestData = ScraperJobData & {
     ordId: string;
+    orgName: string;
     lastProgress: ScraperProgressData;
     lastReviewPage: string;
     scrapeMode: ScraperMode;

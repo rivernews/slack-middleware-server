@@ -23,9 +23,11 @@ const getTravisCiRequestHeaders = () => {
 export interface ScraperEnvironmentVariable {
     TEST_COMPANY_INFORMATION_STRING?: string;
     TEST_COMPANY_ID?: string;
+    TEST_COMPANY_NAME?: string;
     TEST_COMPANY_LAST_PROGRESS_PROCESSED?: string;
     TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH?: string;
     TEST_COMPANY_LAST_PROGRESS_TOTAL?: string;
+    TEST_COMPANY_LAST_PROGRESS_DURATION?: string;
     TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
     SCRAPER_MODE?: string;
 }
@@ -44,6 +46,11 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
                 ...acc,
                 TEST_COMPANY_ID: jobData[cur]
             };
+        } else if (cur === 'orgName') {
+            return {
+                ...acc,
+                TEST_COMPANY_NAME: jobData[cur]
+            };
         } else if (cur === 'lastProgress') {
             const progressData = jobData[cur] as ScraperProgressData;
             return {
@@ -51,7 +58,9 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
                 TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.procressed,
                 TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH:
                     progressData.wentThrough,
-                TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total
+                TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total,
+                TEST_COMPANY_LAST_PROGRESS_DURATION:
+                    progressData.durationInMilli
             };
         } else if (cur === 'lastReviewPage') {
             return {
