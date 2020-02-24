@@ -34,7 +34,7 @@ export interface ScraperEnvironmentVariable {
 }
 
 const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
-    const scraperJobEnvironmentVaaribles = (Object.keys(
+    const scraperJobEnvironmentVaribles = (Object.keys(
         jobData
     ) as (keyof ScraperJobData)[]).reduce((acc, cur) => {
         if (cur === 'orgInfo') {
@@ -77,7 +77,11 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
         }
     }, {}) as ScraperEnvironmentVariable;
 
-    return scraperJobEnvironmentVaaribles;
+    if (!scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING) {
+        scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING = '';
+    }
+
+    return scraperJobEnvironmentVaribles;
 };
 
 export const asyncTriggerQualitativeReviewRepoBuild = async (
