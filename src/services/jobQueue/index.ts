@@ -25,11 +25,6 @@ export const startJobQueues = () => {
 };
 
 export const cleanupJobQueues = async () => {
-    const job = await gdOrgReviewScraperJobQueue.getJob('60');
-    console.log('job got', job?.id);
-    await job?.releaseLock();
-    await job?.remove();
-
     // Queue.empty to delete all existing jobs
     //github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
     await gdOrgReviewRenewalCronjobQueue.empty();
