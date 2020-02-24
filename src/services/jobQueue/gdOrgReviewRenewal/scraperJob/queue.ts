@@ -9,6 +9,7 @@ export interface ScraperProgressData {
     wentThrough: number;
     total: number;
     durationInMilli: string;
+    page: number;
 }
 
 export enum ScraperMode {
@@ -17,9 +18,10 @@ export enum ScraperMode {
 }
 
 export interface ScraperJobData {
-    orgInfo: string;
+    // for regular scraper job
+    orgInfo?: string;
 
-    // especially for renewal job
+    // for renewal job
     orgId?: string;
     orgName?: string;
     lastProgress?: ScraperProgressData;

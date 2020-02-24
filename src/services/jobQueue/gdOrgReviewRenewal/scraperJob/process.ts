@@ -158,7 +158,7 @@ const onReceiveScraperJobMessage = async (
 };
 
 const getMessageTimeoutTimer = (
-    orgInfo: string,
+    org: string = 'null',
     scraperSupervisorReject: (reason?: string) => void
 ) =>
     setTimeout(() => {
@@ -168,7 +168,7 @@ const getMessageTimeoutTimer = (
                 ' ms'
         );
         return scraperSupervisorReject(
-            `job for org ${orgInfo} timed out while supervising travis scraper job`
+            `job for org ${org} timed out while supervising travis scraper job`
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
@@ -180,7 +180,7 @@ const superviseScraper = (
     return new Promise<string>(
         async (scraperSupervisorResolve, scraperSupervisorReject) => {
             let timeoutTimer = getMessageTimeoutTimer(
-                job.data.orgInfo,
+                job.data.orgInfo || job.data.orgName,
                 scraperSupervisorReject
             );
 
@@ -216,7 +216,7 @@ const superviseScraper = (
             redisClientSubscription.on('message', (channel, message) => {
                 clearTimeout(timeoutTimer);
                 timeoutTimer = getMessageTimeoutTimer(
-                    job.data.orgInfo,
+                    job.data.orgInfo || job.data.orgName,
                     scraperSupervisorReject
                 );
 
@@ -240,18 +240,18 @@ const superviseScraper = (
 const cleanupRedisSubscriptionConnection = (
     redisClientSubscription: Redis.RedisClient,
     redisClientPublish: Redis.RedisClient,
-    orgInfo: string
+    org: string = 'null'
 ) => {
     if (redisClientSubscription.unsubscribe()) {
         console.log(
-            `unsubscribed channel ${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL} successfully, orgInfo:`,
-            orgInfo
+            `unsubscribed channel ${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL} successfully, org:`,
+            org
         );
         redisClientSubscription.quit();
         redisClientPublish.quit();
     } else {
         console.error(
-            `Failed to unsubscribe pubsub for travis scraper job, orgInfo: ${orgInfo}`
+            `Failed to unsubscribe pubsub for travis scraper job, org: ${org}`
         );
     }
 };
@@ -275,7 +275,7 @@ module.exports = async function (
         cleanupRedisSubscriptionConnection(
             redisClientSubscription,
             redisClientPublish,
-            job.data.orgInfo
+            job.data.orgInfo || job.data.orgName
         );
         return done(error);
     }
@@ -283,7 +283,7 @@ module.exports = async function (
     cleanupRedisSubscriptionConnection(
         redisClientSubscription,
         redisClientPublish,
-        job.data.orgInfo
+        job.data.orgInfo || job.data.orgName
     );
 
     return done(null, {
