@@ -12,7 +12,7 @@ import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
 
-const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 30 * 60 * 1000;
+const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 5 * 60 * 1000;
 
 enum ScraperJobMessageType {
     PREFLIGHT = 'preflight',

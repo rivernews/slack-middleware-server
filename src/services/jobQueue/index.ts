@@ -1,6 +1,7 @@
 import { gdOrgReviewRenewalCronjobQueue } from './gdOrgReviewRenewal/cronjob/queue';
 import { setQueues } from 'bull-board';
 import { gdOrgReviewScraperJobQueue } from './gdOrgReviewRenewal/scraperJob/queue';
+import Bull = require('bull');
 
 export const startJobQueues = () => {
     // register job queues
@@ -24,10 +25,17 @@ export const startJobQueues = () => {
 };
 
 export const cleanupJobQueues = async () => {
+    const job = await gdOrgReviewScraperJobQueue.getJob('60');
+    console.log('job got', job?.id);
+    await job?.releaseLock();
+    await job?.remove();
+
     // Queue.empty to delete all existing jobs
     //github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
-    https: await gdOrgReviewRenewalCronjobQueue.empty();
+    await gdOrgReviewRenewalCronjobQueue.empty();
     console.log('cronjob queue cleaned to empty');
+    await gdOrgReviewScraperJobQueue.empty();
+    console.log('scraper job queue cleaned to empty');
 
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
