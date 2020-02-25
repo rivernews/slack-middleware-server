@@ -237,9 +237,6 @@ const superviseScraper = (
                 );
             });
             redisClientSubscription.subscribe(redisPubsubChannelName);
-            console.log(
-                `job ${job.id} subscribed to channel ${redisPubsubChannelName}`
-            );
         }
     );
 };
