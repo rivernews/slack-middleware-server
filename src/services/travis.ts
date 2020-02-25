@@ -28,6 +28,7 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH?: string;
     TEST_COMPANY_LAST_PROGRESS_TOTAL?: string;
     TEST_COMPANY_LAST_PROGRESS_DURATION?: string;
+    TEST_COMPANY_LAST_PROGRESS_SESSION?: string;
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
     TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
     SCRAPER_MODE?: string;
@@ -62,7 +63,9 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
                 TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total,
                 TEST_COMPANY_LAST_PROGRESS_DURATION:
                     progressData.durationInMilli,
-                TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page
+                TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page,
+                TEST_COMPANY_LAST_PROGRESS_SESSION:
+                    progressData.processedSession
             };
         } else if (cur === 'lastReviewPage') {
             return {

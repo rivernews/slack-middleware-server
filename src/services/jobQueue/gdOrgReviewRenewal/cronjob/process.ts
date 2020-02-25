@@ -6,8 +6,12 @@ import { gdOrgReviewScraperJobQueue } from '../scraperJob/queue';
 
 const getOrgListFromS3 = () => {
     // TODO: implement fetching S3 objects
+    // return [
+    //     'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
+    // ];
+
     return [
-        'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
+        'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm'
     ];
     // return ['"Palo Alto Network"'];
     // return ['healthcrowd'];

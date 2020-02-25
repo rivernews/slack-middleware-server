@@ -10,6 +10,7 @@ export interface ScraperProgressData {
     total: number;
     durationInMilli: string;
     page: number;
+    processedSession: number;
 }
 
 export enum ScraperMode {
@@ -27,17 +28,6 @@ export interface ScraperJobData {
     lastProgress?: ScraperProgressData;
     lastReviewPage?: string;
     scrapeMode?: ScraperMode;
-}
-
-export interface ScraperEnvironmentVariable {
-    TEST_COMPANY_INFORMATION_STRING?: string;
-    TEST_COMPANY_ID?: string;
-    TEST_COMPANY_NAME?: string;
-    TEST_COMPANY_LAST_PROGRESS_PROCESSED?: string;
-    TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH?: string;
-    TEST_COMPANY_LAST_PROGRESS_TOTAL?: string;
-    TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
-    SCRAPER_MODE?: string;
 }
 
 const processTypescriptPath = path.join(__dirname, './process.ts');

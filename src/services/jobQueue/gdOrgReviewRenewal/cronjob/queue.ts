@@ -27,11 +27,15 @@ export const gdOrgReviewRenewalCronjobQueue = new Bull<
 >(JobQueueName.GD_ORG_REVIEW_RENEWAL_CRONJOB, {
     redis: redisConnectionConfig,
     defaultJobOptions: {
-        repeat: {
-            // cron expression descriptor
-            // https://cronexpressiondescriptor.azurewebsites.net/
-            cron: '* * * * *'
-        }
+        // TODO: enable repeat opt when in prod
+        // repeat: {
+        //     // cron expression descriptor
+        //     // https://cronexpressiondescriptor.azurewebsites.net/
+        //     // cron: '* * * * *',
+        //     // other options
+        //     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueadd
+        //     every: 60 * (60 * 1000)
+        // }
     }
 });
 
