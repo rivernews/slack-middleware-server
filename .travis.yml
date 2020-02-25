@@ -23,6 +23,8 @@ jobs:
       fi
   
   - stage: build_push
+    # only deploy if it's master branch
+    if: branch = master
     name: Build and push docker image
     install: skip
     script:
