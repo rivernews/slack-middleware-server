@@ -8,6 +8,7 @@ import {
     ScraperMode
 } from './queue';
 import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
+import { asyncSendSlackMessage } from '../../../slack';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -164,12 +165,17 @@ const getMessageTimeoutTimer = (
     org: string = 'null',
     scraperSupervisorReject: (reason?: string) => void
 ) =>
-    setTimeout(() => {
+    setTimeout(async () => {
         console.warn(
             `job ${jobId} timed out after ` +
                 TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS +
                 ' ms'
         );
+
+        await asyncSendSlackMessage(
+            `Supervisor job ${jobId} timed out while supervising scraper job for org ${org}`
+        );
+
         return scraperSupervisorReject(
             `job ${jobId} for org ${org} timed out while supervising travis scraper job`
         );
