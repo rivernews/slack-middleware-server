@@ -1,5 +1,6 @@
 import { ServerError } from '../utilities/serverExceptions';
 import { RuntimeEnvironment } from '../utilities/runtime';
+import { createClient } from 'redis';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub

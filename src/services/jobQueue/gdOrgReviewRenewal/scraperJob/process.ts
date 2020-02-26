@@ -9,6 +9,7 @@ import {
 } from './queue';
 import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
 import { asyncSendSlackMessage } from '../../../slack';
+import { RuntimeEnvironment } from '../../../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes

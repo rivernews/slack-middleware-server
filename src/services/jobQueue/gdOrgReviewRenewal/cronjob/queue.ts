@@ -4,7 +4,7 @@ import fs from 'fs';
 import { redisConnectionConfig } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
 import {
-    RUNTIME_ENVIRONMENT,
+    RUNTIME_CI_ENVIRONMENT,
     RuntimeEnvironment
 } from '../../../../utilities/runtime';
 

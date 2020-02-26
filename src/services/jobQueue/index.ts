@@ -2,8 +2,19 @@ import { gdOrgReviewRenewalCronjobQueue } from './gdOrgReviewRenewal/cronjob/que
 import { setQueues } from 'bull-board';
 import { gdOrgReviewScraperJobQueue } from './gdOrgReviewRenewal/scraperJob/queue';
 import Bull = require('bull');
+import { RuntimeEnvironment } from '../../utilities/runtime';
+import { createClient } from 'redis';
+import { redisConnectionConfig } from '../redis';
 
 export const startJobQueues = () => {
+    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+        const redisAdminClient = createClient(redisConnectionConfig);
+        redisAdminClient.flushdb();
+        console.debug(
+            `(development) flushed redis db ${redisConnectionConfig.db}`
+        );
+    }
+
     // register job queues
     gdOrgReviewRenewalCronjobQueue
         .empty()

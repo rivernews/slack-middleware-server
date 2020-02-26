@@ -5,7 +5,10 @@ import { ErrorResponse } from './utilities/serverExceptions';
 import { UI } from 'bull-board';
 import { createTerminus } from '@godaddy/terminus';
 import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
-import { RuntimeEnvironment, RUNTIME_ENVIRONMENT } from './utilities/runtime';
+import {
+    RuntimeEnvironment,
+    RUNTIME_CI_ENVIRONMENT
+} from './utilities/runtime';
 
 // Constants
 if (!process.env.PORT) {
@@ -67,7 +70,7 @@ app.use(
 
 const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
-    RUNTIME_ENVIRONMENT != RuntimeEnvironment.TESTING && startJobQueues();
+    RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING && startJobQueues();
 });
 
 // Clean up server resources & any external connections
