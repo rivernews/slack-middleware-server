@@ -80,7 +80,7 @@ module.exports = function (job: Bull.Job<any>) {
             }
 
             console.log('cronjob finish dispatching jobs', jobIds);
-            console.log('total of jobs finished', jobIds.length);
+            console.log('total of jobs dispatched', jobIds.length);
 
             const result = {
                 message: 'dispatch success',
