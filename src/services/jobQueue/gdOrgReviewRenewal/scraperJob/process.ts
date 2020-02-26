@@ -267,7 +267,7 @@ const cleanupRedisSubscriptionConnection = (
     }
 };
 
-module.exports = async function (
+module.exports = function (
     job: Bull.Job<ScraperJobData>,
     done: Bull.DoneCallback
 ) {
@@ -279,34 +279,28 @@ module.exports = async function (
         job.data.lastProgress ? job.data.lastProgress.processedSession : 0
     }`;
 
-    let resultMessage;
-    try {
-        // only let job finish if receive finish signal from pubsub
-        resultMessage = await superviseScraper(
-            job,
-            redisPubsubChannelName,
-            redisClientSubscription,
-            redisClientPublish
-        );
-    } catch (error) {
-        cleanupRedisSubscriptionConnection(
-            redisPubsubChannelName,
-            redisClientSubscription,
-            redisClientPublish,
-            job.data.orgInfo || job.data.orgName
-        );
-        return done(error);
-    }
-
-    cleanupRedisSubscriptionConnection(
+    superviseScraper(
+        job,
         redisPubsubChannelName,
         redisClientSubscription,
-        redisClientPublish,
-        job.data.orgInfo || job.data.orgName
-    );
-
-    return done(null, {
-        resultMessage
-    });
-    // return Promise.resolve(result);
+        redisClientPublish
+    )
+        .then(resultMessage => {
+            cleanupRedisSubscriptionConnection(
+                redisPubsubChannelName,
+                redisClientSubscription,
+                redisClientPublish,
+                job.data.orgInfo || job.data.orgName
+            );
+            return done(null, resultMessage);
+        })
+        .catch(error => {
+            cleanupRedisSubscriptionConnection(
+                redisPubsubChannelName,
+                redisClientSubscription,
+                redisClientPublish,
+                job.data.orgInfo || job.data.orgName
+            );
+            return done(error);
+        });
 };
