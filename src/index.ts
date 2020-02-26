@@ -29,7 +29,9 @@ app.use(
 // App Routes
 
 app.get('/', async (req, res) => {
-    res.send('Hello! This is our slack service.');
+    res.send(
+        'Hello! This is our slack service. <a href="/admin/queues">Queue Dashboard</a>'
+    );
 });
 app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
