@@ -14,7 +14,9 @@ import { RuntimeEnvironment } from '../../../../utilities/runtime';
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
 
-const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 5 * 60 * 1000;
+// scraper job in travis will publish request ack around 1 min 15 sec after travis build scheduled
+// so 2 min of timeout waiting that publish message should be just right
+const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 2 * 60 * 1000;
 
 enum ScraperJobMessageType {
     PREFLIGHT = 'preflight',
@@ -268,10 +270,9 @@ const cleanupRedisSubscriptionConnection = (
     }
 };
 
-module.exports = function (
-    job: Bull.Job<ScraperJobData>,
-    done: Bull.DoneCallback
-) {
+module.exports = function (job: Bull.Job<ScraperJobData>) {
+    console.log(`scraper job ${job.id} started processing`);
+
     const redisClientSubscription = Redis.createClient(redisConnectionConfig);
     const redisClientPublish = redisClientSubscription.duplicate();
     const redisPubsubChannelName = `${
@@ -280,28 +281,38 @@ module.exports = function (
         job.data.lastProgress ? job.data.lastProgress.processedSession : 0
     }`;
 
-    superviseScraper(
-        job,
-        redisPubsubChannelName,
-        redisClientSubscription,
-        redisClientPublish
-    )
-        .then(resultMessage => {
-            cleanupRedisSubscriptionConnection(
-                redisPubsubChannelName,
-                redisClientSubscription,
-                redisClientPublish,
-                job.data.orgInfo || job.data.orgName
-            );
-            return done(null, resultMessage);
-        })
-        .catch(error => {
-            cleanupRedisSubscriptionConnection(
-                redisPubsubChannelName,
-                redisClientSubscription,
-                redisClientPublish,
-                job.data.orgInfo || job.data.orgName
-            );
-            return done(error);
-        });
+    return new Promise((resolve, reject) => {
+        try {
+            setTimeout(() => {
+                resolve('times up!');
+            }, 5000);
+        } catch (error) {
+            reject(error);
+        }
+    });
+
+    // return superviseScraper(
+    //     job,
+    //     redisPubsubChannelName,
+    //     redisClientSubscription,
+    //     redisClientPublish
+    // )
+    //     .then(resultMessage => {
+    //         cleanupRedisSubscriptionConnection(
+    //             redisPubsubChannelName,
+    //             redisClientSubscription,
+    //             redisClientPublish,
+    //             job.data.orgInfo || job.data.orgName
+    //         );
+    //         return Promise.resolve(resultMessage);
+    //     })
+    //     .catch(error => {
+    //         cleanupRedisSubscriptionConnection(
+    //             redisPubsubChannelName,
+    //             redisClientSubscription,
+    //             redisClientPublish,
+    //             job.data.orgInfo || job.data.orgName
+    //         );
+    //         return Promise.reject(error);
+    //     });
 };

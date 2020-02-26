@@ -39,7 +39,8 @@ export const gdOrgReviewRenewalCronjobQueue = new Bull<
     }
 });
 
-gdOrgReviewRenewalCronjobQueue.process(processFileName);
+const concurrency = 1;
+gdOrgReviewRenewalCronjobQueue.process(concurrency, processFileName);
 
 // Events API
 // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
@@ -71,7 +72,7 @@ gdOrgReviewRenewalCronjobQueue.on('progress', function (job, progress) {
 
 gdOrgReviewRenewalCronjobQueue.on('completed', function (job, result) {
     // A job successfully completed with a `result`.
-    console.log('cronjob completed');
+    console.log('cronjob completed, result:', result);
 });
 
 gdOrgReviewRenewalCronjobQueue.on('failed', function (job, err) {

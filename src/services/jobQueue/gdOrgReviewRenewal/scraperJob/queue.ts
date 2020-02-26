@@ -48,7 +48,8 @@ export const gdOrgReviewScraperJobQueue = new Bull<ScraperJobData>(
     }
 );
 
-gdOrgReviewScraperJobQueue.process(processFileName);
+const concurrency = 1;
+gdOrgReviewScraperJobQueue.process(concurrency, processFileName);
 
 // Events API
 // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events

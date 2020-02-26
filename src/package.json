@@ -19,6 +19,8 @@
         "redis-cli": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment 'redis-cli' && cd ../src"
     },
     "dependencies": {
+        "@aws-sdk/client-s3-node": "0.1.0-preview.2",
+        "@aws-sdk/types": "0.1.0-preview.1",
         "@godaddy/terminus": "^4.3.1",
         "@types/bull": "^3.12.0",
         "@types/bull-board": "^0.6.0",
