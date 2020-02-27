@@ -10,12 +10,19 @@ jobs:
   - stage: test
     name: Test the code
     install:
+    # add redis port-forwarding
+    - ls -la
+    - . ./get-k8-toolkit.sh
+    - KUBECONFIG=kubeconfig.yaml ./kubectl -n redis-cluster port-forward deploy/redis-cluster-deployment 6379:6379 &
+    - export REDIS_PORT_FORWARD_PID=$!
+    - echo "Port fowarding process is ${REDIS_PORT_FORWARD_PID}"
+    # install project dependencies
     - cd ./src
     - npm i
     script:
-    # will continue using the previous working directory
-    # - cd ./src
+    # will continue using the previous working directory `./src`
     - npm test
+    - kill ${REDIS_PORT_FORWARD_PID}
     - |
       SLACK_MESSAGE="*Slack Middleware Service* - test success."
       if [ "a$SLACK_TOKEN_INCOMING_URL" != "a" ]; then
