@@ -1,19 +1,15 @@
 import { gdOrgReviewRenewalCronjobQueue } from './gdOrgReviewRenewal/cronjob/queue';
 import { setQueues } from 'bull-board';
 import { gdOrgReviewScraperJobQueue } from './gdOrgReviewRenewal/scraperJob/queue';
-import Bull = require('bull');
-import { RuntimeEnvironment } from '../../utilities/runtime';
 import { createClient } from 'redis';
-import { redisConnectionConfig } from '../redis';
+import { getRedisConnectionConfig } from '../redis';
 
 export const startJobQueues = () => {
-    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        const redisAdminClient = createClient(redisConnectionConfig);
-        redisAdminClient.flushdb();
-        console.debug(
-            `(development) flushed redis db ${redisConnectionConfig.db}`
-        );
-    }
+    // TODO: add a if block once we add feature of resuming failed cronjob
+    // process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT
+    const redisAdminClient = createClient(getRedisConnectionConfig());
+    redisAdminClient.flushdb();
+    console.debug(`flushed redis db ${getRedisConnectionConfig().db}`);
 
     // register job queues
     gdOrgReviewRenewalCronjobQueue

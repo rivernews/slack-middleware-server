@@ -1,34 +1,9 @@
 import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
-import { redisConnectionConfig } from '../../../redis';
+import { getRedisConnectionConfig } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
-
-export interface ScraperProgressData {
-    procressed: number;
-    wentThrough: number;
-    total: number;
-    durationInMilli: string;
-    page: number;
-    processedSession: number;
-}
-
-export enum ScraperMode {
-    REGULAR = 'regular',
-    RENEWAL = 'renewal'
-}
-
-export interface ScraperJobData {
-    // for regular scraper job
-    orgInfo?: string;
-
-    // for renewal job
-    orgId?: string;
-    orgName?: string;
-    lastProgress?: ScraperProgressData;
-    lastReviewPage?: string;
-    scrapeMode?: ScraperMode;
-}
+import { ScraperJobData } from '../../types';
 
 const processTypescriptPath = path.join(__dirname, './process.ts');
 const processJavascriptPath = path.join(__dirname, './process.js');
@@ -44,7 +19,7 @@ const processFileName = fs.existsSync(processTypescriptPath)
 export const gdOrgReviewScraperJobQueue = new Bull<ScraperJobData>(
     JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
     {
-        redis: redisConnectionConfig
+        redis: getRedisConnectionConfig()
     }
 );
 

@@ -1,12 +1,8 @@
 import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
-import { redisConnectionConfig } from '../../../redis';
+import { getRedisConnectionConfig } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
-import {
-    RUNTIME_CI_ENVIRONMENT,
-    RuntimeEnvironment
-} from '../../../../utilities/runtime';
 
 export interface GdOrgReviewRenewalCronjobData {}
 
@@ -25,7 +21,7 @@ const processFileName = fs.existsSync(processTypescriptPath)
 export const gdOrgReviewRenewalCronjobQueue = new Bull<
     GdOrgReviewRenewalCronjobData
 >(JobQueueName.GD_ORG_REVIEW_RENEWAL_CRONJOB, {
-    redis: redisConnectionConfig,
+    redis: getRedisConnectionConfig(),
     defaultJobOptions: {
         // TODO: enable repeat opt when in prod
         // repeat: {
@@ -67,7 +63,7 @@ gdOrgReviewRenewalCronjobQueue.on('stalled', function (job) {
 
 gdOrgReviewRenewalCronjobQueue.on('progress', function (job, progress) {
     // A job's progress was updated!
-    console.log('cronjob progress');
+    console.log('cronjob progress', progress);
 });
 
 gdOrgReviewRenewalCronjobQueue.on('completed', function (job, result) {

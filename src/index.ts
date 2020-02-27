@@ -42,7 +42,7 @@ app.use(
 );
 app.use('/admin/queues', UI);
 
-// TODO: explore travisCI API
+// TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
 
 // error handling, has to be the last middleware

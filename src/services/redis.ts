@@ -1,6 +1,5 @@
 import { ServerError } from '../utilities/serverExceptions';
 import { RuntimeEnvironment } from '../utilities/runtime';
-import { createClient } from 'redis';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub
@@ -13,7 +12,7 @@ if (
 
 const REDIS_HOST: string = process.env.REDIS_HOST;
 const REDIS_PORT: string = process.env.REDIS_PORT;
-const REDIS_DB: string = process.env.REDIS_DB;
+export const REDIS_DB: string = process.env.REDIS_DB;
 
 if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
     console.debug('REDIS_HOST', REDIS_HOST);
@@ -21,10 +20,14 @@ if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
     console.debug('REDIS_DB', REDIS_DB);
 }
 
-export const redisConnectionConfig = {
+const redisConnectionConfig = {
     host: REDIS_HOST,
     port: parseInt(REDIS_PORT),
     db: parseInt(REDIS_DB)
+};
+
+export const getRedisConnectionConfig = () => {
+    return redisConnectionConfig;
 };
 
 export enum RedisPubSubChannelName {

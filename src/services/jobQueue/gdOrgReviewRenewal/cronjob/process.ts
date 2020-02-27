@@ -1,7 +1,8 @@
 import Bull = require('bull');
 import { gdOrgReviewScraperJobQueue } from '../scraperJob/queue';
+import { ScraperCrossRequest, ScraperCrossRequestData } from '../../types';
 import { s3ArchiveManager } from '../../../s3';
-import { ServerError } from '../../../../utilities/serverExceptions';
+import { toPercentageValue } from '../../../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -9,13 +10,13 @@ import { ServerError } from '../../../../utilities/serverExceptions';
 const getOrgListFromS3 = async () => {
     return s3ArchiveManager.asyncGetOverviewPageUrls();
 
-    // TODO: implement fetching S3 objects
     // return [
     //     'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
     // ];
 
     // return [
-    //     'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm'
+    //     'healthcrowd',
+    //     'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
     // ];
     // return ['"Palo Alto Network"'];
     // return [];
@@ -30,8 +31,10 @@ const getOrgListFromS3 = async () => {
  * To view all the queued jobs, you can use the UI.
  *
  */
-module.exports = function (job: Bull.Job<any>) {
-    console.log('cronjob started processing');
+module.exports = function (cronjob: Bull.Job<any>) {
+    console.log('cronjob started processing, with params', cronjob.data);
+
+    let orgInfoList: string[] | null = null;
 
     return Promise.all([
         gdOrgReviewScraperJobQueue.getWaitingCount(),
@@ -50,16 +53,20 @@ module.exports = function (job: Bull.Job<any>) {
                 return Promise.reject('cronjob skip');
             }
 
+            cronjob.progress(cronjob.progress() + 1);
+
             return Promise.resolve();
         })
         .then(async () => {
             // get orgList from s3
-            let orgInfoList: string[] | null = null;
             try {
                 orgInfoList = await getOrgListFromS3();
+                cronjob.progress(cronjob.progress() + 1);
             } catch (error) {
                 return Promise.reject(error);
             }
+
+            const overallOrgListLength = orgInfoList.length;
             console.debug('got orgList from s3', orgInfoList);
 
             // dispatch job
@@ -68,29 +75,63 @@ module.exports = function (job: Bull.Job<any>) {
                 return Promise.resolve('empty orgList');
             }
             console.log('cronjob will dispatch scraper jobs');
-            let jobIds: string[] = [];
-            for (const orgInfo of orgInfoList) {
-                const job = await gdOrgReviewScraperJobQueue.add({ orgInfo });
-                console.log(`cronjob added scraper job ${job.id}`);
-                jobIds.push(job.id.toString());
+            while (orgInfoList.length) {
+                const orgInfo = orgInfoList.pop();
+                let scraperJob = await gdOrgReviewScraperJobQueue.add({
+                    orgInfo
+                });
+                const orgFirstJobId = scraperJob.id;
+                console.log(`cronjob added scraper job ${orgFirstJobId}`);
 
-                // const jobResult =  await job.finished();
-                // console.log(`job ${job.id} result is`, jobResult);
-                // job.progress((jobIds.length / orgInfoList.length) * 100.0);
+                let jobResult:
+                    | string
+                    | ScraperCrossRequestData = await scraperJob.finished();
+                console.log(`cronjob: job ${orgFirstJobId} finished`);
+
+                // process renewal jobs if necessary
+                while (
+                    ScraperCrossRequest.isScraperCrossRequestData(jobResult)
+                ) {
+                    console.log(
+                        `cronjob: job ${scraperJob.id} requested renewal job, dispatching renewal job`
+                    );
+                    const renewalJob = await gdOrgReviewScraperJobQueue.add(
+                        jobResult
+                    );
+
+                    // wait for all renewal job done
+                    console.log(
+                        `cronjob: job ${orgFirstJobId}: renewal job ${renewalJob.id} started.`
+                    );
+                    jobResult = await renewalJob.finished();
+                    console.log(
+                        `cronjob: job ${orgFirstJobId}: renewal job ${renewalJob.id} finished`
+                    );
+                }
+
+                console.log('cronjob: proceeding to next org');
+                cronjob.progress(
+                    toPercentageValue(
+                        (overallOrgListLength - orgInfoList.length) /
+                            overallOrgListLength
+                    )
+                );
             }
 
-            console.log('cronjob finish dispatching jobs', jobIds);
-            console.log('total of jobs dispatched', jobIds.length);
+            console.log('cronjob finish dispatching & waiting all jobs done');
 
-            const result = {
-                message: 'dispatch success',
-                orgList: orgInfoList,
-                gdOrgReviewScraperJobIds: jobIds
-            };
-
-            return Promise.resolve(result);
+            return Promise.resolve('cronjob complete successfully');
         })
-        .catch(error => {
+        .catch(async error => {
+            if (orgInfoList === null) {
+                console.error('cannot retrieve org info list from s3');
+            } else {
+                console.log(
+                    'cronjob interrupted due to error; remaining orgList not yet touched:',
+                    orgInfoList
+                );
+                await gdOrgReviewScraperJobQueue.empty();
+            }
             return Promise.reject(error);
         });
 };

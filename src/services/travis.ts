@@ -1,8 +1,6 @@
 import axios from 'axios';
-import {
-    ScraperJobData,
-    ScraperProgressData
-} from './jobQueue/gdOrgReviewRenewal/scraperJob/queue';
+import { ScraperJobData, ScraperProgressData } from './jobQueue/types';
+import { REDIS_DB } from './redis';
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
@@ -32,10 +30,11 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
     TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
     SCRAPER_MODE?: string;
+    SUPERVISOR_PUBSUB_REDIS_DB?: string;
 }
 
 const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
-    const scraperJobEnvironmentVaribles = (Object.keys(
+    let scraperJobEnvironmentVaribles = (Object.keys(
         jobData
     ) as (keyof ScraperJobData)[]).reduce((acc, cur) => {
         if (cur === 'orgInfo') {
@@ -80,9 +79,15 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
         }
     }, {}) as ScraperEnvironmentVariable;
 
-    if (!scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING) {
-        scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING = '';
-    }
+    // adding additional variables
+    scraperJobEnvironmentVaribles = {
+        ...scraperJobEnvironmentVaribles,
+
+        TEST_COMPANY_INFORMATION_STRING:
+            scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
+
+        SUPERVISOR_PUBSUB_REDIS_DB: REDIS_DB
+    };
 
     return scraperJobEnvironmentVaribles;
 };

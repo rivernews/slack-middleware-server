@@ -26,6 +26,10 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/SLACK_TOKEN_OUTGOING_LAUNCH",
     "/app/slack-middleware-service/SLACK_TOKEN_OUTGOING_LIST_ORG",
     "/app/slack-middleware-service/SLACK_TOKEN_INCOMING_URL",
-    "/app/slack-middleware-service/TRAVIS_TOKEN"
+    "/app/slack-middleware-service/TRAVIS_TOKEN",
+
+    "/database/redis_cluster_kubernetes/REDIS_HOST",
+    "/database/redis_cluster_kubernetes/REDIS_PORT",
+    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB"
   ]
 }
