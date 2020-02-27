@@ -10,6 +10,7 @@ export const startJobQueues = () => {
     const redisAdminClient = createClient(getRedisConnectionConfig());
     redisAdminClient.flushdb();
     console.debug(`flushed redis db ${getRedisConnectionConfig().db}`);
+    redisAdminClient.quit();
 
     // register job queues
     gdOrgReviewRenewalCronjobQueue
