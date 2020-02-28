@@ -1,7 +1,10 @@
 'use strict';
 
 import express from 'express';
-import { ErrorResponse } from './utilities/serverExceptions';
+import {
+    ErrorResponse,
+    NotAuthenticatedResponse
+} from './utilities/serverExceptions';
 import { UI } from 'bull-board';
 import { createTerminus } from '@godaddy/terminus';
 import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
@@ -9,6 +12,7 @@ import {
     RuntimeEnvironment,
     RUNTIME_CI_ENVIRONMENT
 } from './utilities/runtime';
+import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
 
 // Constants
 if (!process.env.PORT) {
@@ -40,7 +44,21 @@ app.use(
     require('./QualitativeOrgReview/routes').baseUrl,
     require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
 );
-app.use('/admin/queues', UI);
+app.post('/queues', async (req, res) => {
+    if (
+        req.body.token &&
+        process.env.TRAVIS_TOKEN &&
+        req.body.token === process.env.TRAVIS_TOKEN
+    ) {
+        console.log('cronjob request received, dispatching...');
+        const cronjob = await gdOrgReviewRenewalCronjobQueue.add({});
+        console.log('registered cronjob', cronjob.id);
+        res.json(cronjob);
+    } else {
+        throw new NotAuthenticatedResponse();
+    }
+});
+app.use('/queues/admin', UI);
 
 // TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests

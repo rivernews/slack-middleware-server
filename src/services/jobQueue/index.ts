@@ -13,12 +13,12 @@ export const startJobQueues = () => {
     redisAdminClient.quit();
 
     // register job queues
-    gdOrgReviewRenewalCronjobQueue
-        .empty()
-        .then(() => gdOrgReviewRenewalCronjobQueue.add({}))
-        .then(gdOrgReviewRenewalCronjob => {
-            console.log('registered cronjob', gdOrgReviewRenewalCronjob.id);
-        });
+    gdOrgReviewRenewalCronjobQueue.empty();
+    // TODO: remove this since we exposed an endpoint for manual cronjob
+    // .then(() => gdOrgReviewRenewalCronjobQueue.add({}))
+    // .then(gdOrgReviewRenewalCronjob => {
+    //     console.log('registered cronjob', gdOrgReviewRenewalCronjob.id);
+    // })
 
     // register queues to dashboard
     const jobUISetQueuesQueueNames = Object.keys(
