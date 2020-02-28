@@ -33,3 +33,6 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB"
   ]
 }
+
+// See the logs of production server
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment

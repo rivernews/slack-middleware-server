@@ -7,6 +7,10 @@ import { RuntimeEnvironment } from '../utilities/runtime';
 if (
     !(process.env.REDIS_HOST && process.env.REDIS_PORT && process.env.REDIS_DB)
 ) {
+    console.error(
+        'Redis misconfigured. Here is all the env vars we have:',
+        process.env
+    );
     throw new ServerError('Redis misconfigured');
 }
 
