@@ -1,6 +1,6 @@
-import { gdOrgReviewRenewalCronjobQueue } from './gdOrgReviewRenewal/cronjob/queue';
+import { supervisorJobQueue } from '../../GdOrgReviewRenewal/supervisorJob/queue';
 import { setQueues } from 'bull-board';
-import { gdOrgReviewScraperJobQueue } from './gdOrgReviewRenewal/scraperJob/queue';
+import { gdOrgReviewScraperJobQueue } from '../../GdOrgReviewRenewal/scraperJob/queue';
 import { createClient } from 'redis';
 import { redisManager } from '../redis';
 
@@ -13,7 +13,7 @@ export const startJobQueues = () => {
     redisAdminClient.quit();
 
     // register job queues
-    gdOrgReviewRenewalCronjobQueue.empty();
+    supervisorJobQueue.empty();
     // TODO: remove this since we exposed an endpoint for manual cronjob
     // .then(() => gdOrgReviewRenewalCronjobQueue.add({}))
     // .then(gdOrgReviewRenewalCronjob => {
@@ -24,7 +24,7 @@ export const startJobQueues = () => {
     const jobUISetQueuesQueueNames = Object.keys(
         // bull-board repo & doc
         // https://github.com/vcapretz/bull-board
-        setQueues([gdOrgReviewRenewalCronjobQueue, gdOrgReviewScraperJobQueue])
+        setQueues([supervisorJobQueue, gdOrgReviewScraperJobQueue])
     );
     console.log(
         'registered job queues to job UI dashboard',
@@ -35,14 +35,14 @@ export const startJobQueues = () => {
 export const cleanupJobQueues = async () => {
     // Queue.empty to delete all existing jobs
     //github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
-    await gdOrgReviewRenewalCronjobQueue.empty();
+    await supervisorJobQueue.empty();
     console.log('cronjob queue cleaned to empty');
     await gdOrgReviewScraperJobQueue.empty();
     console.log('scraper job queue cleaned to empty');
 
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    await gdOrgReviewRenewalCronjobQueue.close();
+    await supervisorJobQueue.close();
     await gdOrgReviewScraperJobQueue.close();
     console.log('all job queues closed');
 

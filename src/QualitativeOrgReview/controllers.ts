@@ -6,6 +6,7 @@ import * as slack from '../services/slack';
 import * as travis from '../services/travis';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import * as htmlParseHelper from '../services/htmlParser';
+import { supervisorJobQueue } from '../GdOrgReviewRenewal/supervisorJob/queue';
 
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
 
@@ -27,39 +28,43 @@ export const slackToTravisCIController = async (
 
         console.log(`Company info string is ${companyInformationString}`);
 
-        console.log('Ready to trigger travis');
-        const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
-            orgInfo: companyInformationString
-        });
+        // TODO: change this to dispatch supervisor job
+        console.log('Ready to dispatch supervisorJob');
+        // const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
+        //     orgInfo: companyInformationString
+        // });
+        const supervisorJob = await supervisorJobQueue.add(
+            companyInformationString
+        );
 
-        if (triggerRes.status >= 400) {
-            console.log('travis return abnormal response');
-            console.log(triggerRes.data);
-            return res
-                .json({
-                    message: 'Travis returned abnormal response',
-                    travisStatus: triggerRes.status,
-                    travisResponse: triggerRes.data
-                })
-                .status(triggerRes.status);
-        }
+        // if (triggerRes.status >= 400) {
+        //     console.log('travis return abnormal response');
+        //     console.log(triggerRes.data);
+        //     return res
+        //         .json({
+        //             message: 'Travis returned abnormal response',
+        //             travisStatus: triggerRes.status,
+        //             travisResponse: triggerRes.data
+        //         })
+        //         .status(triggerRes.status);
+        // }
 
-        console.log('trigger result:\n', triggerRes.data);
+        console.log('dispatch result:\n', supervisorJob);
 
         // slack log the trigger response
-        const travisTriggerSummary = {
-            remaining_requests: triggerRes.data.remaining_requests,
-            scraper_branch: triggerRes.data.request.branch,
-            config: triggerRes.data.request.config
-        };
+        // const travisTriggerSummary = {
+        //     remaining_requests: triggerRes.data.remaining_requests,
+        //     scraper_branch: triggerRes.data.request.branch,
+        //     config: triggerRes.data.request.config
+        // };
         const slackRes = await slack.asyncSendSlackMessage(
-            'Trigger travis success. Below is the travis response ~~:\n```' +
-                JSON.stringify(travisTriggerSummary, null, 2) +
+            'Dispatch supervisorJob success. Below is the travis response ~~:\n```' +
+                JSON.stringify(supervisorJob, null, 2) +
                 '```'
         );
         console.log('Slack res', slackRes);
 
-        return res.json(triggerRes.data);
+        return res.json(supervisorJob);
     } catch (error) {
         console.error(
             'hey we are in controller....error.message:',

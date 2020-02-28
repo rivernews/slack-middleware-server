@@ -12,7 +12,7 @@ import {
     RuntimeEnvironment,
     RUNTIME_CI_ENVIRONMENT
 } from './utilities/runtime';
-import { gdOrgReviewRenewalCronjobQueue } from './services/jobQueue/gdOrgReviewRenewal/cronjob/queue';
+import { supervisorJobQueue } from './GdOrgReviewRenewal/supervisorJob/queue';
 
 // Constants
 if (!process.env.PORT) {
@@ -51,9 +51,9 @@ app.post('/queues', async (req, res) => {
         req.body.token === process.env.TRAVIS_TOKEN
     ) {
         console.log('cronjob request received, dispatching...');
-        const cronjob = await gdOrgReviewRenewalCronjobQueue.add({});
-        console.log('registered cronjob', cronjob.id);
-        res.json(cronjob);
+        // const cronjob = await supervisorJobQueue.add({});
+        // console.log('registered cronjob', cronjob.id);
+        // res.json(cronjob);
     } else {
         throw new NotAuthenticatedResponse();
     }

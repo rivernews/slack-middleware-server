@@ -1,27 +1,15 @@
 import Bull = require('bull');
 import { gdOrgReviewScraperJobQueue } from '../scraperJob/queue';
-import { ScraperCrossRequest, ScraperCrossRequestData } from '../../types';
-import { s3ArchiveManager } from '../../../s3';
-import { toPercentageValue } from '../../../../utilities/runtime';
+import {
+    ScraperCrossRequest,
+    ScraperCrossRequestData,
+    SupervisorJobRequestData
+} from '../../services/jobQueue/types';
+import { s3ArchiveManager } from '../../services/s3';
+import { toPercentageValue } from '../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
-
-const getOrgListFromS3 = async () => {
-    return s3ArchiveManager.asyncGetOverviewPageUrls();
-
-    // return [
-    //     'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
-    // ];
-
-    // return [
-    //     'healthcrowd',
-    //     'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
-    // ];
-    // return ['"Palo Alto Network"'];
-    // return [];
-    // return ['healthcrowd'];
-};
 
 /**
  * Main goal for this process is to schedule jobs on the right time.
@@ -31,10 +19,15 @@ const getOrgListFromS3 = async () => {
  * To view all the queued jobs, you can use the UI.
  *
  */
-module.exports = function (cronjob: Bull.Job<any>) {
-    console.log('cronjob started processing, with params', cronjob.data);
+module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
+    console.log(
+        'supervisorJob started processing, with params',
+        supervisorJob.data
+    );
 
-    let orgInfoList: string[] | null = null;
+    const orgInfoList = Array.isArray(supervisorJob.data)
+        ? supervisorJob.data
+        : [supervisorJob.data];
 
     return Promise.all([
         gdOrgReviewScraperJobQueue.getWaitingCount(),
@@ -53,30 +46,29 @@ module.exports = function (cronjob: Bull.Job<any>) {
                 return Promise.reject('cronjob skip');
             }
 
-            cronjob.progress(cronjob.progress() + 1);
+            supervisorJob.progress(supervisorJob.progress() + 1);
 
             return Promise.resolve();
         })
         .then(async () => {
             // get orgList from s3
-            try {
-                orgInfoList = await getOrgListFromS3();
-                cronjob.progress(cronjob.progress() + 1);
-            } catch (error) {
-                return Promise.reject(error);
-            }
+            // try {
+            //     orgInfoList = await getOrgListFromS3();
+            //     cronjob.progress(cronjob.progress() + 1);
+            // } catch (error) {
+            //     return Promise.reject(error);
+            // }
 
             const overallOrgListLength = orgInfoList.length;
             console.debug('got orgList from s3', orgInfoList);
 
             // dispatch job
-            if (!orgInfoList || !orgInfoList.length) {
+            if (!orgInfoList.length) {
                 console.log('org list empty, will do nothing');
                 return Promise.resolve('empty orgList');
             }
             console.log('cronjob will dispatch scraper jobs');
-            while (orgInfoList.length) {
-                const orgInfo = orgInfoList.pop();
+            orgInfoList.forEach(async (orgInfo, index) => {
                 let scraperJob = await gdOrgReviewScraperJobQueue.add({
                     orgInfo
                 });
@@ -110,13 +102,10 @@ module.exports = function (cronjob: Bull.Job<any>) {
                 }
 
                 console.log('cronjob: proceeding to next org');
-                cronjob.progress(
-                    toPercentageValue(
-                        (overallOrgListLength - orgInfoList.length) /
-                            overallOrgListLength
-                    )
+                supervisorJob.progress(
+                    toPercentageValue((index + 1) / overallOrgListLength)
                 );
-            }
+            });
 
             console.log('cronjob finish dispatching & waiting all jobs done');
 

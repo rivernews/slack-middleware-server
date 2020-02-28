@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ScraperJobData, ScraperProgressData } from './jobQueue/types';
+import { ScraperJobRequestData, ScraperProgressData } from './jobQueue/types';
 import { redisManager } from './redis';
 
 // Travis API
@@ -33,10 +33,10 @@ export interface ScraperEnvironmentVariable {
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
 }
 
-const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
+const jobDataMapToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     let scraperJobEnvironmentVaribles = (Object.keys(
         jobData
-    ) as (keyof ScraperJobData)[]).reduce((acc, cur) => {
+    ) as (keyof ScraperJobRequestData)[]).reduce((acc, cur) => {
         if (cur === 'orgInfo') {
             return {
                 ...acc,
@@ -93,7 +93,7 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
 };
 
 export const asyncTriggerQualitativeReviewRepoBuild = async (
-    scraperJobData: ScraperJobData,
+    scraperJobData: ScraperJobRequestData,
     travisJobOption: TravisJobOption = {}
 ) => {
     const username = 'rivernews';

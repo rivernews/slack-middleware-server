@@ -15,7 +15,7 @@ export enum ScraperJobMessageTo {
     SCRAPER = 'scraper'
 }
 
-export type ScraperCrossRequestData = ScraperJobData & {
+export type ScraperCrossRequestData = ScraperJobRequestData & {
     orgId: string;
     orgName: string;
     lastProgress: ScraperProgressData;
@@ -37,7 +37,9 @@ export enum ScraperMode {
     RENEWAL = 'renewal'
 }
 
-export interface ScraperJobData {
+export type SupervisorJobRequestData = string | string[];
+
+export interface ScraperJobRequestData {
     // for regular scraper job
     orgInfo?: string;
 

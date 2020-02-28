@@ -1,9 +1,9 @@
 import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
-import { redisManager } from '../../../redis';
-import { JobQueueName } from '../../jobQueueName';
-import { ScraperJobData } from '../../types';
+import { redisManager } from '../../services/redis';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
+import { ScraperJobRequestData } from '../../services/jobQueue/types';
 
 const processTypescriptPath = path.join(__dirname, './process.ts');
 const processJavascriptPath = path.join(__dirname, './process.js');
@@ -16,7 +16,7 @@ const processFileName = fs.existsSync(processTypescriptPath)
 
 // Quick guide creating queue
 // https://github.com/OptimalBits/bull#quick-guide
-export const gdOrgReviewScraperJobQueue = new Bull<ScraperJobData>(
+export const gdOrgReviewScraperJobQueue = new Bull<ScraperJobRequestData>(
     JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
     {
         redis: redisManager.config

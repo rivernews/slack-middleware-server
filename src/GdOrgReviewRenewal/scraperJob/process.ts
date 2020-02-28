@@ -1,15 +1,15 @@
 import Bull from 'bull';
 import Redis from 'redis';
-import { redisManager, RedisPubSubChannelName } from '../../../redis';
-import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
-import { asyncSendSlackMessage } from '../../../slack';
+import { redisManager, RedisPubSubChannelName } from '../../services/redis';
+import { asyncTriggerQualitativeReviewRepoBuild } from '../../services/travis';
+import { asyncSendSlackMessage } from '../../services/slack';
 import {
-    ScraperJobData,
+    ScraperJobRequestData,
     ScraperCrossRequest,
     ScraperJobMessageTo,
     ScraperJobMessageType,
     ScraperProgressData
-} from '../../types';
+} from '../../services/jobQueue/types';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -38,7 +38,7 @@ const abortSubscription = (
  * @param scraperSupervisorReject
  */
 const onReceiveScraperJobMessage = async (
-    job: Bull.Job<ScraperJobData>,
+    job: Bull.Job<ScraperJobRequestData>,
     channel: string,
     message: string,
     redisClientPublish: Redis.RedisClient,
@@ -147,7 +147,7 @@ const getMessageTimeoutTimer = (
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
 const superviseScraper = (
-    job: Bull.Job<ScraperJobData>,
+    job: Bull.Job<ScraperJobRequestData>,
     redisPubsubChannelName: string,
     redisClientSubscription: Redis.RedisClient,
     redisClientPublish: Redis.RedisClient
@@ -240,7 +240,7 @@ const cleanupRedisSubscriptionConnection = (
     }
 };
 
-module.exports = function (job: Bull.Job<ScraperJobData>) {
+module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
     console.log(
         `scraper job ${job.id} started processing, with params`,
         job.data
