@@ -5,7 +5,11 @@ import { RuntimeEnvironment } from '../utilities/runtime';
 // https://github.com/NodeRedis/node-redis#pubsub
 
 if (
-    !(process.env.REDIS_HOST && process.env.REDIS_PORT && process.env.REDIS_DB)
+    !(
+        process.env.REDIS_HOST &&
+        process.env.REDIS_PORT &&
+        process.env.SUPERVISOR_PUBSUB_REDIS_DB
+    )
 ) {
     console.error(
         'Redis misconfigured. Here is all the env vars we have:',
@@ -16,7 +20,7 @@ if (
 
 const REDIS_HOST: string = process.env.REDIS_HOST;
 const REDIS_PORT: string = process.env.REDIS_PORT;
-export const REDIS_DB: string = process.env.REDIS_DB;
+export const REDIS_DB: string = process.env.SUPERVISOR_PUBSUB_REDIS_DB;
 
 if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
     console.debug('REDIS_HOST', REDIS_HOST);
