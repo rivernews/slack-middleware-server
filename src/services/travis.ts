@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ScraperJobData, ScraperProgressData } from './jobQueue/types';
-import { REDIS_DB } from './redis';
+import { redisManager } from './redis';
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
@@ -86,7 +86,7 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobData) => {
         TEST_COMPANY_INFORMATION_STRING:
             scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
 
-        SUPERVISOR_PUBSUB_REDIS_DB: REDIS_DB
+        SUPERVISOR_PUBSUB_REDIS_DB: redisManager.config.db.toString()
     };
 
     return scraperJobEnvironmentVaribles;

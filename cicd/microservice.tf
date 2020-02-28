@@ -30,10 +30,13 @@ module "slack_middleware_service" {
 
     "/database/redis_cluster_kubernetes/REDIS_HOST",
     "/database/redis_cluster_kubernetes/REDIS_PORT",
-    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB"
+    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
+
+    "/provider/aws/account/iriversland2-15pro/AWS_ACCESS_KEY_ID",
+    "/provider/aws/account/iriversland2-15pro/AWS_SECRET_ACCESS_KEY"
   ]
 }
 
 // See the logs of production server
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment
-// KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment bash
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment bash

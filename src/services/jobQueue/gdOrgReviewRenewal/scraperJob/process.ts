@@ -1,9 +1,6 @@
 import Bull from 'bull';
 import Redis from 'redis';
-import {
-    getRedisConnectionConfig,
-    RedisPubSubChannelName
-} from '../../../redis';
+import { redisManager, RedisPubSubChannelName } from '../../../redis';
 import { asyncTriggerQualitativeReviewRepoBuild } from '../../../travis';
 import { asyncSendSlackMessage } from '../../../slack';
 import {
@@ -249,9 +246,7 @@ module.exports = function (job: Bull.Job<ScraperJobData>) {
         job.data
     );
 
-    const redisClientSubscription = Redis.createClient(
-        getRedisConnectionConfig()
-    );
+    const redisClientSubscription = Redis.createClient(redisManager.config);
     const redisClientPublish = redisClientSubscription.duplicate();
     const redisPubsubChannelName = `${
         RedisPubSubChannelName.SCRAPER_JOB_CHANNEL

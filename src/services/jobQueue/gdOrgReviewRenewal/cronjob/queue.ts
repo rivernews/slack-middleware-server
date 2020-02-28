@@ -1,7 +1,7 @@
 import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
-import { getRedisConnectionConfig } from '../../../redis';
+import { redisManager } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
 
 export interface GdOrgReviewRenewalCronjobData {}
@@ -21,7 +21,7 @@ const processFileName = fs.existsSync(processTypescriptPath)
 export const gdOrgReviewRenewalCronjobQueue = new Bull<
     GdOrgReviewRenewalCronjobData
 >(JobQueueName.GD_ORG_REVIEW_RENEWAL_CRONJOB, {
-    redis: getRedisConnectionConfig(),
+    redis: redisManager.config,
     defaultJobOptions: {
         // TODO: enable repeat opt when in prod
         // repeat: {

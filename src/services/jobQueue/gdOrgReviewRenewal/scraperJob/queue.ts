@@ -1,7 +1,7 @@
 import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
-import { getRedisConnectionConfig } from '../../../redis';
+import { redisManager } from '../../../redis';
 import { JobQueueName } from '../../jobQueueName';
 import { ScraperJobData } from '../../types';
 
@@ -19,7 +19,7 @@ const processFileName = fs.existsSync(processTypescriptPath)
 export const gdOrgReviewScraperJobQueue = new Bull<ScraperJobData>(
     JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
     {
-        redis: getRedisConnectionConfig()
+        redis: redisManager.config
     }
 );
 
