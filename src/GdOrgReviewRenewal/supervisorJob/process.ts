@@ -25,9 +25,9 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         supervisorJob.data
     );
 
-    const orgInfoList = Array.isArray(supervisorJob.data)
-        ? supervisorJob.data
-        : [supervisorJob.data];
+    const orgInfoList = supervisorJob.data.orgInfo
+        ? [supervisorJob.data.orgInfo]
+        : supervisorJob.data.orgInfoList || [];
     let processed = 0;
 
     return Promise.all([

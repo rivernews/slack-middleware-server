@@ -41,9 +41,9 @@ export const singleOrgJobController = async (
         // const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
         //     orgInfo: companyInformationString
         // });
-        const supervisorJob = await supervisorJobQueue.add(
-            companyInformationString
-        );
+        const supervisorJob = await supervisorJobQueue.add({
+            orgInfo: companyInformationString
+        });
 
         // if (triggerRes.status >= 400) {
         //     console.log('travis return abnormal response');

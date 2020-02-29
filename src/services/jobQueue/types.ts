@@ -37,7 +37,11 @@ export enum ScraperMode {
     RENEWAL = 'renewal'
 }
 
-export type SupervisorJobRequestData = string | string[];
+// export type SupervisorJobRequestData = string | string[];
+export interface SupervisorJobRequestData {
+    orgInfo?: string;
+    orgInfoList?: string[];
+}
 
 export interface ScraperJobRequestData {
     // for regular scraper job

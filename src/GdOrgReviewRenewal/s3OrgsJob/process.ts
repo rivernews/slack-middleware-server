@@ -21,7 +21,9 @@ const getOrgListFromS3 = async () => {
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     getOrgListFromS3()
         .then(orgInfoList => {
-            return supervisorJobQueue.add(orgInfoList);
+            return supervisorJobQueue.add({
+                orgInfoList
+            });
         })
         .then(supervisorJob => {
             return supervisorJob.finished();
