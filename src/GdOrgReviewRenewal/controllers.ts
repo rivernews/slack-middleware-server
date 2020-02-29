@@ -6,6 +6,7 @@ import {
 import { Request, Response, NextFunction } from 'express';
 import { supervisorJobQueue } from './supervisorJob/queue';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
+import { JobQueueName } from '../services/jobQueue/jobQueueName';
 
 export const s3OrgsJobController = async (
     req: Request,
@@ -14,7 +15,11 @@ export const s3OrgsJobController = async (
 ) => {
     console.debug('s3OrgsJobController: ready to dispatch job');
     const s3OrgsJob = await s3OrgsJobQueueManager.queue.add(null);
-    await asyncSendSlackMessage(JSON.stringify(s3OrgsJob));
+    await asyncSendSlackMessage(
+        `added ${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB}\`\`\`${JSON.stringify(
+            s3OrgsJob
+        )}\`\`\``
+    );
     return res.json(s3OrgsJob);
 };
 
