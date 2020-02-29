@@ -16,7 +16,7 @@ export const s3OrgsJobController = async (
     console.debug('s3OrgsJobController: ready to dispatch job');
     const s3OrgsJob = await s3OrgsJobQueueManager.queue.add(null);
     await asyncSendSlackMessage(
-        `added ${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB}\`\`\`${JSON.stringify(
+        `added ${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} \`\`\`${JSON.stringify(
             s3OrgsJob
         )}\`\`\``
     );
