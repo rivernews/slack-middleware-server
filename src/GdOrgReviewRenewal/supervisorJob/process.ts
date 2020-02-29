@@ -28,6 +28,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     const orgInfoList = Array.isArray(supervisorJob.data)
         ? supervisorJob.data
         : [supervisorJob.data];
+    let processed = 0;
 
     return Promise.all([
         gdOrgReviewScraperJobQueue.getWaitingCount(),
@@ -59,16 +60,14 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             //     return Promise.reject(error);
             // }
 
-            const overallOrgListLength = orgInfoList.length;
-            console.debug('got orgList from s3', orgInfoList);
-
             // dispatch job
             if (!orgInfoList.length) {
                 console.log('org list empty, will do nothing');
                 return Promise.resolve('empty orgList');
             }
             console.log('cronjob will dispatch scraper jobs');
-            orgInfoList.forEach(async (orgInfo, index) => {
+            for (processed = 0; processed < orgInfoList.length; processed++) {
+                const orgInfo = orgInfoList[processed];
                 let scraperJob = await gdOrgReviewScraperJobQueue.add({
                     orgInfo
                 });
@@ -103,24 +102,20 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
 
                 console.log('cronjob: proceeding to next org');
                 supervisorJob.progress(
-                    toPercentageValue((index + 1) / overallOrgListLength)
+                    toPercentageValue((processed + 1) / orgInfoList.length)
                 );
-            });
+            }
 
             console.log('cronjob finish dispatching & waiting all jobs done');
 
             return Promise.resolve('cronjob complete successfully');
         })
         .catch(async error => {
-            if (orgInfoList === null) {
-                console.error('cannot retrieve org info list from s3');
-            } else {
-                console.log(
-                    'cronjob interrupted due to error; remaining orgList not yet touched:',
-                    orgInfoList
-                );
-                await gdOrgReviewScraperJobQueue.empty();
-            }
+            console.log(
+                'cronjob interrupted due to error; remaining orgList not yet finished (including failed one):',
+                orgInfoList.slice(processed, orgInfoList.length)
+            );
+            await gdOrgReviewScraperJobQueue.empty();
             return Promise.reject(error);
         });
 };

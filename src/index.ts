@@ -14,7 +14,8 @@ import {
 } from './QualitativeOrgReview/routes';
 import {
     slackAuthenticateMiddleware,
-    jobQueueAuthenticateMiddleware
+    jobQueueAuthenticateMiddleware,
+    jobQueueDashboardAuthenticateMiddleware
 } from './utilities/authenticators';
 import {
     gdOrgReviewRenewalBaseUrl,
@@ -45,7 +46,7 @@ app.use(
 
 app.get('/', async (req, res) => {
     res.send(
-        'Hello! This is our slack service. <a href="/admin/queues">Queue Dashboard</a>'
+        'Hello! This is our slack service. <a href="/dashboard">Queue Dashboard</a>'
     );
 });
 app.use(
@@ -53,12 +54,14 @@ app.use(
     slackAuthenticateMiddleware,
     qualitativeOrgReviewRouter
 );
+// test single job: curl -v -X POST http://localhost:8080/queues/single-org-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
+// test s3 orgs job: curl -v -X POST http://localhost:8080/queues/s3-orgs-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
 app.use(
     gdOrgReviewRenewalBaseUrl,
     jobQueueAuthenticateMiddleware,
     gdOrgReviewRenewalRouter
 );
-app.use('/queues/dashboard', jobQueueAuthenticateMiddleware, UI);
+app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, UI);
 
 // TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests

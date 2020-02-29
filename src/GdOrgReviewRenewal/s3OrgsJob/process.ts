@@ -3,7 +3,7 @@ import { s3ArchiveManager } from '../../services/s3';
 import { supervisorJobQueue } from '../supervisorJob/queue';
 
 const getOrgListFromS3 = async () => {
-    // return s3ArchiveManager.asyncGetOverviewPageUrls();
+    return s3ArchiveManager.asyncGetOverviewPageUrls();
 
     // return [
     //     'https://www.glassdoor.com/Overview/Working-at-Palo-Alto-Networks-EI_IE115142.11,29.htm'
@@ -14,7 +14,7 @@ const getOrgListFromS3 = async () => {
     //     'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
     // ];
     // return ['"Palo Alto Network"'];
-    return [];
+    // return [];
     // return ['healthcrowd'];
 };
 

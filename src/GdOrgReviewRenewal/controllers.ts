@@ -75,7 +75,7 @@ export const singleOrgJobController = async (
         return res.json(supervisorJob);
     } catch (error) {
         console.error(
-            'hey we are in controller....error.message:',
+            'Single org job endpoint controller error:',
             error.message
         );
         return next(error);

@@ -11,15 +11,44 @@ export const getAuthenticateByTokenMiddleware = (tokenToVerfy?: string) => {
         const requesterToken = req.query.token || req.body.token;
 
         if (!requesterToken) {
-            next(new NotAuthenticatedResponse());
+            return next(new NotAuthenticatedResponse());
         }
 
         if (requesterToken !== tokenToVerfy) {
-            next(new NotAuthenticatedResponse());
+            return next(new NotAuthenticatedResponse());
         }
 
         return next();
     };
+};
+
+export const jobQueueDashboardAuthenticateMiddleware = (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    // only protect route at index page
+    // otherwise will block dashboard's internal connection
+    if (req.method === 'GET') {
+        const [relativePathToRouteBaseWithQuery] = req.url.split('?');
+        if (relativePathToRouteBaseWithQuery === '/') {
+            const requesterToken = req.query.token || req.body.token;
+
+            if (!process.env.TRAVIS_TOKEN) {
+                return next(new ServerError(`Misconfigured credential`));
+            }
+
+            if (!requesterToken) {
+                return next(new NotAuthenticatedResponse());
+            }
+
+            if (requesterToken !== process.env.TRAVIS_TOKEN) {
+                return next(new NotAuthenticatedResponse());
+            }
+        }
+    }
+
+    return next();
 };
 
 export const jobQueueAuthenticateMiddleware = getAuthenticateByTokenMiddleware(
