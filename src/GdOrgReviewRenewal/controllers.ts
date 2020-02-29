@@ -66,7 +66,7 @@ export const singleOrgJobController = async (
         //     config: triggerRes.data.request.config
         // };
         const slackRes = await asyncSendSlackMessage(
-            'Dispatch supervisorJob success. Below is the travis response ~~:\n```' +
+            'Dispatch supervisorJob success. Below is the job added:\n```' +
                 JSON.stringify(supervisorJob, null, 2) +
                 '```'
         );
