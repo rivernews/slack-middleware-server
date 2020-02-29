@@ -1,18 +1,26 @@
 'use strict';
 
 import express from 'express';
-import {
-    ErrorResponse,
-    NotAuthenticatedResponse
-} from './utilities/serverExceptions';
-import { UI } from 'bull-board';
+import { ErrorResponse } from './utilities/serverExceptions';
 import { createTerminus } from '@godaddy/terminus';
 import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
 import {
     RuntimeEnvironment,
     RUNTIME_CI_ENVIRONMENT
 } from './utilities/runtime';
-import { supervisorJobQueue } from './GdOrgReviewRenewal/supervisorJob/queue';
+import {
+    qualitativeOrgReviewBaseUrl,
+    qualitativeOrgReviewRouter
+} from './QualitativeOrgReview/routes';
+import {
+    slackAuthenticateMiddleware,
+    jobQueueAuthenticateMiddleware
+} from './utilities/authenticators';
+import {
+    gdOrgReviewRenewalBaseUrl,
+    gdOrgReviewRenewalRouter
+} from './GdOrgReviewRenewal/routes';
+import { UI } from 'bull-board';
 
 // Constants
 if (!process.env.PORT) {
@@ -41,24 +49,16 @@ app.get('/', async (req, res) => {
     );
 });
 app.use(
-    require('./QualitativeOrgReview/routes').baseUrl,
-    require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
+    qualitativeOrgReviewBaseUrl,
+    slackAuthenticateMiddleware,
+    qualitativeOrgReviewRouter
 );
-app.post('/queues', async (req, res) => {
-    if (
-        req.body.token &&
-        process.env.TRAVIS_TOKEN &&
-        req.body.token === process.env.TRAVIS_TOKEN
-    ) {
-        console.log('cronjob request received, dispatching...');
-        // const cronjob = await supervisorJobQueue.add({});
-        // console.log('registered cronjob', cronjob.id);
-        // res.json(cronjob);
-    } else {
-        throw new NotAuthenticatedResponse();
-    }
-});
-app.use('/queues/admin', UI);
+app.use(
+    gdOrgReviewRenewalBaseUrl,
+    jobQueueAuthenticateMiddleware,
+    gdOrgReviewRenewalRouter
+);
+app.use('/queues/dashboard', jobQueueAuthenticateMiddleware, UI);
 
 // TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
@@ -93,7 +93,7 @@ const expressServer = app.listen(PORT, () => {
 
 // Clean up server resources & any external connections
 
-const cleanUpExpressServer = async () => {
+export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
     await cleanupJobQueues();
@@ -110,7 +110,7 @@ const cleanUpExpressServer = async () => {
 const onSignal = async () => {
     console.log('on signal: SIGINT | SIGTERM | SIGHUP...');
     await cleanUpExpressServer();
-    console.log('onSignal: clean up complete');
+    console.log('=== onSignal: clean up complete ===');
     return;
 };
 
@@ -134,6 +134,6 @@ export const gracefulExpressServer = createTerminus(expressServer, {
 gracefulExpressServer.on('close', async () => {
     console.log('closing...');
     await cleanUpExpressServer();
-    console.log('close: clean up complete');
+    console.log('=== close: clean up complete ===');
     return;
 });

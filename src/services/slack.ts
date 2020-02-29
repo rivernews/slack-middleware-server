@@ -10,19 +10,6 @@ import {
 const SLACK_TOKEN_INCOMING_URL: string =
     process.env.SLACK_TOKEN_INCOMING_URL || '';
 
-const authenticateSlack = (
-    slackReq: express.Request,
-    verifySlackToken: string
-) => {
-    const slackToken = slackReq.body.token || slackReq.query.token;
-    if (!slackToken || slackToken !== verifySlackToken) {
-        console.warn('No token included or not correct.');
-        return false;
-    }
-
-    return true;
-};
-
 export const asyncSendSlackMessage = async (
     message: string,
     overrideChannel = ''
@@ -73,14 +60,15 @@ export const parseArgsFromSlackForLaunch = (slackReq: express.Request) => {
     let companyInformationString: string =
         slackReq.body.company || slackReq.query.company;
     if (!companyInformationString) {
-        if (
-            !authenticateSlack(
-                slackReq,
-                process.env.SLACK_TOKEN_OUTGOING_LAUNCH || ''
-            )
-        ) {
-            throw new NotAuthenticatedResponse();
-        }
+        // TODO: remove this block after auth middleware is tested working
+        // if (
+        //     !authenticateByToken(
+        //         slackReq,
+        //         process.env.SLACK_TOKEN_OUTGOING_LAUNCH || ''
+        //     )
+        // ) {
+        //     throw new NotAuthenticatedResponse();
+        // }
         [companyInformationString] = parseArgsFromSlackMessage(slackReq);
     }
 
@@ -108,14 +96,15 @@ export const parseArgsFromSlackForLaunch = (slackReq: express.Request) => {
 };
 
 export const parseArgsFromSlackForListOrg = (slackReq: express.Request) => {
-    if (
-        !authenticateSlack(
-            slackReq,
-            process.env.SLACK_TOKEN_OUTGOING_LIST_ORG || ''
-        )
-    ) {
-        throw new NotAuthenticatedResponse();
-    }
+    // TODO: remove this block after auth middleware is tested working
+    // if (
+    //     !authenticateByToken(
+    //         slackReq,
+    //         process.env.SLACK_TOKEN_OUTGOING_LIST_ORG || ''
+    //     )
+    // ) {
+    //     throw new NotAuthenticatedResponse();
+    // }
 
     const args = parseArgsFromSlackMessage(slackReq);
 
