@@ -8,6 +8,7 @@ import {
 import { s3ArchiveManager } from '../../services/s3';
 import { toPercentageValue } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
+import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -38,7 +39,8 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         gdOrgReviewScraperJobQueue.getActiveCount()
     ])
         .then(([waiting, delayed, paused, active]) => {
-            if (waiting || delayed || paused || active) {
+            const jobsPresentCount = waiting + delayed + paused + active;
+            if (jobsPresentCount > SUPERVISOR_JOB_CONCURRENCY) {
                 // there's pending job still in the scraper job queue,
                 // let previous pending jobs finish first.
                 // ignore this supervisorJob (schedule job upon next supervisorJob)
