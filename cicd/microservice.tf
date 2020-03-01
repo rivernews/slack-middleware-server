@@ -26,6 +26,21 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/SLACK_TOKEN_OUTGOING_LAUNCH",
     "/app/slack-middleware-service/SLACK_TOKEN_OUTGOING_LIST_ORG",
     "/app/slack-middleware-service/SLACK_TOKEN_INCOMING_URL",
-    "/app/slack-middleware-service/TRAVIS_TOKEN"
+    "/app/slack-middleware-service/TRAVIS_TOKEN",
+
+    "/database/redis_cluster_kubernetes/REDIS_HOST",
+    "/database/redis_cluster_kubernetes/REDIS_PORT",
+    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
+
+    "/provider/aws/account/iriversland2-15pro/AWS_ACCESS_KEY_ID",
+    "/provider/aws/account/iriversland2-15pro/AWS_SECRET_ACCESS_KEY"
   ]
 }
+
+// See the logs of production server
+// logs
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment
+// exec
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment sh
+// port-forward
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service port-forward deploy/slack-middleware-service-deployment PORT:PORT

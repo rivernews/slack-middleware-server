@@ -2,72 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import cheerio from 'cheerio';
 import axios from 'axios';
 import isEmpty from 'lodash/isEmpty';
-import * as slack from '../services/slack/slack';
-import * as travis from '../services/travis';
-import { ParameterRequirementNotMet } from '../utilities/serverUtilities';
+import * as slack from '../services/slack';
 import * as htmlParseHelper from '../services/htmlParser';
 
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
-
-export const slackToTravisCIController = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    let companyInformationString;
-
-    try {
-        companyInformationString = slack.parseArgsFromSlackForLaunch(req);
-        if (!companyInformationString) {
-            console.log('No company included');
-            throw new ParameterRequirementNotMet(
-                'No company specified, will do nothing'
-            );
-        }
-
-        console.log(`Company info string is ${companyInformationString}`);
-
-        console.log('Ready to trigger travis');
-        const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild(
-            companyInformationString
-        );
-
-        if (triggerRes.status >= 400) {
-            console.log('travis return abnormal response');
-            console.log(triggerRes.data);
-            return res
-                .json({
-                    message: 'Travis returned abnormal response',
-                    travisStatus: triggerRes.status,
-                    travisResponse: triggerRes.data
-                })
-                .status(triggerRes.status);
-        }
-
-        console.log('trigger result:\n', triggerRes.data);
-
-        // slack log the trigger response
-        const travisTriggerSummary = {
-            remaining_requests: triggerRes.data.remaining_requests,
-            scraper_branch: triggerRes.data.request.branch,
-            config: triggerRes.data.request.config
-        };
-        const slackRes = await slack.asyncSendSlackMessage(
-            'Trigger travis success. Below is the travis response ~~:\n```' +
-                JSON.stringify(travisTriggerSummary, null, 2) +
-                '```'
-        );
-        console.log('Slack res', slackRes);
-
-        return res.json(triggerRes.data);
-    } catch (error) {
-        console.log(
-            'hey we are in controller....error.message:',
-            error.message
-        );
-        return next(error);
-    }
-};
 
 interface MultiResultPageParserLocatorFunctionReturns {
     singleOrgElements: Cheerio;

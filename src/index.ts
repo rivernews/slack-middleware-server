@@ -1,7 +1,27 @@
 'use strict';
 
 import express from 'express';
-import { ErrorResponse } from './utilities/serverUtilities';
+import { ErrorResponse } from './utilities/serverExceptions';
+import { createTerminus } from '@godaddy/terminus';
+import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
+import {
+    RuntimeEnvironment,
+    RUNTIME_CI_ENVIRONMENT
+} from './utilities/runtime';
+import {
+    qualitativeOrgReviewBaseUrl,
+    qualitativeOrgReviewRouter
+} from './QualitativeOrgReview/routes';
+import {
+    slackAuthenticateMiddleware,
+    jobQueueAuthenticateMiddleware,
+    jobQueueDashboardAuthenticateMiddleware
+} from './utilities/authenticators';
+import {
+    gdOrgReviewRenewalBaseUrl,
+    gdOrgReviewRenewalRouter
+} from './GdOrgReviewRenewal/routes';
+import { UI } from 'bull-board';
 
 // Constants
 if (!process.env.PORT) {
@@ -25,14 +45,25 @@ app.use(
 // App Routes
 
 app.get('/', async (req, res) => {
-    res.send('Hello! This is our slack service.');
+    res.send(
+        'Hello! This is our slack service. <a href="/dashboard">Queue Dashboard</a>'
+    );
 });
 app.use(
-    require('./QualitativeOrgReview/routes').baseUrl,
-    require('./QualitativeOrgReview/routes').qualitativeOrgReviewRouter
+    qualitativeOrgReviewBaseUrl,
+    slackAuthenticateMiddleware,
+    qualitativeOrgReviewRouter
 );
+// test single job: curl -v -X POST http://localhost:8080/queues/single-org-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
+// test s3 orgs job: curl -v -X POST http://localhost:8080/queues/s3-orgs-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
+app.use(
+    gdOrgReviewRenewalBaseUrl,
+    jobQueueAuthenticateMiddleware,
+    gdOrgReviewRenewalRouter
+);
+app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, UI);
 
-// TODO: explore travisCI API
+// TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests
 
 // error handling, has to be the last middleware
@@ -58,8 +89,54 @@ app.use(
 
 // Bootstrap server
 
-const nodeServer = app.listen(PORT, () => {
+const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
+    RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING && startJobQueues();
 });
 
-module.exports = nodeServer;
+// Clean up server resources & any external connections
+
+export const cleanUpExpressServer = async () => {
+    console.log('cleaning up...');
+
+    await cleanupJobQueues();
+
+    return;
+};
+
+// Handling server exiting
+
+// dealing with killing server by CTRL+C or system signals
+// npm test will also signal too so will duplicate with the on('close') handler;
+// but having onSignal here to provide an extra layer of
+// guarantee for other system-wise exit requests
+const onSignal = async () => {
+    console.log('on signal: SIGINT | SIGTERM | SIGHUP...');
+    await cleanUpExpressServer();
+    console.log('=== onSignal: clean up complete ===');
+    return;
+};
+
+// Terminus
+// https://github.com/godaddy/terminus
+// Express doc on Terminus
+// https://expressjs.com/en/advanced/healthcheck-graceful-shutdown.html
+export const gracefulExpressServer = createTerminus(expressServer, {
+    signals: ['SIGINT', 'SIGTERM', 'SIGHUP'],
+    onSignal,
+
+    // for kubernetes
+    // https://github.com/godaddy/terminus#how-to-set-terminus-up-with-kubernetes
+    beforeShutdown: () =>
+        new Promise(resolve => {
+            setTimeout(resolve, 5000);
+        })
+});
+
+// dealing with programmatic exit (e.g. from npm test)
+gracefulExpressServer.on('close', async () => {
+    console.log('closing...');
+    await cleanUpExpressServer();
+    console.log('=== close: clean up complete ===');
+    return;
+});

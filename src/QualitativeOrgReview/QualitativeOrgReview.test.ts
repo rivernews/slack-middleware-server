@@ -3,11 +3,10 @@
 import { expect } from 'chai';
 import axios from 'axios';
 import { describe, it } from 'mocha';
-import { STATUS_CODE, baseUrl } from '../utilities/serverUtilities';
+import { STATUS_CODE, baseUrl } from '../utilities/serverExceptions';
 import {
-    baseUrl as qualitativeOrgReviewbaseUrl,
-    listOrgsEndpoint,
-    slackToTravisCIEndpoint
+    qualitativeOrgReviewBaseUrl as qualitativeOrgReviewbaseUrl,
+    listOrgsEndpoint
 } from './routes';
 
 const simulateSlackTriggerWordListOrgRequest = async (
@@ -25,7 +24,7 @@ const simulateSlackTriggerWordListOrgRequest = async (
     return res.data;
 };
 
-const qualitativeOrgReviewOrgDescribe = describe('QualitativeOrgReview integration test', () => {
+export const qualitativeOrgReviewOrgDescribe = describe('QualitativeOrgReview integration test', () => {
     describe('List org endpoint', () => {
         it('Multiple', async () => {
             const data = await simulateSlackTriggerWordListOrgRequest(
@@ -58,46 +57,5 @@ const qualitativeOrgReviewOrgDescribe = describe('QualitativeOrgReview integrati
         });
     });
 
-    describe('Slack To TravisCI endpoint', () => {
-        it('No permission', async () => {
-            // no token specified - should return 401 not authenticated
-            try {
-                await axios.post(
-                    `${baseUrl}${qualitativeOrgReviewbaseUrl}${slackToTravisCIEndpoint}`
-                );
-                throw new Error('Should trigger error');
-            } catch (error) {
-                expect(error.response.status).to.equal(
-                    STATUS_CODE.NOT_AUTHENTICATED
-                );
-                expect(error.response.data.message).to.equal('No permission');
-            }
-
-            return;
-        });
-
-        it('No company', async () => {
-            // no token specified - should return 401 not authenticated
-            try {
-                const res = await axios.post(
-                    `${baseUrl}${qualitativeOrgReviewbaseUrl}${slackToTravisCIEndpoint}`,
-                    { token: process.env.SLACK_TOKEN_OUTGOING_LAUNCH }
-                );
-                throw new Error('Should trigger error');
-            } catch (error) {
-                expect(error.response.status).to.equal(
-                    STATUS_CODE.PARAMETER_REQUIREMENT_NOT_MET
-                );
-                expect(error.response.data.message).to.includes('No company');
-            }
-
-            return;
-        });
-    });
-
     // add more tests for controllers...
 });
-
-module.exports = {
-    qualitativeOrgReviewOrgDescribe
-};

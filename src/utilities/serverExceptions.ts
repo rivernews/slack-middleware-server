@@ -56,12 +56,3 @@ export class ParameterRequirementNotMet extends ErrorResponse {
         super(message, status);
     }
 }
-
-// module.exports = {
-//     baseUrl,
-//     STATUS_CODE,
-
-//     ErrorResponse,
-//     NotAuthenticatedResponse,
-//     ParameterRequirementNotMet
-// };
