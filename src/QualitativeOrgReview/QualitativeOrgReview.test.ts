@@ -37,7 +37,8 @@ export const qualitativeOrgReviewOrgDescribe = describe('QualitativeOrgReview in
             return;
         });
 
-        it('Single', async () => {
+        it('Single', async function () {
+            this.retries(2);
             const data = await simulateSlackTriggerWordListOrgRequest(
                 'digitalocean'
             );
