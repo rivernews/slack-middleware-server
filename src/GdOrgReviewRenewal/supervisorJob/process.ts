@@ -7,6 +7,7 @@ import {
 } from '../../services/jobQueue/types';
 import { s3ArchiveManager } from '../../services/s3';
 import { toPercentageValue } from '../../utilities/runtime';
+import { ServerError } from '../../utilities/serverExceptions';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -40,11 +41,11 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             if (waiting || delayed || paused || active) {
                 // there's pending job still in the scraper job queue,
                 // let previous pending jobs finish first.
-                // ignore this cronjob (schedule job upon next cronjob)
+                // ignore this supervisorJob (schedule job upon next supervisorJob)
                 console.warn(
-                    'Previous pending scraper jobs exist, will ignore this cronjob'
+                    'Previous pending scraper jobs exist, will ignore this supervisorJob'
                 );
-                return Promise.reject('cronjob skip');
+                return Promise.reject('supervisorJob skip');
             }
 
             supervisorJob.progress(supervisorJob.progress() + 1);
@@ -55,7 +56,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             // get orgList from s3
             // try {
             //     orgInfoList = await getOrgListFromS3();
-            //     cronjob.progress(cronjob.progress() + 1);
+            //     supervisorJob.progress(supervisorJob.progress() + 1);
             // } catch (error) {
             //     return Promise.reject(error);
             // }
@@ -65,26 +66,39 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 console.log('org list empty, will do nothing');
                 return Promise.resolve('empty orgList');
             }
-            console.log('cronjob will dispatch scraper jobs');
+            console.log('supervisorJob will dispatch scraper jobs');
             for (processed = 0; processed < orgInfoList.length; processed++) {
                 const orgInfo = orgInfoList[processed];
                 let scraperJob = await gdOrgReviewScraperJobQueue.add({
                     orgInfo
                 });
                 const orgFirstJobId = scraperJob.id;
-                console.log(`cronjob added scraper job ${orgFirstJobId}`);
+                console.log(`supervisorJob added scraper job ${orgFirstJobId}`);
 
                 let jobResult:
                     | string
                     | ScraperCrossRequestData = await scraperJob.finished();
-                console.log(`cronjob: job ${orgFirstJobId} finished`);
+                console.log(`supervisorJob: job ${orgFirstJobId} finished`);
+
+                if (
+                    typeof jobResult !== 'string' &&
+                    !ScraperCrossRequest.isScraperCrossRequestData(jobResult)
+                ) {
+                    throw new ServerError(
+                        `supervisorJob: job ${
+                            scraperJob.id
+                        } returned illegal result data: ${JSON.stringify(
+                            jobResult
+                        )}`
+                    );
+                }
 
                 // process renewal jobs if necessary
                 while (
                     ScraperCrossRequest.isScraperCrossRequestData(jobResult)
                 ) {
                     console.log(
-                        `cronjob: job ${scraperJob.id} requested renewal job, dispatching renewal job`
+                        `supervisorJob: job ${scraperJob.id} requested renewal job, dispatching renewal job`
                     );
                     const renewalJob = await gdOrgReviewScraperJobQueue.add(
                         jobResult
@@ -92,27 +106,44 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
 
                     // wait for all renewal job done
                     console.log(
-                        `cronjob: job ${orgFirstJobId}: renewal job ${renewalJob.id} started.`
+                        `supervisorJob: job ${orgFirstJobId}: renewal job ${renewalJob.id} started.`
                     );
                     jobResult = await renewalJob.finished();
+                    if (
+                        typeof jobResult !== 'string' &&
+                        !ScraperCrossRequest.isScraperCrossRequestData(
+                            jobResult
+                        )
+                    ) {
+                        throw new ServerError(
+                            `supervisorJob: job ${
+                                renewalJob.id
+                            } returned illegal result data: ${JSON.stringify(
+                                jobResult
+                            )}`
+                        );
+                    }
+
                     console.log(
-                        `cronjob: job ${orgFirstJobId}: renewal job ${renewalJob.id} finished`
+                        `supervisorJob: job ${orgFirstJobId}: renewal job ${renewalJob.id} finished`
                     );
                 }
 
-                console.log('cronjob: proceeding to next org');
+                console.log('supervisorJob: proceeding to next org');
                 supervisorJob.progress(
                     toPercentageValue((processed + 1) / orgInfoList.length)
                 );
             }
 
-            console.log('cronjob finish dispatching & waiting all jobs done');
+            console.log(
+                'supervisorJob finish dispatching & waiting all jobs done'
+            );
 
-            return Promise.resolve('cronjob complete successfully');
+            return Promise.resolve('supervisorJob complete successfully');
         })
         .catch(async error => {
             console.log(
-                'cronjob interrupted due to error; remaining orgList not yet finished (including failed one):',
+                'supervisorJob interrupted due to error; remaining orgList not yet finished (including failed one):',
                 orgInfoList.slice(processed, orgInfoList.length)
             );
             await gdOrgReviewScraperJobQueue.empty();

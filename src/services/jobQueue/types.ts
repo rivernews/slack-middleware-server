@@ -24,12 +24,41 @@ export type ScraperCrossRequestData = ScraperJobRequestData & {
 };
 
 export interface ScraperProgressData {
-    procressed: number;
+    processed: number;
     wentThrough: number;
     total: number;
     durationInMilli: string;
     page: number;
     processedSession: number;
+}
+
+export class ScraperProgress {
+    public static isScraperProgressData (
+        props: any,
+        throwError: boolean = false
+    ): props is ScraperProgressData {
+        if (
+            !(
+                typeof props.processed === 'number' &&
+                typeof props.wentThrough === 'number' &&
+                typeof props.total === 'number' &&
+                typeof props.durationInMilli === 'string' &&
+                typeof props.page === 'number' &&
+                typeof props.processedSession === 'number'
+            )
+        ) {
+            if (throwError) {
+                throw new ServerError(
+                    `Failed to validate ScraperCrossRequest instance, because required data is missing in props: ` +
+                        JSON.stringify(props)
+                );
+            }
+
+            return false;
+        }
+
+        return true;
+    }
 }
 
 export enum ScraperMode {
@@ -89,13 +118,16 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
         ) {
             if (throwError) {
                 throw new ServerError(
-                    `Failed to create ScraperCrossRequest instance, because required data is missing in props: ` +
+                    `Failed to validate ScraperCrossRequest instance, because required data is missing in props: ` +
                         JSON.stringify(props)
                 );
             }
 
             return false;
         }
+
+        // also check for any class-object field
+        ScraperProgress.isScraperProgressData(props.lastProgress, throwError);
 
         return true;
     }

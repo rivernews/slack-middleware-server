@@ -56,7 +56,7 @@ const jobDataMapToScraperEnvVar = (jobData: ScraperJobRequestData) => {
             const progressData = jobData[cur] as ScraperProgressData;
             return {
                 ...acc,
-                TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.procressed,
+                TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.processed,
                 TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH:
                     progressData.wentThrough,
                 TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total,
