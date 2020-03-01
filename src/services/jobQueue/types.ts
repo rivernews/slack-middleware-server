@@ -24,14 +24,17 @@ export type ScraperCrossRequestData = ScraperJobRequestData & {
 };
 
 export interface ScraperProgressData {
+    // used in all cases
     processed: number;
     wentThrough: number;
     total: number;
 
+    // used in FINISH and propogate back progress to schedule cross session job
     durationInMilli: string;
     page: number;
     processedSession: number;
 
+    // used when scraper reporting back progress info
     elapsedTimeString?: string;
 }
 
