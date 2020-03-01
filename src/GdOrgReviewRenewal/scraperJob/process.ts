@@ -79,6 +79,7 @@ const onReceiveScraperJobMessage = async (
 
         return;
     } else if (type === ScraperJobMessageType.PROGRESS) {
+        // TODO: validate progress data; but have to handle optional props first, do this in class `ScraperProgress`.
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
         console.log(`job ${job.id} progress reported`, progressData);
 

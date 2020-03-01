@@ -27,9 +27,12 @@ export interface ScraperProgressData {
     processed: number;
     wentThrough: number;
     total: number;
+
     durationInMilli: string;
     page: number;
     processedSession: number;
+
+    elapsedTimeString?: string;
 }
 
 export class ScraperProgress {
@@ -44,7 +47,10 @@ export class ScraperProgress {
                 typeof props.total === 'number' &&
                 typeof props.durationInMilli === 'string' &&
                 typeof props.page === 'number' &&
-                typeof props.processedSession === 'number'
+                typeof props.processedSession === 'number' &&
+                // optional prop
+                (props.elapsedTimeString === undefined ||
+                    typeof props.elapsedTimeString === 'string')
             )
         ) {
             if (throwError) {
