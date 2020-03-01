@@ -1,11 +1,10 @@
 import Bull = require('bull');
-import { gdOrgReviewScraperJobQueue } from '../scraperJob/queue';
+import { gdOrgReviewScraperJobQueueManager } from '../scraperJob/queue';
 import {
     ScraperCrossRequest,
     ScraperCrossRequestData,
     SupervisorJobRequestData
 } from '../../services/jobQueue/types';
-import { s3ArchiveManager } from '../../services/s3';
 import { toPercentageValue } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
@@ -33,10 +32,10 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     let processed = 0;
 
     return Promise.all([
-        gdOrgReviewScraperJobQueue.getWaitingCount(),
-        gdOrgReviewScraperJobQueue.getDelayedCount(),
-        gdOrgReviewScraperJobQueue.getPausedCount(),
-        gdOrgReviewScraperJobQueue.getActiveCount()
+        gdOrgReviewScraperJobQueueManager.queue.getWaitingCount(),
+        gdOrgReviewScraperJobQueueManager.queue.getDelayedCount(),
+        gdOrgReviewScraperJobQueueManager.queue.getPausedCount(),
+        gdOrgReviewScraperJobQueueManager.queue.getActiveCount()
     ])
         .then(([waiting, delayed, paused, active]) => {
             const jobsPresentCount = waiting + delayed + paused + active;
@@ -55,14 +54,6 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             return Promise.resolve();
         })
         .then(async () => {
-            // get orgList from s3
-            // try {
-            //     orgInfoList = await getOrgListFromS3();
-            //     supervisorJob.progress(supervisorJob.progress() + 1);
-            // } catch (error) {
-            //     return Promise.reject(error);
-            // }
-
             // dispatch job
             if (!orgInfoList.length) {
                 console.log('org list empty, will do nothing');
@@ -71,9 +62,11 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             console.log('supervisorJob will dispatch scraper jobs');
             for (processed = 0; processed < orgInfoList.length; processed++) {
                 const orgInfo = orgInfoList[processed];
-                let scraperJob = await gdOrgReviewScraperJobQueue.add({
-                    orgInfo
-                });
+                let scraperJob = await gdOrgReviewScraperJobQueueManager.queue.add(
+                    {
+                        orgInfo
+                    }
+                );
                 const orgFirstJobId = scraperJob.id;
                 console.log(`supervisorJob added scraper job ${orgFirstJobId}`);
 
@@ -102,7 +95,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     console.log(
                         `supervisorJob: job ${scraperJob.id} requested renewal job, dispatching renewal job`
                     );
-                    const renewalJob = await gdOrgReviewScraperJobQueue.add(
+                    const renewalJob = await gdOrgReviewScraperJobQueueManager.queue.add(
                         jobResult
                     );
 
@@ -148,7 +141,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 'supervisorJob interrupted due to error; remaining orgList not yet finished (including failed one):',
                 orgInfoList.slice(processed, orgInfoList.length)
             );
-            await gdOrgReviewScraperJobQueue.empty();
+            await gdOrgReviewScraperJobQueueManager.queue.empty();
             return Promise.reject(error);
         });
 };

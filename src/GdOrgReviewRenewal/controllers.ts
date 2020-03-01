@@ -4,7 +4,7 @@ import {
     parseArgsFromSlackForLaunch
 } from '../services/slack';
 import { Request, Response, NextFunction } from 'express';
-import { supervisorJobQueue } from './supervisorJob/queue';
+import { supervisorJobQueueManager } from './supervisorJob/queue';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
@@ -47,7 +47,7 @@ export const singleOrgJobController = async (
         // const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
         //     orgInfo: companyInformationString
         // });
-        const supervisorJob = await supervisorJobQueue.add({
+        const supervisorJob = await supervisorJobQueueManager.queue.add({
             orgInfo: companyInformationString
         });
 

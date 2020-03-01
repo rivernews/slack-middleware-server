@@ -42,6 +42,8 @@ export class JobQueueManager<JobRequestData> {
 
         const logPrefix = props.queueAbbreviation || props.queueName;
 
+        // Events API
+        // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
         this.queue.on('error', function (error) {
             // An error occured.
             console.error(`${logPrefix} error`, error);

@@ -1,6 +1,6 @@
-import { supervisorJobQueue } from '../../GdOrgReviewRenewal/supervisorJob/queue';
+import { supervisorJobQueueManager } from '../../GdOrgReviewRenewal/supervisorJob/queue';
 import { setQueues } from 'bull-board';
-import { gdOrgReviewScraperJobQueue } from '../../GdOrgReviewRenewal/scraperJob/queue';
+import { gdOrgReviewScraperJobQueueManager } from '../../GdOrgReviewRenewal/scraperJob/queue';
 import { createClient } from 'redis';
 import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
@@ -28,8 +28,8 @@ export const startJobQueues = () => {
         // bull-board repo & doc
         // https://github.com/vcapretz/bull-board
         setQueues([
-            supervisorJobQueue,
-            gdOrgReviewScraperJobQueue,
+            supervisorJobQueueManager.queue,
+            gdOrgReviewScraperJobQueueManager.queue,
             s3OrgsJobQueueManager.queue
         ])
     );
@@ -51,8 +51,8 @@ export const cleanupJobQueues = async () => {
 
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    await supervisorJobQueue.close();
-    await gdOrgReviewScraperJobQueue.close();
+    await supervisorJobQueueManager.queue.close();
+    await gdOrgReviewScraperJobQueueManager.queue.close();
     await s3OrgsJobQueueManager.queue.close();
     console.log('all job queues closed');
 

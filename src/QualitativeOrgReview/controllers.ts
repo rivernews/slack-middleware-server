@@ -3,10 +3,7 @@ import cheerio from 'cheerio';
 import axios from 'axios';
 import isEmpty from 'lodash/isEmpty';
 import * as slack from '../services/slack';
-import * as travis from '../services/travis';
-import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import * as htmlParseHelper from '../services/htmlParser';
-import { supervisorJobQueue } from '../GdOrgReviewRenewal/supervisorJob/queue';
 
 const GLASSDOOR_BASE_URL = `https://www.glassdoor.com`;
 
