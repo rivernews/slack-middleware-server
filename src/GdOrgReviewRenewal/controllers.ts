@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { supervisorJobQueue } from './supervisorJob/queue';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
+import { RuntimeEnvironment } from '../utilities/runtime';
 
 export const s3OrgsJobController = async (
     req: Request,
@@ -75,7 +76,8 @@ export const singleOrgJobController = async (
                 JSON.stringify(supervisorJob, null, 2) +
                 '```'
         );
-        console.log('Slack res', slackRes);
+        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
+            console.debug('Slack res', slackRes);
 
         return res.json(supervisorJob);
     } catch (error) {
