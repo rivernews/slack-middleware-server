@@ -138,11 +138,11 @@ const getMessageTimeoutTimer = (
         );
 
         await asyncSendSlackMessage(
-            `Supervisor job ${jobId} timed out while supervising scraper job for org ${org}`
+            `Supervisor job ${jobId} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}`
         );
 
         return scraperSupervisorReject(
-            `job ${jobId} for org ${org} timed out while supervising travis scraper job`
+            `job ${jobId} for org ${org} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising travis scraper job`
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 

@@ -19,19 +19,30 @@ const getOrgListFromS3 = async () => {
 };
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
-    getOrgListFromS3()
-        .then(orgInfoList => {
-            return supervisorJobQueue.add({
-                orgInfoList
-            });
-        })
-        .then(supervisorJob => {
-            return supervisorJob.finished();
-        })
-        .then(result => {
-            Promise.resolve(result);
-        })
-        .catch(error => {
-            return Promise.reject(error);
-        });
+    return (
+        getOrgListFromS3()
+            // increment progress after s3 org list fetched
+            .then(orgInfoList =>
+                s3OrgsJob.progress(s3OrgsJob.progress() + 1).then(() =>
+                    supervisorJobQueue.add({
+                        orgInfoList
+                    })
+                )
+            )
+            // increment progress after job dispatched
+            .then(supervisorJob =>
+                s3OrgsJob
+                    .progress(s3OrgsJob.progress() + 1)
+                    .then(() => supervisorJob.finished())
+            )
+            // increment progress after job finished
+            .then(result =>
+                s3OrgsJob
+                    .progress(s3OrgsJob.progress() + 1)
+                    .then(() => Promise.resolve(result))
+            )
+            .catch(error => {
+                return Promise.reject(error);
+            })
+    );
 };
