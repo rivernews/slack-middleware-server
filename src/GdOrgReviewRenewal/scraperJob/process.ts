@@ -175,7 +175,7 @@ const superviseScraper = (
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
                     job.data,
                     {
-                        branch: '026_dataintegrity_review_helpfulcount'
+                        branch: 'master'
                     }
                 );
                 if (triggerTravisJobRequest.status >= 400) {
