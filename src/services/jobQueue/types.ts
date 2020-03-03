@@ -38,38 +38,6 @@ export interface ScraperProgressData {
     elapsedTimeString?: string;
 }
 
-export class ScraperProgress {
-    public static isScraperProgressData (
-        props: any,
-        throwError: boolean = false
-    ): props is ScraperProgressData {
-        if (
-            !(
-                typeof props.processed === 'number' &&
-                typeof props.wentThrough === 'number' &&
-                typeof props.total === 'number' &&
-                typeof props.durationInMilli === 'string' &&
-                typeof props.page === 'number' &&
-                typeof props.processedSession === 'number' &&
-                // optional prop
-                (props.elapsedTimeString === undefined ||
-                    typeof props.elapsedTimeString === 'string')
-            )
-        ) {
-            if (throwError) {
-                throw new ServerError(
-                    `Failed to validate ScraperCrossRequest instance, because required data is missing in props: ` +
-                        JSON.stringify(props)
-                );
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-}
-
 export enum ScraperMode {
     REGULAR = 'regular',
     RENEWAL = 'renewal'
@@ -79,7 +47,11 @@ export enum ScraperMode {
 export interface SupervisorJobRequestData {
     orgInfo?: string;
     orgInfoList?: string[];
+
+    crossRequestData?: ScraperCrossRequestData;
 }
+
+export type ScraperJobReturnData = string | ScraperCrossRequestData;
 
 export interface ScraperJobRequestData {
     // for regular scraper job
@@ -145,4 +117,36 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
         const parsedData = JSON.parse(payloadString);
         return new ScraperCrossRequest(parsedData);
     };
+}
+
+export class ScraperProgress {
+    public static isScraperProgressData (
+        props: any,
+        throwError: boolean = false
+    ): props is ScraperProgressData {
+        if (
+            !(
+                typeof props.processed === 'number' &&
+                typeof props.wentThrough === 'number' &&
+                typeof props.total === 'number' &&
+                typeof props.durationInMilli === 'string' &&
+                typeof props.page === 'number' &&
+                typeof props.processedSession === 'number' &&
+                // optional prop
+                (props.elapsedTimeString === undefined ||
+                    typeof props.elapsedTimeString === 'string')
+            )
+        ) {
+            if (throwError) {
+                throw new ServerError(
+                    `Failed to validate ScraperCrossRequest instance, because required data is missing in props: ` +
+                        JSON.stringify(props)
+                );
+            }
+
+            return false;
+        }
+
+        return true;
+    }
 }
