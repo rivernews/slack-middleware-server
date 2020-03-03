@@ -8,6 +8,7 @@ import { supervisorJobQueueManager } from './supervisorJob/queue';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
+import { ScraperCrossRequest } from '../services/jobQueue/types';
 
 export const s3OrgsJobController = async (
     req: Request,
@@ -42,35 +43,14 @@ export const singleOrgJobController = async (
 
         console.log(`Company info string is ${companyInformationString}`);
 
-        // TODO: change this to dispatch supervisor job
         console.log('Ready to dispatch supervisorJob');
-        // const triggerRes = await travis.asyncTriggerQualitativeReviewRepoBuild({
-        //     orgInfo: companyInformationString
-        // });
         const supervisorJob = await supervisorJobQueueManager.queue.add({
             orgInfo: companyInformationString
         });
 
-        // if (triggerRes.status >= 400) {
-        //     console.log('travis return abnormal response');
-        //     console.log(triggerRes.data);
-        //     return res
-        //         .json({
-        //             message: 'Travis returned abnormal response',
-        //             travisStatus: triggerRes.status,
-        //             travisResponse: triggerRes.data
-        //         })
-        //         .status(triggerRes.status);
-        // }
-
         console.log('dispatch result:\n', supervisorJob);
 
         // slack log the trigger response
-        // const travisTriggerSummary = {
-        //     remaining_requests: triggerRes.data.remaining_requests,
-        //     scraper_branch: triggerRes.data.request.branch,
-        //     config: triggerRes.data.request.config
-        // };
         const slackRes = await asyncSendSlackMessage(
             'Dispatch supervisorJob success. Below is the job added:\n```' +
                 JSON.stringify(supervisorJob, null, 2) +
@@ -87,4 +67,24 @@ export const singleOrgJobController = async (
         );
         return next(error);
     }
+};
+
+export const singleOrgRenewalJobController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    // it's frontend's responsibility to ensure the data shape is correct
+    // and compliance to required fields in cross request data
+    ScraperCrossRequest.isScraperCrossRequestData(req.body, true);
+
+    const supervisorJob = await supervisorJobQueueManager.queue.add(req.body);
+
+    const slackRes = await asyncSendSlackMessage(
+        'Dispatch supervisorJob success. Below is the job added:\n```' +
+            JSON.stringify(supervisorJob, null, 2) +
+            '```'
+    );
+
+    res.json(supervisorJob);
 };
