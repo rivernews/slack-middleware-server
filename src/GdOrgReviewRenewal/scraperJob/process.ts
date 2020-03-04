@@ -147,6 +147,33 @@ const getMessageTimeoutTimer = (
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
+/**
+ * Adds double quote to orgName if necessary when orgName presents
+ *
+ * @param scraperJobRequestData - The params data when adding the job
+ */
+const patchOrgName = (
+    scraperJobRequestData: ScraperJobRequestData
+): ScraperJobRequestData => {
+    if (!scraperJobRequestData.orgName) {
+        return scraperJobRequestData;
+    }
+
+    let patchedOrgName = scraperJobRequestData.orgName;
+    if (!patchedOrgName.startsWith('"')) {
+        patchedOrgName = `"${patchedOrgName}`;
+    }
+
+    if (!patchedOrgName.endsWith('"')) {
+        patchedOrgName = `${patchedOrgName}"`;
+    }
+
+    return {
+        ...scraperJobRequestData,
+        orgName: patchedOrgName
+    };
+};
+
 const superviseScraper = (
     job: Bull.Job<ScraperJobRequestData>,
     redisPubsubChannelName: string,
@@ -155,9 +182,11 @@ const superviseScraper = (
 ) => {
     return new Promise<string | ScraperCrossRequest>(
         (scraperSupervisorResolve, scraperSupervisorReject) => {
+            const patchedJobData = patchOrgName(job.data);
+
             let timeoutTimer = getMessageTimeoutTimer(
                 job.id.toString(),
-                job.data.orgInfo || job.data.orgName,
+                patchedJobData.orgName || patchedJobData.orgInfo,
                 scraperSupervisorReject
             );
 
@@ -173,7 +202,7 @@ const superviseScraper = (
                 // }
 
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                    job.data,
+                    patchedJobData,
                     {
                         branch: 'master'
                     }
@@ -202,7 +231,7 @@ const superviseScraper = (
                 clearTimeout(timeoutTimer);
                 timeoutTimer = getMessageTimeoutTimer(
                     job.id.toString(),
-                    job.data.orgInfo || job.data.orgName,
+                    patchedJobData.orgName || patchedJobData.orgInfo,
                     scraperSupervisorReject
                 );
 
