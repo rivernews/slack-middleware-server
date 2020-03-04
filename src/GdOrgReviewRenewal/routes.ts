@@ -4,6 +4,7 @@ import {
     singleOrgJobController,
     singleOrgRenewalJobController
 } from './controllers';
+import cors from 'cors';
 
 export const gdOrgReviewRenewalRouter = express.Router();
 
@@ -17,6 +18,7 @@ export const singleOrgRenewalJobEndpoint = '/single-org-renewal-job';
 // add more endpoints of controllers...
 
 // register controllers
+gdOrgReviewRenewalRouter.use(cors()); // TODO: needs to secure origin to only production site
 gdOrgReviewRenewalRouter.post(s3OrgsJobEndpoint, s3OrgsJobController);
 gdOrgReviewRenewalRouter.post(singleOrgJobEndpoint, singleOrgJobController);
 gdOrgReviewRenewalRouter.post(

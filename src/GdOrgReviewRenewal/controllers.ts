@@ -74,17 +74,21 @@ export const singleOrgRenewalJobController = async (
     res: Response,
     next: NextFunction
 ) => {
+    console.log('req.body', req.body);
     // it's frontend's responsibility to ensure the data shape is correct
     // and compliance to required fields in cross request data
     ScraperCrossRequest.isScraperCrossRequestData(req.body, true);
 
-    const supervisorJob = await supervisorJobQueueManager.queue.add(req.body);
+    const supervisorJob = await supervisorJobQueueManager.queue.add({
+        crossRequestData: req.body
+    });
 
     const slackRes = await asyncSendSlackMessage(
         'Dispatch supervisorJob success. Below is the job added:\n```' +
             JSON.stringify(supervisorJob, null, 2) +
             '```'
     );
+    console.log('sent slack message, slack API res', slackRes);
 
     res.json(supervisorJob);
 };

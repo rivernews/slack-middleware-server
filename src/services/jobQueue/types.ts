@@ -15,29 +15,6 @@ export enum ScraperJobMessageTo {
     SCRAPER = 'scraper'
 }
 
-export type ScraperCrossRequestData = ScraperJobRequestData & {
-    orgId: string;
-    orgName: string;
-    lastProgress: ScraperProgressData;
-    lastReviewPage: string;
-    scrapeMode: ScraperMode;
-};
-
-export interface ScraperProgressData {
-    // used in all cases
-    processed: number;
-    wentThrough: number;
-    total: number;
-
-    // used in FINISH and propogate back progress to schedule cross session job
-    durationInMilli: string;
-    page: number;
-    processedSession: number;
-
-    // used when scraper reporting back progress info
-    elapsedTimeString?: string;
-}
-
 export enum ScraperMode {
     REGULAR = 'regular',
     RENEWAL = 'renewal'
@@ -64,6 +41,14 @@ export interface ScraperJobRequestData {
     lastReviewPage?: string;
     scrapeMode?: ScraperMode;
 }
+
+export type ScraperCrossRequestData = ScraperJobRequestData & {
+    orgId: string;
+    orgName: string;
+    lastProgress: ScraperProgressData;
+    lastReviewPage: string;
+    scrapeMode: ScraperMode;
+};
 
 export class ScraperCrossRequest implements ScraperCrossRequestData {
     public orgId: string;
@@ -117,6 +102,21 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
         const parsedData = JSON.parse(payloadString);
         return new ScraperCrossRequest(parsedData);
     };
+}
+
+export interface ScraperProgressData {
+    // used in all cases
+    processed: number;
+    wentThrough: number;
+    total: number;
+
+    // used in FINISH and propogate back progress to schedule cross session job
+    durationInMilli: string;
+    page: number;
+    processedSession: number;
+
+    // used when scraper reporting back progress info
+    elapsedTimeString?: string;
 }
 
 export class ScraperProgress {
