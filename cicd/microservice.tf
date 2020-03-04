@@ -44,3 +44,14 @@ module "slack_middleware_service" {
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment sh
 // port-forward
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service port-forward deploy/slack-middleware-service-deployment PORT:PORT
+
+// redis commands
+//
+// exec into redis cluster:
+// KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment bash
+//
+// print client IDS where db=5:
+// KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment redis-cli -- client list | grep db=5 | cut -d ' ' -f 1 | cut -d = -f 2
+//
+// kill all client where db=5 (run in redis cluster container):
+// redis-cli client list | grep db=5 | cut -d ' ' -f 1 | cut -d = -f 2 | awk '{ print "CLIENT KILL ID " $0 }' | redis-cli -x
