@@ -10,6 +10,7 @@ import { toPercentageValue } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
+import { supervisorJobQueueManager } from './queue';
 
 const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
@@ -81,10 +82,10 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     let processed = 0;
 
     return Promise.all([
-        gdOrgReviewScraperJobQueueManager.queue.getWaitingCount(),
-        gdOrgReviewScraperJobQueueManager.queue.getDelayedCount(),
-        gdOrgReviewScraperJobQueueManager.queue.getPausedCount(),
-        gdOrgReviewScraperJobQueueManager.queue.getActiveCount()
+        supervisorJobQueueManager.queue.getWaitingCount(),
+        supervisorJobQueueManager.queue.getDelayedCount(),
+        supervisorJobQueueManager.queue.getPausedCount(),
+        supervisorJobQueueManager.queue.getActiveCount()
     ])
         .then(([waiting, delayed, paused, active]) => {
             const jobsPresentCount = waiting + delayed + paused + active;
@@ -95,7 +96,14 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 console.warn(
                     'Previous pending scraper jobs exist, will ignore this supervisorJob'
                 );
-                return Promise.reject('supervisorJob skip');
+
+                return asyncSendSlackMessage(
+                    `Previous pending scraper jobs exist, will ignore this supervisorJob:\n\`\`\`${JSON.stringify(
+                        supervisorJob,
+                        null,
+                        4
+                    )}\`\`\``
+                ).then(() => Promise.reject('supervisorJob skip'));
             }
 
             return supervisorJob.progress(supervisorJob.progress() + 1);
