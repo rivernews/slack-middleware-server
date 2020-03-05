@@ -10,7 +10,7 @@ export const SUPERVISOR_JOB_CONCURRENCY = 4;
 
 export const startJobQueues = () => {
     // TODO: add a if block once we add feature of resuming failed cronjob
-    if (process.env.NODE_ENV !== RuntimeEnvironment.PRODUCTION) {
+    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
         const redisAdminClient = createClient(redisManager.config);
         redisAdminClient.flushdb();
         console.debug(`flushed redis db ${redisManager.config.db}`);
