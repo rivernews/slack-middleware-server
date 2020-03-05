@@ -6,7 +6,9 @@ import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 
-export const SUPERVISOR_JOB_CONCURRENCY = 4;
+export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
+    ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
+    : 4;
 
 export const startJobQueues = () => {
     // TODO: add a if block once we add feature of resuming failed cronjob

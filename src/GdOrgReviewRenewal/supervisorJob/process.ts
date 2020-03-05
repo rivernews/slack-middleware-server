@@ -81,31 +81,9 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         : supervisorJob.data.orgInfoList || [];
     let processed = 0;
 
-    return Promise.all([
-        supervisorJobQueueManager.queue.getWaitingCount(),
-        supervisorJobQueueManager.queue.getDelayedCount(),
-        supervisorJobQueueManager.queue.getPausedCount(),
-        supervisorJobQueueManager.queue.getActiveCount()
-    ])
-        .then(([waiting, delayed, paused, active]) => {
-            const jobsPresentCount = waiting + delayed + paused + active;
-            if (jobsPresentCount > SUPERVISOR_JOB_CONCURRENCY) {
-                // there's pending job still in the scraper job queue,
-                // let previous pending jobs finish first.
-                // ignore this supervisorJob (schedule job upon next supervisorJob)
-                console.warn(
-                    'Previous pending scraper jobs exist, will ignore this supervisorJob'
-                );
-
-                return asyncSendSlackMessage(
-                    `Previous pending scraper jobs exist, will ignore this supervisorJob:\n\`\`\`${JSON.stringify(
-                        supervisorJob,
-                        null,
-                        4
-                    )}\`\`\``
-                ).then(() => Promise.reject('supervisorJob skip'));
-            }
-
+    return supervisorJobQueueManager
+        .checkConcurrency(SUPERVISOR_JOB_CONCURRENCY, undefined, supervisorJob)
+        .then(() => {
             return supervisorJob.progress(supervisorJob.progress() + 1);
         })
         .then(async () => {

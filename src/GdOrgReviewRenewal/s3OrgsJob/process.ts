@@ -1,6 +1,8 @@
 import Bull = require('bull');
 import { s3ArchiveManager } from '../../services/s3';
 import { supervisorJobQueueManager } from '../supervisorJob/queue';
+import { s3OrgsJobQueueManager } from './queue';
+import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
 
 const getOrgListFromS3 = async () => {
     return s3ArchiveManager.asyncGetOverviewPageUrls();
@@ -20,7 +22,13 @@ const getOrgListFromS3 = async () => {
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     return (
-        getOrgListFromS3()
+        s3OrgsJobQueueManager
+            .checkConcurrency(
+                SUPERVISOR_JOB_CONCURRENCY,
+                supervisorJobQueueManager.queue,
+                s3OrgsJob
+            )
+            .then(() => getOrgListFromS3())
             // increment progress after s3 org list fetched
             .then(orgInfoList =>
                 s3OrgsJob.progress(s3OrgsJob.progress() + 1).then(() =>
