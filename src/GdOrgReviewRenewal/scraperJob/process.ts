@@ -153,7 +153,7 @@ const getMessageTimeoutTimer = (
  *
  * @param scraperJobRequestData - The params data when adding the job
  */
-const patchOrgName = (
+const patchOrgNameOnScraperJobRequestData = (
     scraperJobRequestData: ScraperJobRequestData
 ): ScraperJobRequestData => {
     if (!scraperJobRequestData.orgName) {
@@ -162,11 +162,11 @@ const patchOrgName = (
 
     let patchedOrgName = scraperJobRequestData.orgName;
     if (!patchedOrgName.startsWith('"')) {
-        patchedOrgName = `"${patchedOrgName}`;
+        patchedOrgName = `\"${patchedOrgName}`;
     }
 
     if (!patchedOrgName.endsWith('"')) {
-        patchedOrgName = `${patchedOrgName}"`;
+        patchedOrgName = `${patchedOrgName}\"`;
     }
 
     return {
@@ -183,7 +183,9 @@ const superviseScraper = (
 ) => {
     return new Promise<string | ScraperCrossRequest>(
         (scraperSupervisorResolve, scraperSupervisorReject) => {
-            const patchedJobData = patchOrgName(job.data);
+            const patchedJobData = patchOrgNameOnScraperJobRequestData(
+                job.data
+            );
 
             let timeoutTimer = getMessageTimeoutTimer(
                 job.id.toString(),
