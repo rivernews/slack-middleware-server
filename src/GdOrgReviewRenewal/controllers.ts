@@ -84,11 +84,19 @@ export const singleOrgRenewalJobController = async (
     });
 
     const slackRes = await asyncSendSlackMessage(
-        'Dispatch supervisorJob success. Below is the job added:\n```' +
-            JSON.stringify(supervisorJob, null, 2) +
+        'Dispatch supervisorJob success. Below is the job added (note: actual orgName sent to Travis will be patched with double quote):\n```' +
+            JSON.stringify(
+                {
+                    id: supervisorJob.id,
+                    data: supervisorJob.data,
+                    name: supervisorJob.name
+                },
+                null,
+                2
+            ) +
             '```'
     );
-    console.log('sent slack message, slack API res', slackRes);
+    console.log('sent slack message, slack API res status', slackRes.status);
 
     res.json(supervisorJob);
 };
