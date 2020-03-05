@@ -26,9 +26,7 @@ const processRenewalJob = async (
     let jobResult = new ScraperCrossRequest(scraperJobResult);
 
     do {
-        console.log(
-            `${logPrefix} requested renewal job, dispatching renewal job`
-        );
+        console.log(`${logPrefix} dispatching renewal job`);
         const renewalJob = await gdOrgReviewScraperJobQueueManager.queue.add(
             jobResult
         );
@@ -100,9 +98,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 return Promise.reject('supervisorJob skip');
             }
 
-            supervisorJob.progress(supervisorJob.progress() + 1);
-
-            return Promise.resolve();
+            return supervisorJob.progress(supervisorJob.progress() + 1);
         })
         .then(async () => {
             // start dispatching job - resume scraping

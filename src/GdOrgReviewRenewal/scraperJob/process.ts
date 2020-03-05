@@ -10,6 +10,7 @@ import {
     ScraperJobMessageType,
     ScraperProgressData
 } from '../../services/jobQueue/types';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -84,7 +85,7 @@ const onReceiveScraperJobMessage = async (
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
         console.log(`job ${jobId} progress reported`, progressData);
 
-        jobProgress(
+        await jobProgress(
             parseFloat(
                 (
                     (progressData.wentThrough / progressData.total) *
@@ -130,6 +131,7 @@ const onReceiveScraperJobMessage = async (
 const getMessageTimeoutTimer = (
     jobId: string,
     org: string = 'null',
+    redisPubsubChannelName: string,
     scraperSupervisorReject: (reason?: string) => void
 ) =>
     setTimeout(async () => {
@@ -140,11 +142,11 @@ const getMessageTimeoutTimer = (
         );
 
         await asyncSendSlackMessage(
-            `Supervisor job ${jobId} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}`
+            `Supervisor job ${jobId} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}; pubsub channel is \`${redisPubsubChannelName}\``
         );
 
         return scraperSupervisorReject(
-            `job ${jobId} for org ${org} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising travis scraper job`
+            `job ${jobId} for org ${org} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising travis scraper job; pubsub channel is \`${redisPubsubChannelName}\``
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
@@ -183,13 +185,10 @@ const superviseScraper = (
 ) => {
     return new Promise<string | ScraperCrossRequest>(
         (scraperSupervisorResolve, scraperSupervisorReject) => {
-            const patchedJobData = patchOrgNameOnScraperJobRequestData(
-                job.data
-            );
-
             let timeoutTimer = getMessageTimeoutTimer(
                 job.id.toString(),
-                patchedJobData.orgName || patchedJobData.orgInfo,
+                job.data.orgName || job.data.orgInfo,
+                redisPubsubChannelName,
                 scraperSupervisorReject
             );
 
@@ -198,14 +197,17 @@ const superviseScraper = (
                     `job ${job.id} subscribed to channel ${redisPubsubChannelName}`
                 );
 
+                // TODO: avoid the need to have to hard code things that you have to manually change
                 // remove this block if want to run scraper on local for debugging
-                // if (process.env.NODE_ENV !== RuntimeEnvironment.PRODUCTION) {
-                //     console.log('not in production, skipping travis request. Please run scraper locally if needed');
-                //     return;
-                // }
+                if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+                    console.log(
+                        'in development environment, skipping travis request. Please run scraper locally if needed'
+                    );
+                    return;
+                }
 
                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                    patchedJobData,
+                    job.data,
                     {
                         branch: 'master'
                     }
@@ -221,7 +223,7 @@ const superviseScraper = (
                     return scraperSupervisorReject(errorMessage);
                 }
 
-                job.progress(job.progress() + 1);
+                await job.progress(job.progress() + 1);
 
                 const travisJob = triggerTravisJobRequest.data;
 
@@ -234,7 +236,8 @@ const superviseScraper = (
                 clearTimeout(timeoutTimer);
                 timeoutTimer = getMessageTimeoutTimer(
                     job.id.toString(),
-                    patchedJobData.orgName || patchedJobData.orgInfo,
+                    job.data.orgName || job.data.orgInfo,
+                    redisPubsubChannelName,
                     scraperSupervisorReject
                 );
 
@@ -280,16 +283,25 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         job.data
     );
 
+    const patchedJob: Bull.Job<ScraperJobRequestData> = {
+        ...job,
+        data: patchOrgNameOnScraperJobRequestData(job.data)
+    };
+
+    console.log(`scraper job ${patchedJob.id} patched params`, patchedJob.data);
+
     const redisClientSubscription = Redis.createClient(redisManager.config);
     const redisClientPublish = redisClientSubscription.duplicate();
     const redisPubsubChannelName = `${
         RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
-    }:${job.data.orgInfo || job.data.orgName}:${
-        job.data.lastProgress ? job.data.lastProgress.processedSession : 0
+    }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${
+        patchedJob.data.lastProgress
+            ? patchedJob.data.lastProgress.processedSession
+            : 0
     }`;
 
     return superviseScraper(
-        job,
+        patchedJob,
         redisPubsubChannelName,
         redisClientSubscription,
         redisClientPublish
@@ -299,7 +311,7 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
                 redisPubsubChannelName,
                 redisClientSubscription,
                 redisClientPublish,
-                job.data.orgInfo || job.data.orgName
+                patchedJob.data.orgInfo || patchedJob.data.orgName
             );
             return resultMessage;
         })
@@ -308,7 +320,7 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
                 redisPubsubChannelName,
                 redisClientSubscription,
                 redisClientPublish,
-                job.data.orgInfo || job.data.orgName
+                patchedJob.data.orgInfo || patchedJob.data.orgName
             );
             return Promise.reject(error);
         });

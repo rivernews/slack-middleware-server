@@ -88,7 +88,7 @@ export const singleOrgRenewalJobController = async (
             JSON.stringify(supervisorJob, null, 2) +
             '```'
     );
-    console.log('sent slack message, slack API res', slackRes);
+    console.log('sent slack message, slack API res status', slackRes.status);
 
     res.json(supervisorJob);
 };
