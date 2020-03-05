@@ -290,8 +290,8 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
 
     console.log(`scraper job ${patchedJob.id} patched params`, patchedJob.data);
 
-    const redisClientSubscription = Redis.createClient(redisManager.config);
-    const redisClientPublish = redisClientSubscription.duplicate();
+    const redisClientSubscription = redisManager.newClient();
+    const redisClientPublish = redisManager.newClient();
     const redisPubsubChannelName = `${
         RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
     }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${

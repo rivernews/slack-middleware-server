@@ -22,6 +22,7 @@ import {
     gdOrgReviewRenewalRouter
 } from './GdOrgReviewRenewal/routes';
 import { UI } from 'bull-board';
+import { redisManager } from './services/redis';
 
 // Constants
 if (!process.env.PORT) {
@@ -101,6 +102,9 @@ export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
     await cleanupJobQueues();
+
+    // last check for all redis connection closed
+    redisManager.closeAllClients();
 
     return;
 };

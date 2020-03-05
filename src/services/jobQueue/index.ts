@@ -1,7 +1,7 @@
 import { supervisorJobQueueManager } from '../../GdOrgReviewRenewal/supervisorJob/queue';
 import { setQueues } from 'bull-board';
+import IORedis from 'ioredis';
 import { gdOrgReviewScraperJobQueueManager } from '../../GdOrgReviewRenewal/scraperJob/queue';
-import { createClient } from 'redis';
 import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
 import { RuntimeEnvironment } from '../../utilities/runtime';
@@ -11,7 +11,7 @@ export const SUPERVISOR_JOB_CONCURRENCY = 4;
 export const startJobQueues = () => {
     // TODO: add a if block once we add feature of resuming failed cronjob
     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        const redisAdminClient = createClient(redisManager.config);
+        const redisAdminClient = redisManager.newClient();
         redisAdminClient.flushdb();
         console.debug(`flushed redis db ${redisManager.config.db}`);
         redisAdminClient.quit();

@@ -77,26 +77,47 @@ export const singleOrgRenewalJobController = async (
     console.log('req.body', req.body);
     // it's frontend's responsibility to ensure the data shape is correct
     // and compliance to required fields in cross request data
-    ScraperCrossRequest.isScraperCrossRequestData(req.body, true);
 
-    const supervisorJob = await supervisorJobQueueManager.queue.add({
-        crossRequestData: req.body
-    });
+    let supervisorJob;
+    if (typeof req.body.orgInfo === 'string') {
+        supervisorJob = await supervisorJobQueueManager.queue.add({
+            orgInfo: (req.body.orgInfo as string).trim()
+        });
+    } else if (ScraperCrossRequest.isScraperCrossRequestData(req.body, true)) {
+        supervisorJob = await supervisorJobQueueManager.queue.add({
+            crossRequestData: req.body
+        });
+    } else {
+        const responseMessage = 'Missing request data or invalid data shape';
+        console.warn(responseMessage);
+        return res.json({
+            responseMessage
+        });
+    }
 
-    const slackRes = await asyncSendSlackMessage(
-        'Dispatch supervisorJob success. Below is the job added (note: actual orgName sent to Travis will be patched with double quote):\n```' +
-            JSON.stringify(
-                {
-                    id: supervisorJob.id,
-                    data: supervisorJob.data,
-                    name: supervisorJob.name
-                },
-                null,
-                2
-            ) +
-            '```'
-    );
-    console.log('sent slack message, slack API res status', slackRes.status);
+    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+        console.log(
+            'In development environment, skipping slack message sending'
+        );
+    } else if (process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION) {
+        const slackRes = await asyncSendSlackMessage(
+            'Dispatch supervisorJob success. Below is the job added (note: actual orgName sent to Travis will be patched with double quote):\n```' +
+                JSON.stringify(
+                    {
+                        id: supervisorJob.id,
+                        data: supervisorJob.data,
+                        name: supervisorJob.name
+                    },
+                    null,
+                    2
+                ) +
+                '```'
+        );
+        console.log(
+            'sent slack message, slack API res status',
+            slackRes.status
+        );
+    }
 
     res.json(supervisorJob);
 };

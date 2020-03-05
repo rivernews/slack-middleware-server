@@ -2,7 +2,7 @@ import Bull = require('bull');
 import path from 'path';
 import fs from 'fs';
 import { JobQueueName } from './jobQueueName';
-import { redisManager } from '../redis';
+import { redisManager, jobQueueSharedRedisClients } from '../redis';
 
 interface JobQueueManagerProps {
     __processDirname: string;
@@ -35,7 +35,20 @@ export class JobQueueManager<JobRequestData> {
 
         this.queue = new Bull<JobRequestData>(props.queueName, {
             redis: redisManager.config,
-            defaultJobOptions: props.defaultJobOptions
+            defaultJobOptions: props.defaultJobOptions,
+
+            // reuse redis connection
+            // https://github.com/OptimalBits/bull/blob/master/PATTERNS.md#reusing-redis-connections
+            createClient: type => {
+                switch (type) {
+                    case 'client':
+                        return jobQueueSharedRedisClients.genericClient;
+                    case 'subscriber':
+                        return jobQueueSharedRedisClients.subscriberClient;
+                    default:
+                        return redisManager.newIORedisClient();
+                }
+            }
         });
 
         this.queue.process(JobQueueManager.CONCURRENCY, processFileName);
