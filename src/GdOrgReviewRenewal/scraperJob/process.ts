@@ -38,7 +38,8 @@ const abortSubscription = (
  * @param scraperSupervisorReject
  */
 const onReceiveScraperJobMessage = async (
-    job: Bull.Job<ScraperJobRequestData>,
+    jobId: string,
+    jobProgress: ((value: number) => Promise<void>) & (() => number), // overload function
     channel: string,
     message: string,
     redisClientPublish: Redis.RedisClient,
@@ -46,21 +47,21 @@ const onReceiveScraperJobMessage = async (
     scraperSupervisorReject: (reason?: string) => void,
     timeoutTimer: NodeJS.Timer
 ): Promise<string | ScraperCrossRequest | undefined | void> => {
-    console.log(`job ${job.id} received message from channel`, channel);
+    console.log(`job ${jobId} received message from channel`, channel);
 
     const [type, messageTo, ...payload] = message.split(':');
     const payloadAsString = payload.join(':');
 
     if (messageTo !== ScraperJobMessageTo.SLACK_MD_SVC) {
         console.debug(
-            `job ${job.id} ignoring messages that are not for us`,
+            `job ${jobId} ignoring messages that are not for us`,
             message
         );
         return;
     }
 
     if (type === ScraperJobMessageType.PREFLIGHT) {
-        console.log(`job ${job.id}`, 'preflight received', payload);
+        console.log(`job ${jobId}`, 'preflight received', payload);
         if (
             !redisClientPublish.publish(
                 channel,
@@ -68,22 +69,22 @@ const onReceiveScraperJobMessage = async (
             )
         ) {
             return abortSubscription(
-                `job ${job.id} fail to respond to preflight message`,
+                `job ${jobId} fail to respond to preflight message`,
                 payloadAsString,
                 timeoutTimer,
                 scraperSupervisorReject
             );
         }
 
-        job.progress(job.progress() + 1);
+        await jobProgress(jobProgress() + 1);
 
         return;
     } else if (type === ScraperJobMessageType.PROGRESS) {
         // TODO: validate progress data; but have to handle optional props first, do this in class `ScraperProgress`.
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
-        console.log(`job ${job.id} progress reported`, progressData);
+        console.log(`job ${jobId} progress reported`, progressData);
 
-        job.progress(
+        jobProgress(
             parseFloat(
                 (
                     (progressData.wentThrough / progressData.total) *
@@ -97,28 +98,28 @@ const onReceiveScraperJobMessage = async (
         clearTimeout(timeoutTimer);
         if (payloadAsString === 'OK!') {
             return scraperSupervisorResolve(
-                `job ${job.id} scraper job reported finish: ` + payload
+                `job ${jobId} scraper job reported finish: ` + payload
             );
         } else {
             const crossData = ScraperCrossRequest.parseFromMessagePayloadString(
                 payloadAsString
             );
             console.debug(
-                `job ${job.id} scraper job reported finish, but received renewal job request data`,
+                `job ${jobId} scraper job reported finish, but received renewal job request data`,
                 crossData
             );
             return scraperSupervisorResolve(crossData);
         }
     } else if (type === ScraperJobMessageType.ERROR) {
         return abortSubscription(
-            `job ${job.id} scraper job reported error`,
+            `job ${jobId} scraper job reported error`,
             payloadAsString,
             timeoutTimer,
             scraperSupervisorReject
         );
     } else {
         return abortSubscription(
-            `job ${job.id} Received unknown type '${type}'`,
+            `job ${jobId} Received unknown type '${type}'`,
             payloadAsString,
             timeoutTimer,
             scraperSupervisorReject
@@ -236,7 +237,8 @@ const superviseScraper = (
                 );
 
                 return await onReceiveScraperJobMessage(
-                    job,
+                    job.id.toString(),
+                    job.progress,
                     channel,
                     message,
                     redisClientPublish,
