@@ -1,6 +1,6 @@
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { SupervisorJobRequestData } from '../../services/jobQueue/types';
-import { JobQueueManager } from '../../services/jobQueue/QueueManager';
+import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
 
 export const supervisorJobQueueManager = new JobQueueManager<
     SupervisorJobRequestData

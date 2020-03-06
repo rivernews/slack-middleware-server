@@ -1,4 +1,4 @@
-import { JobQueueManager } from '../../services/jobQueue/QueueManager';
+import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 
 export const s3OrgsJobQueueManager = new JobQueueManager<null>({

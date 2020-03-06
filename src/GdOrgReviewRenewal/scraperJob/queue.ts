@@ -1,6 +1,6 @@
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ScraperJobRequestData } from '../../services/jobQueue/types';
-import { JobQueueManager } from '../../services/jobQueue/QueueManager';
+import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
 
 export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
     ScraperJobRequestData
