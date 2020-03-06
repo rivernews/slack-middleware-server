@@ -24,9 +24,9 @@ after(done => {
     console.log('mocha:after');
     cleanUpExpressServer()
         .then(() => {
-            console.log('mocha: cleanup fin#');
+            console.log('mocha: cleanup fin, closing...');
             gracefulExpressServer.close(() => {
-                console.log('mocha done()');
+                console.log('mocha done() - safely terminated');
                 return done();
             });
         })
