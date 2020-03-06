@@ -5,6 +5,21 @@ import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 
+// Constants
+
+// Depends on travis job setup time. Usually, till scraper launched & publish request ack is around 1 min 15 sec after travis build scheduled.
+// However, there's a record this took longer than 4 minutes: https://travis-ci.com/rivernews/review-scraper-java-development-environment/builds/152118738
+// hence we are raising the timeout even more, see defaults below.
+// you can also set this via environment variable
+export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
+    .TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS
+    ? parseInt(process.env.TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS)
+    : process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
+    ? // default to 10 minutes in production
+      10 * 60 * 1000
+    : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
+      3 * 60 * 1000;
+
 export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
     ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
     : 4;

@@ -1,5 +1,5 @@
 export enum RuntimeEnvironment {
-    PRODUCTION = 'prodocution',
+    PRODUCTION = 'production',
     DEVELOPMENT = 'development',
     TESTING = 'testing'
 }

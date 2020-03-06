@@ -13,13 +13,10 @@ import {
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
+import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
-
-// scraper job in travis will publish request ack around 1 min 15 sec after travis build scheduled
-// so 4 min of timeout waiting that publish message should be just right
-const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = 4 * 60 * 1000;
 
 const abortSubscription = (
     message: string,
