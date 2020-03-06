@@ -93,6 +93,7 @@ app.use(
 
 const expressServer = app.listen(PORT, () => {
     console.log(`Running on http://${HOST}:${PORT}`);
+
     RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING && startJobQueues();
 });
 
@@ -101,7 +102,8 @@ const expressServer = app.listen(PORT, () => {
 export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
-    await cleanupJobQueues();
+    RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING &&
+        (await cleanupJobQueues());
 
     // last check for all redis connection closed
     redisManager.closeAllClients();
@@ -138,10 +140,12 @@ export const gracefulExpressServer = createTerminus(expressServer, {
         })
 });
 
+// TODO: evaluate if we do not need this
+// see if you remove `--exit` in `npm test` command, can the server terminate successfully?
 // dealing with programmatic exit (e.g. from npm test)
-gracefulExpressServer.on('close', async () => {
-    console.log('closing...');
-    await cleanUpExpressServer();
-    console.log('=== close: clean up complete ===');
-    return;
-});
+// gracefulExpressServer.on('close', async () => {
+//     console.log('closing...');
+//     await cleanUpExpressServer();
+//     console.log('=== close: clean up complete ===');
+//     return;
+// });

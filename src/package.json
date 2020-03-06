@@ -13,7 +13,7 @@
         "dev": "nodemon --exec ts-node index.ts",
         "start": "npm run dev",
         "production": "tsc && node ./dist/index.js",
-        "test": "rm -rf dist && tsc && env CI=testing mocha dist/index.test.js --timeout 10000",
+        "test": "rm -rf dist && tsc && env CI=testing mocha dist/index.test.js --timeout 60000 --exit",
         "gen-kubeconfig": "cd ../cicd && doctl kubernetes cluster kubeconfig show project-shaungc-digitalocean-cluster > kubeconfig.yaml && cd ../src",
         "redis-dev": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster port-forward deploy/redis-cluster-deployment 6379:6379 && cd ../src",
         "redis-cli": "npm run gen-kubeconfig && cd ../cicd && KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment 'redis-cli' && cd ../src"

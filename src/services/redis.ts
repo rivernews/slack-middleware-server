@@ -26,7 +26,8 @@ class RedisManagerSingleton {
 
     public config: RedisConfig;
 
-    private clients: Array<RedisClient | IORedis.Redis> = [];
+    private clients: Array<RedisClient> = [];
+    private redisIoClients: Array<IORedis.Redis> = [];
 
     private constructor () {
         if (
@@ -67,8 +68,11 @@ class RedisManagerSingleton {
     // are not
     public newIORedisClient () {
         const newIoRedisClient = new IORedis(this.config);
-        this.clients.push(newIoRedisClient);
-        console.log('created ioredis client, total', this.clients.length);
+        this.redisIoClients.push(newIoRedisClient);
+        console.log(
+            'created ioredis client, total',
+            this.redisIoClients.length
+        );
         return newIoRedisClient;
     }
 
@@ -76,7 +80,13 @@ class RedisManagerSingleton {
         // will continue even if client is already close
         // but at the end we'll be confident that all clients are closed
         for (const client of this.clients) {
+            console.debug('closing redis client');
             client.quit();
+        }
+
+        for (const redisIoClient of this.redisIoClients) {
+            console.debug('closing ioredis client');
+            redisIoClient.disconnect();
         }
     }
 }

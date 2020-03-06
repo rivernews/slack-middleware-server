@@ -20,15 +20,15 @@ describe('App integration test', () => {
     gdOrgReviewRenewalDescribe;
 });
 
-after(done => {
+after(() => {
     console.log('mocha:after');
-    cleanUpExpressServer()
+    return cleanUpExpressServer()
         .then(() => {
             console.log('mocha: cleanup fin, closing...');
             gracefulExpressServer.close(() => {
                 console.log('mocha done() - safely terminated');
-                return done();
+                return Promise.resolve('OK');
             });
         })
-        .catch(error => done(error));
+        .catch(error => Promise.reject(error));
 });
