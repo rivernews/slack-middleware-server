@@ -10,6 +10,7 @@ export class ProgressBarManager {
 
     private progressBar: ProgressBar;
     private job: Bull.Job;
+    private jobQueueName: string;
 
     constructor (
         jobQueueName: string,
@@ -18,9 +19,23 @@ export class ProgressBarManager {
         curr?: number
     ) {
         this.job = job;
+        this.jobQueueName = jobQueueName;
+        this.progressBar = ProgressBarManager.newProgressBar(
+            jobQueueName,
+            job,
+            total,
+            curr
+        );
+    }
 
-        this.progressBar = new ProgressBar(
-            `${jobQueueName} ${job.id}:percent (:current/:total) [:bar] :rate/s remains :etas elapsed :elapseds\n`,
+    public static newProgressBar (
+        jobQueueName: string,
+        job: Bull.Job,
+        total?: number,
+        curr?: number
+    ) {
+        return new ProgressBar(
+            `${jobQueueName} ${job.id}: :percent (:current/:total) [:bar] :rate/s remains :etas elapsed :elapseds\n`,
             {
                 width: ProgressBarManager.PROGRESS_BAR_WIDTH_IN_TERMINAL,
 
@@ -49,10 +64,18 @@ export class ProgressBarManager {
         this.progressBar.total = total;
 
         // prefer to use .tick() instead of .render()
-        if (this.progressBar.curr + 1 === curr) {
+        if (
+            this.progressBar.curr + 1 === curr &&
+            this.progressBar.total === total
+        ) {
             this.progressBar.tick(1);
         } else {
-            this.progressBar.curr = curr;
+            this.progressBar = ProgressBarManager.newProgressBar(
+                this.jobQueueName,
+                this.job,
+                total,
+                curr
+            );
             this.progressBar.render();
         }
 

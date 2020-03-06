@@ -144,11 +144,18 @@ export class JobQueueManager<JobRequestData> {
             queueToBeCheck.getActiveCount()
         ]).then(([waiting, delayed, paused, active]) => {
             const jobsPresentCount = waiting + delayed + paused + active;
-            if (jobsPresentCount >= concurrency) {
+            if (
+                // if job passed in, means current job already active & is included in `jobsPresentCount`
+                // in this case, we are whether 'acknowledging' this job is conformed to concurrency limit or not
+                (job && jobsPresentCount > concurrency) ||
+                // if job not passed in, means job not created yet, so if jobsPresentCount == concurrency
+                // there's no space to add any new job, so we should reject
+                (!job && jobsPresentCount >= concurrency)
+            ) {
                 const rejectMessage =
-                    `${this.logPrefix} reach concurrency limit, queue ${queueToBeCheck.name} already has ${concurrency} jobs running. ` +
+                    `${this.logPrefix} reach concurrency limit ${concurrency}, queue ${queueToBeCheck.name} already has ${jobsPresentCount} jobs running. ` +
                     (job
-                        ? +`Rejecting this job \`\`\`${JSON.stringify(
+                        ? `Rejecting this job \`\`\`${JSON.stringify(
                               job
                           )}\`\`\``
                         : '');
@@ -161,7 +168,7 @@ export class JobQueueManager<JobRequestData> {
                     Promise.reject(rejectMessage)
                 );
             } else {
-                return Promise.resolve();
+                return Promise.resolve(jobsPresentCount);
             }
         });
     }

@@ -15,14 +15,30 @@ export const s3OrgsJobController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.debug('s3OrgsJobController: ready to dispatch job');
-    const s3OrgsJob = await s3OrgsJobQueueManager.queue.add(null);
-    await asyncSendSlackMessage(
-        `added ${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} \`\`\`${JSON.stringify(
-            s3OrgsJob
-        )}\`\`\``
-    );
-    return res.json(s3OrgsJob);
+    try {
+        // make sure only one s3 job present at a time
+        const jobsPresentCount = await s3OrgsJobQueueManager.checkConcurrency(
+            1
+        );
+
+        console.debug(
+            `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, ready to dispatch job`
+        );
+
+        const s3OrgsJob = await s3OrgsJobQueueManager.queue.add(null);
+
+        await asyncSendSlackMessage(
+            `added ${
+                JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
+            } \`\`\`${JSON.stringify(s3OrgsJob)}\`\`\``
+        );
+
+        return res.json(s3OrgsJob);
+    } catch (error) {
+        res.json({
+            error
+        });
+    }
 };
 
 export const singleOrgJobController = async (

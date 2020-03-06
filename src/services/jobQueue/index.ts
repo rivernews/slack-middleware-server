@@ -1,6 +1,5 @@
 import { supervisorJobQueueManager } from '../../GdOrgReviewRenewal/supervisorJob/queue';
 import { setQueues } from 'bull-board';
-import IORedis from 'ioredis';
 import { gdOrgReviewScraperJobQueueManager } from '../../GdOrgReviewRenewal/scraperJob/queue';
 import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';

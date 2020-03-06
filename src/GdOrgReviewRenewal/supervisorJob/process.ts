@@ -170,7 +170,9 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         })
         .catch(async error => {
             console.log(
-                'supervisorJob interrupted due to error; remaining orgList not yet finished (including failed one):',
+                'supervisorJob interrupted due to error\n',
+                error,
+                'remaining orgList not yet finished (including failed one):',
                 orgInfoList.slice(processed, orgInfoList.length)
             );
             await gdOrgReviewScraperJobQueueManager.queue.empty();

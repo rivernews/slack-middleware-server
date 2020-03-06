@@ -7,5 +7,5 @@ export enum RuntimeEnvironment {
 export const RUNTIME_CI_ENVIRONMENT = process.env.CI || '';
 
 export const toPercentageValue = (value: number): number => {
-    return parseFloat(value.toFixed(2));
+    return parseFloat((value * 100.0).toFixed(2));
 };
