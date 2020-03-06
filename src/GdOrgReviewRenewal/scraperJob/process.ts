@@ -11,6 +11,8 @@ import {
     ScraperProgressData
 } from '../../services/jobQueue/types';
 import { RuntimeEnvironment } from '../../utilities/runtime';
+import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -40,7 +42,7 @@ const abortSubscription = (
  */
 const onReceiveScraperJobMessage = async (
     jobId: string,
-    jobProgress: ((value: number) => Promise<void>) & (() => number), // overload function
+    jobProgressBar: ProgressBarManager,
     channel: string,
     message: string,
     redisClientPublish: Redis.RedisClient,
@@ -77,7 +79,7 @@ const onReceiveScraperJobMessage = async (
             );
         }
 
-        await jobProgress(jobProgress() + 1);
+        await jobProgressBar.increment();
 
         return;
     } else if (type === ScraperJobMessageType.PROGRESS) {
@@ -85,13 +87,9 @@ const onReceiveScraperJobMessage = async (
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
         console.log(`job ${jobId} progress reported`, progressData);
 
-        await jobProgress(
-            parseFloat(
-                (
-                    (progressData.wentThrough / progressData.total) *
-                    100.0
-                ).toFixed(2)
-            )
+        await jobProgressBar.setRelativePercentage(
+            progressData.wentThrough,
+            progressData.total
         );
 
         return;
@@ -183,6 +181,13 @@ const superviseScraper = (
     redisClientSubscription: Redis.RedisClient,
     redisClientPublish: Redis.RedisClient
 ) => {
+    const progressBar = new ProgressBarManager(
+        JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
+        job,
+        job.data.lastProgress ? job.data.lastProgress.total : undefined,
+        job.data.lastProgress ? job.data.lastProgress.wentThrough : undefined
+    );
+
     return new Promise<string | ScraperCrossRequest>(
         (scraperSupervisorResolve, scraperSupervisorReject) => {
             let timeoutTimer = getMessageTimeoutTimer(
@@ -223,7 +228,7 @@ const superviseScraper = (
                     return scraperSupervisorReject(errorMessage);
                 }
 
-                await job.progress(job.progress() + 1);
+                await progressBar.increment();
 
                 const travisJob = triggerTravisJobRequest.data;
 
@@ -243,7 +248,7 @@ const superviseScraper = (
 
                 return await onReceiveScraperJobMessage(
                     job.id.toString(),
-                    job.progress,
+                    progressBar,
                     channel,
                     message,
                     redisClientPublish,

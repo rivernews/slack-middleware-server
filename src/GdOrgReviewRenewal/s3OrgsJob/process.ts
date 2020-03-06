@@ -3,6 +3,8 @@ import { s3ArchiveManager } from '../../services/s3';
 import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
+import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 
 const getOrgListFromS3 = async () => {
     return s3ArchiveManager.asyncGetOverviewPageUrls();
@@ -21,6 +23,11 @@ const getOrgListFromS3 = async () => {
 };
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
+    const progressBar = new ProgressBarManager(
+        JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB,
+        s3OrgsJob
+    );
+
     return (
         s3OrgsJobQueueManager
             .checkConcurrency(
@@ -31,7 +38,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             .then(() => getOrgListFromS3())
             // increment progress after s3 org list fetched
             .then(orgInfoList =>
-                s3OrgsJob.progress(s3OrgsJob.progress() + 1).then(() =>
+                progressBar.increment().then(() =>
                     supervisorJobQueueManager.queue.add({
                         orgInfoList
                     })
@@ -39,15 +46,11 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             )
             // increment progress after job dispatched
             .then(supervisorJob =>
-                s3OrgsJob
-                    .progress(s3OrgsJob.progress() + 1)
-                    .then(() => supervisorJob.finished())
+                progressBar.increment().then(() => supervisorJob.finished())
             )
             // increment progress after job finished
             .then(result =>
-                s3OrgsJob
-                    .progress(s3OrgsJob.progress() + 1)
-                    .then(() => Promise.resolve(result))
+                progressBar.increment().then(() => Promise.resolve(result))
             )
             .catch(error => {
                 return Promise.reject(error);

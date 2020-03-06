@@ -6,11 +6,12 @@ import {
     ScraperJobReturnData,
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
-import { toPercentageValue } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { supervisorJobQueueManager } from './queue';
+import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 
 const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
@@ -81,10 +82,16 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         : supervisorJob.data.orgInfoList || [];
     let processed = 0;
 
+    const progressBar = new ProgressBarManager(
+        JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB,
+        supervisorJob,
+        supervisorJob.data.crossRequestData ? 1 : orgInfoList.length
+    );
+
     return supervisorJobQueueManager
         .checkConcurrency(SUPERVISOR_JOB_CONCURRENCY, undefined, supervisorJob)
         .then(() => {
-            return supervisorJob.progress(supervisorJob.progress() + 1);
+            return progressBar.setAbsolutePercentage(1);
         })
         .then(async () => {
             // start dispatching job - resume scraping
@@ -151,9 +158,8 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 await processRenewalJob(orgFirstJobReturnData, orgFirstJob);
 
                 console.log('supervisorJob: proceeding to next org');
-                supervisorJob.progress(
-                    toPercentageValue((processed + 1) / orgInfoList.length)
-                );
+
+                await progressBar.increment();
             }
 
             console.log(
