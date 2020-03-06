@@ -52,12 +52,18 @@ export const cleanupJobQueues = async () => {
     // await s3OrgsJobQueueManager.queue.empty();
     // console.log('s3 orgs job queue cleaned to empty');
 
+    // TODO: since we already have `RedisManagerSingleton` closing all connection (including those
+    // created by bull) for us, we may not need to close queue and can safely remove these
+    // as they can cause error if the connection is already closed somewhere else
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    await supervisorJobQueueManager.queue.close();
-    await gdOrgReviewScraperJobQueueManager.queue.close();
-    await s3OrgsJobQueueManager.queue.close();
-    console.log('all job queues closed');
+    // try {
+    //     await supervisorJobQueueManager.queue.close();
+    // } catch (error) {}
+
+    // await gdOrgReviewScraperJobQueueManager.queue.close();
+    // await s3OrgsJobQueueManager.queue.close();
+    // console.log('all job queues closed');
 
     // Add more clean up here ...
 
