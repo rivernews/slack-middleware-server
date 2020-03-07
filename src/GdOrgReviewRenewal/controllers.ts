@@ -5,7 +5,10 @@ import {
 } from '../services/slack';
 import { Request, Response, NextFunction } from 'express';
 import { supervisorJobQueueManager } from './supervisorJob/queue';
-import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
+import {
+    ParameterRequirementNotMet,
+    ServerError
+} from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import { ScraperCrossRequest } from '../services/jobQueue/types';
@@ -15,6 +18,12 @@ export const s3OrgsJobController = async (
     res: Response,
     next: NextFunction
 ) => {
+    if (!s3OrgsJobQueueManager.queue) {
+        throw new ServerError(
+            `s3OrgsJobQueueManager queue not yet initialized`
+        );
+    }
+
     try {
         // make sure only one s3 job present at a time
         const jobsPresentCount = await s3OrgsJobQueueManager.checkConcurrency(
@@ -60,6 +69,11 @@ export const singleOrgJobController = async (
         console.log(`Company info string is ${companyInformationString}`);
 
         console.log('Ready to dispatch supervisorJob');
+        if (!supervisorJobQueueManager.queue) {
+            throw new ServerError(
+                `supervisorJobQueueManager queue not yet initialized`
+            );
+        }
         const supervisorJob = await supervisorJobQueueManager.queue.add({
             orgInfo: companyInformationString
         });
@@ -90,6 +104,12 @@ export const singleOrgRenewalJobController = async (
     res: Response,
     next: NextFunction
 ) => {
+    if (!supervisorJobQueueManager.queue) {
+        throw new ServerError(
+            `supervisorJobQueueManager queue not yet initialized`
+        );
+    }
+
     console.log('req.body', req.body);
     // it's frontend's responsibility to ensure the data shape is correct
     // and compliance to required fields in cross request data

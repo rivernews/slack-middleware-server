@@ -76,12 +76,33 @@ class RedisManagerSingleton {
         return newIoRedisClient;
     }
 
-    public closeAllClients () {
+    private static asyncCloseClient (client: RedisClient) {
+        // expect client to be closed within 10 sec
+        const closeClientProcessTimeout = 10 * 1000;
+        return new Promise<string>((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                return reject('Timed out while trying to close redis client');
+            }, closeClientProcessTimeout);
+
+            client.quit(error => {
+                if (error) {
+                    return reject(
+                        `client failed to close + ${JSON.stringify(error)}`
+                    );
+                }
+
+                clearTimeout(timeoutHandle);
+                return resolve('OK');
+            });
+        });
+    }
+
+    public async asyncCloseAllClients () {
         // will continue even if client is already close
         // but at the end we'll be confident that all clients are closed
         for (const client of this.clients) {
             console.debug('closing redis client');
-            client.quit();
+            await RedisManagerSingleton.asyncCloseClient(client);
         }
 
         for (const redisIoClient of this.redisIoClients) {
@@ -93,13 +114,15 @@ class RedisManagerSingleton {
 
 export const redisManager = RedisManagerSingleton.singleton;
 
-class JobQueueSharedRedisClientsSingleton {
+export class JobQueueSharedRedisClientsSingleton {
     private static _singleton = new JobQueueSharedRedisClientsSingleton();
 
-    public genericClient: IORedis.Redis;
-    public subscriberClient: IORedis.Redis;
+    public genericClient?: IORedis.Redis;
+    public subscriberClient?: IORedis.Redis;
 
-    private constructor () {
+    private constructor () {}
+
+    public intialize () {
         this.genericClient = redisManager.newIORedisClient();
         this.subscriberClient = redisManager.newIORedisClient();
     }
@@ -108,6 +131,3 @@ class JobQueueSharedRedisClientsSingleton {
         return this._singleton;
     }
 }
-
-export const jobQueueSharedRedisClients =
-    JobQueueSharedRedisClientsSingleton.singleton;

@@ -106,7 +106,7 @@ export const cleanUpExpressServer = async () => {
         (await cleanupJobQueues());
 
     // last check for all redis connection closed
-    redisManager.closeAllClients();
+    await redisManager.asyncCloseAllClients();
 
     return;
 };

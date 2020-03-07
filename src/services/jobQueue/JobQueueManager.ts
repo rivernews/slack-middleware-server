@@ -1,10 +1,11 @@
-import Bull = require('bull');
+import Bull from 'bull';
 import path from 'path';
 import fs from 'fs';
 import { JobQueueName } from './jobQueueName';
-import { redisManager, jobQueueSharedRedisClients } from '../redis';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { asyncSendSlackMessage } from '../slack';
 import { RuntimeEnvironment } from '../../utilities/runtime';
+import { ServerError } from '../../utilities/serverExceptions';
 
 interface JobQueueManagerProps {
     __processDirname: string;
@@ -19,9 +20,13 @@ interface JobQueueManagerProps {
 export class JobQueueManager<JobRequestData> {
     private static CONCURRENCY = 1;
 
-    public queue: Bull.Queue<JobRequestData>;
+    public queue?: Bull.Queue<JobRequestData>;
 
     private logPrefix: string;
+    private _processFileName: string;
+    private queueName: string;
+    private defaultJobOptions?: Bull.JobOptions;
+    private static jobQueueSharedRedisClientsSingleton: JobQueueSharedRedisClientsSingleton;
 
     public constructor (props: JobQueueManagerProps) {
         const processTypescriptPath = path.join(
@@ -33,31 +38,59 @@ export class JobQueueManager<JobRequestData> {
             props.relativePathWithoutExtension + '.js'
         );
 
-        const processFileName = fs.existsSync(processTypescriptPath)
+        this._processFileName = fs.existsSync(processTypescriptPath)
             ? processTypescriptPath
             : processJavascriptPath;
 
-        this.queue = new Bull<JobRequestData>(props.queueName, {
+        this.queueName = props.queueName;
+        this.defaultJobOptions = props.defaultJobOptions;
+        this.logPrefix = props.queueAbbreviation || props.queueName;
+    }
+
+    public initialize () {
+        if (!JobQueueManager.jobQueueSharedRedisClientsSingleton) {
+            JobQueueManager.jobQueueSharedRedisClientsSingleton =
+                JobQueueSharedRedisClientsSingleton.singleton;
+            JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize();
+        }
+
+        console.log(`initializing job queue for ${this.queueName}`);
+
+        this.queue = new Bull<JobRequestData>(this.queueName, {
             redis: redisManager.config,
-            defaultJobOptions: props.defaultJobOptions,
+            defaultJobOptions: this.defaultJobOptions,
 
             // reuse redis connection
             // https://github.com/OptimalBits/bull/blob/master/PATTERNS.md#reusing-redis-connections
             createClient: type => {
+                if (
+                    !(
+                        JobQueueManager.jobQueueSharedRedisClientsSingleton
+                            .genericClient &&
+                        JobQueueManager.jobQueueSharedRedisClientsSingleton
+                            .subscriberClient
+                    )
+                ) {
+                    throw new ServerError(
+                        `jobQueueSharedRedisClientsSingleton genericClient & subscriberClient not yet initialized`
+                    );
+                }
+
                 switch (type) {
                     case 'client':
-                        return jobQueueSharedRedisClients.genericClient;
+                        return JobQueueManager
+                            .jobQueueSharedRedisClientsSingleton.genericClient;
                     case 'subscriber':
-                        return jobQueueSharedRedisClients.subscriberClient;
+                        return JobQueueManager
+                            .jobQueueSharedRedisClientsSingleton
+                            .subscriberClient;
                     default:
                         return redisManager.newIORedisClient();
                 }
             }
         });
 
-        this.queue.process(JobQueueManager.CONCURRENCY, processFileName);
-
-        this.logPrefix = props.queueAbbreviation || props.queueName;
+        this.queue.process(JobQueueManager.CONCURRENCY, this._processFileName);
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
@@ -136,6 +169,12 @@ export class JobQueueManager<JobRequestData> {
         job?: Bull.Job
     ) {
         const queueToBeCheck = concurrencyCheckQueue || this.queue;
+
+        if (!queueToBeCheck) {
+            throw new ServerError(
+                `Failed to check concurrency because queueToBeCheck is null/undefined. If you intend to check self queue, did you run initialize() first?`
+            );
+        }
 
         return Promise.all([
             queueToBeCheck.getWaitingCount(),

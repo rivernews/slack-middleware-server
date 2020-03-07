@@ -38,6 +38,7 @@ export class ProgressBarManager {
             `${jobQueueName} ${job.id}: :percent (:current/:total) [:bar] :rate/s remains :etas elapsed :elapseds\n`,
             {
                 width: ProgressBarManager.PROGRESS_BAR_WIDTH_IN_TERMINAL,
+                stream: process.stdout,
 
                 curr: curr || 0,
                 total: total || 100

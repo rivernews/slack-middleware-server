@@ -4,6 +4,7 @@ import { gdOrgReviewScraperJobQueueManager } from '../../GdOrgReviewRenewal/scra
 import { redisManager } from '../redis';
 import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
 import { RuntimeEnvironment } from '../../utilities/runtime';
+import { ServerError } from '../../utilities/serverExceptions';
 
 // Constants
 
@@ -24,25 +25,25 @@ export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
     ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
     : 4;
 
-export const startJobQueues = () => {
-    // TODO: add a if block once we add feature of resuming failed cronjob
-    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        const redisAdminClient = redisManager.newClient();
-        redisAdminClient.flushdb();
-        console.debug(`flushed redis db ${redisManager.config.db}`);
-        // let redisManager close the connection
-        // redisAdminClient.quit();
+const initializeJobQueues = () => {
+    gdOrgReviewScraperJobQueueManager.initialize();
+    supervisorJobQueueManager.initialize();
+    s3OrgsJobQueueManager.initialize();
+};
+
+const registerJobQueuesToDashboard = () => {
+    if (
+        !(
+            supervisorJobQueueManager.queue &&
+            gdOrgReviewScraperJobQueueManager.queue &&
+            s3OrgsJobQueueManager.queue
+        )
+    ) {
+        throw new ServerError(
+            `Failed to register job queues to dashboard, at least one of the queues is not initialized`
+        );
     }
 
-    // register job queues
-    // supervisorJobQueue.empty();
-    // TODO: remove this since we exposed an endpoint for manual cronjob
-    // .then(() => gdOrgReviewRenewalCronjobQueue.add({}))
-    // .then(gdOrgReviewRenewalCronjob => {
-    //     console.log('registered cronjob', gdOrgReviewRenewalCronjob.id);
-    // })
-
-    // register queues to dashboard
     const jobUISetQueuesQueueNames = Object.keys(
         // bull-board repo & doc
         // https://github.com/vcapretz/bull-board
@@ -58,26 +59,46 @@ export const startJobQueues = () => {
     );
 };
 
+export const startJobQueues = () => {
+    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+        const redisAdminClient = redisManager.newClient();
+        redisAdminClient.flushdb(error => {
+            if (error) {
+                console.error('failed to flush db', error);
+            } else {
+                console.debug(`flushed redis db ${redisManager.config.db}`);
+
+                initializeJobQueues();
+                registerJobQueuesToDashboard();
+            }
+        });
+    } else {
+        initializeJobQueues();
+        registerJobQueuesToDashboard();
+    }
+};
+
 export const cleanupJobQueues = async () => {
-    // Queue.empty to delete all existing jobs
-    //github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueempty
-    // await supervisorJobQueue.empty();
-    // console.log('supervisor job queue cleaned to empty');
-    // await gdOrgReviewScraperJobQueue.empty();
-    // console.log('scraper job queue cleaned to empty');
-    // await s3OrgsJobQueueManager.queue.empty();
-    // console.log('s3 orgs job queue cleaned to empty');
+    if (
+        !(
+            supervisorJobQueueManager.queue &&
+            gdOrgReviewScraperJobQueueManager.queue &&
+            s3OrgsJobQueueManager.queue
+        )
+    ) {
+        throw new ServerError(
+            `Failed to clean up job queues, at least one of the queues is not initialized`
+        );
+    }
 
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
     try {
-        await supervisorJobQueueManager.queue.pause();
         await supervisorJobQueueManager.queue.close();
     } catch (error) {
         console.warn('supervisorJobQueueManager queue fail to close', error);
     }
     try {
-        await gdOrgReviewScraperJobQueueManager.queue.pause();
         await gdOrgReviewScraperJobQueueManager.queue.close();
     } catch (error) {
         console.warn(
@@ -86,7 +107,6 @@ export const cleanupJobQueues = async () => {
         );
     }
     try {
-        await s3OrgsJobQueueManager.queue.pause();
         await s3OrgsJobQueueManager.queue.close();
     } catch (error) {
         console.warn('s3OrgsJobQueueManager queue fail to close', error);

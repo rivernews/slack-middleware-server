@@ -1,10 +1,11 @@
-import Bull = require('bull');
+import Bull from 'bull';
 import { s3ArchiveManager } from '../../services/s3';
 import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
+import { ServerError } from '../../utilities/serverExceptions';
 
 const getOrgListFromS3 = async () => {
     return s3ArchiveManager.asyncGetOverviewPageUrls();
@@ -25,6 +26,14 @@ const getOrgListFromS3 = async () => {
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
 
+    const supervisorJobQueueManagerQueue = supervisorJobQueueManager.queue;
+
+    if (!supervisorJobQueueManagerQueue) {
+        throw new ServerError(
+            `supervisorJobQueueManager queue not initialized yet`
+        );
+    }
+
     const progressBar = new ProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB,
         s3OrgsJob
@@ -38,7 +47,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                 // it could be chaotic to mix s3 job with existing single org job
                 // better to limit s3 job to launch only if no supervisor job exists
                 1,
-                supervisorJobQueueManager.queue,
+                supervisorJobQueueManagerQueue,
                 s3OrgsJob
             )
             .then(supervisorJobsPresentCount => {
@@ -92,7 +101,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     return Promise.all(
                                         orgInfoListBucket.map(
                                             bucketedOrgInfoList =>
-                                                supervisorJobQueueManager.queue.add(
+                                                supervisorJobQueueManagerQueue.add(
                                                     {
                                                         orgInfoList: bucketedOrgInfoList
                                                     }

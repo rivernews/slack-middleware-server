@@ -2,17 +2,15 @@
 
 import axios from 'axios';
 import express from 'express';
-import {
-    NotAuthenticatedResponse,
-    ServerError
-} from '../utilities/serverExceptions';
+import { ServerError } from '../utilities/serverExceptions';
 
 const SLACK_TOKEN_INCOMING_URL: string =
     process.env.SLACK_TOKEN_INCOMING_URL || '';
 
 export const asyncSendSlackMessage = async (
     message: string,
-    overrideChannel = ''
+    overrideChannel = '',
+    alsoLog: boolean = false
 ) => {
     let finalMessage = message;
 
@@ -33,6 +31,10 @@ export const asyncSendSlackMessage = async (
 
     if (!SLACK_TOKEN_INCOMING_URL) {
         throw new ServerError();
+    }
+
+    if (alsoLog) {
+        console.log(finalMessage);
     }
 
     return axios.post(SLACK_TOKEN_INCOMING_URL, {

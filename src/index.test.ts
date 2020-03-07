@@ -4,10 +4,10 @@ import { gracefulExpressServer, cleanUpExpressServer } from '.';
 import { gdOrgReviewRenewalDescribe } from './GdOrgReviewRenewal/GdOrgReviewRenewal.test';
 import { qualitativeOrgReviewOrgDescribe } from './QualitativeOrgReview/QualitativeOrgReview.test';
 
-const expect = require('chai').expect;
-const axios = require('axios').default;
+import { expect } from 'chai';
+import axios from 'axios';
 
-const baseUrl = require('./utilities/serverExceptions').baseUrl;
+import { baseUrl } from './utilities/serverExceptions';
 
 describe('App integration test', () => {
     it('Index page', async () => {

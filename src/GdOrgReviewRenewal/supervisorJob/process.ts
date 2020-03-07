@@ -1,4 +1,4 @@
-import Bull = require('bull');
+import Bull from 'bull';
 import { gdOrgReviewScraperJobQueueManager } from '../scraperJob/queue';
 import {
     ScraperCrossRequest,
@@ -17,6 +17,12 @@ const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
     orgFirstJob?: Bull.Job<ScraperJobRequestData>
 ) => {
+    if (!gdOrgReviewScraperJobQueueManager.queue) {
+        throw new ServerError(
+            `gdOrgReviewScraperJobQueueManager queue not yet initialized`
+        );
+    }
+
     if (!ScraperCrossRequest.isScraperCrossRequestData(scraperJobResult)) {
         return;
     }
@@ -77,6 +83,15 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         supervisorJob.data
     );
 
+    if (!gdOrgReviewScraperJobQueueManager.queue) {
+        throw new ServerError(
+            `gdOrgReviewScraperJobQueueManager queue not yet initialized`
+        );
+    }
+
+    const gdOrgReviewScraperJobQueueManagerQueue =
+        gdOrgReviewScraperJobQueueManager.queue;
+
     const orgInfoList = supervisorJob.data.orgInfo
         ? [supervisorJob.data.orgInfo]
         : supervisorJob.data.orgInfoList || [];
@@ -120,7 +135,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             console.log('supervisorJob will dispatch scraper jobs');
             for (processed = 0; processed < orgInfoList.length; processed++) {
                 const orgInfo = orgInfoList[processed];
-                const orgFirstJob = await gdOrgReviewScraperJobQueueManager.queue.add(
+                const orgFirstJob = await gdOrgReviewScraperJobQueueManagerQueue.add(
                     {
                         orgInfo
                     }
@@ -175,7 +190,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 'remaining orgList not yet finished (including failed one):',
                 orgInfoList.slice(processed, orgInfoList.length)
             );
-            await gdOrgReviewScraperJobQueueManager.queue.empty();
+            await gdOrgReviewScraperJobQueueManagerQueue.empty();
             return Promise.reject(error);
         });
 };
