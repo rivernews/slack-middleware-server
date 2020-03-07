@@ -20,6 +20,9 @@ module "slack_middleware_service" {
   app_container_image     = "shaungc/slack-middleware-service"
   app_container_image_tag = var.app_container_image_tag
   app_secret_name_list = [
+    "/provider/aws/account/iriversland2-15pro/AWS_ACCESS_KEY_ID",
+    "/provider/aws/account/iriversland2-15pro/AWS_SECRET_ACCESS_KEY",
+
     "/app/slack-middleware-service/NODE_ENV",
     "/app/slack-middleware-service/HOST",
     "/app/slack-middleware-service/PORT",
@@ -30,10 +33,10 @@ module "slack_middleware_service" {
 
     "/database/redis_cluster_kubernetes/REDIS_HOST",
     "/database/redis_cluster_kubernetes/REDIS_PORT",
-    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
 
-    "/provider/aws/account/iriversland2-15pro/AWS_ACCESS_KEY_ID",
-    "/provider/aws/account/iriversland2-15pro/AWS_SECRET_ACCESS_KEY"
+    "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
+    "/app/slack-middleware-service/SUPERVISOR_JOB_CONCURRENCY",
+    "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS"
   ]
 }
 
