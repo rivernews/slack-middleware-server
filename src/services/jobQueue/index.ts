@@ -78,28 +78,18 @@ export const startJobQueues = () => {
     }
 };
 
-export const cleanupJobQueues = async () => {
-    if (
-        !(
-            supervisorJobQueueManager.queue &&
-            gdOrgReviewScraperJobQueueManager.queue &&
-            s3OrgsJobQueueManager.queue
-        )
-    ) {
-        throw new ServerError(
-            `Failed to clean up job queues, at least one of the queues is not initialized`
-        );
-    }
-
+export const cleanupJobQueuesAndRedisClients = async () => {
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
     try {
-        await supervisorJobQueueManager.queue.close();
+        supervisorJobQueueManager.queue &&
+            (await supervisorJobQueueManager.queue.close());
     } catch (error) {
         console.warn('supervisorJobQueueManager queue fail to close', error);
     }
     try {
-        await gdOrgReviewScraperJobQueueManager.queue.close();
+        gdOrgReviewScraperJobQueueManager.queue &&
+            (await gdOrgReviewScraperJobQueueManager.queue.close());
     } catch (error) {
         console.warn(
             'gdOrgReviewScraperJobQueueManager queue fail to close',
@@ -107,14 +97,18 @@ export const cleanupJobQueues = async () => {
         );
     }
     try {
-        await s3OrgsJobQueueManager.queue.close();
+        s3OrgsJobQueueManager.queue &&
+            (await s3OrgsJobQueueManager.queue.close());
     } catch (error) {
         console.warn('s3OrgsJobQueueManager queue fail to close', error);
     }
 
+    // Add more queue clean up here ...
+
     console.log('all job queues closed');
 
-    // Add more clean up here ...
+    // last check for all redis connection closed
+    await redisManager.asyncCloseAllClients();
 
     return;
 };

@@ -3,7 +3,10 @@
 import express from 'express';
 import { ErrorResponse } from './utilities/serverExceptions';
 import { createTerminus } from '@godaddy/terminus';
-import { startJobQueues, cleanupJobQueues } from './services/jobQueue';
+import {
+    startJobQueues,
+    cleanupJobQueuesAndRedisClients
+} from './services/jobQueue';
 import {
     RuntimeEnvironment,
     RUNTIME_CI_ENVIRONMENT
@@ -103,10 +106,7 @@ export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
     RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING &&
-        (await cleanupJobQueues());
-
-    // last check for all redis connection closed
-    await redisManager.asyncCloseAllClients();
+        (await cleanupJobQueuesAndRedisClients());
 
     return;
 };

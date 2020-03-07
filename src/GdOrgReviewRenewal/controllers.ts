@@ -87,7 +87,7 @@ export const singleOrgJobController = async (
                 '```'
         );
         process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
-            console.debug('Slack res', slackRes);
+            console.debug('Slack res', slackRes.status);
 
         return res.json(supervisorJob);
     } catch (error) {

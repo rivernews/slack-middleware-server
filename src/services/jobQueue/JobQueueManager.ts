@@ -48,13 +48,16 @@ export class JobQueueManager<JobRequestData> {
     }
 
     public initialize () {
+        if (this.queue) {
+            console.log('already initialized queue', this.queueName);
+            return;
+        }
+
         if (!JobQueueManager.jobQueueSharedRedisClientsSingleton) {
             JobQueueManager.jobQueueSharedRedisClientsSingleton =
                 JobQueueSharedRedisClientsSingleton.singleton;
             JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize();
         }
-
-        console.log(`initializing job queue for ${this.queueName}`);
 
         this.queue = new Bull<JobRequestData>(this.queueName, {
             redis: redisManager.config,
@@ -89,6 +92,7 @@ export class JobQueueManager<JobRequestData> {
                 }
             }
         });
+        console.log(`initialized job queue for ${this.queueName}`);
 
         this.queue.process(JobQueueManager.CONCURRENCY, this._processFileName);
 

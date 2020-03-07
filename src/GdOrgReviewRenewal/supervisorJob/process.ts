@@ -7,7 +7,10 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue';
+import {
+    SUPERVISOR_JOB_CONCURRENCY,
+    cleanupJobQueuesAndRedisClients
+} from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { supervisorJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
@@ -19,7 +22,7 @@ const processRenewalJob = async (
 ) => {
     if (!gdOrgReviewScraperJobQueueManager.queue) {
         throw new ServerError(
-            `gdOrgReviewScraperJobQueueManager queue not yet initialized`
+            `In supervisorJob processor subroutines: gdOrgReviewScraperJobQueueManager queue not yet initialized`
         );
     }
 
@@ -83,6 +86,15 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         supervisorJob.data
     );
 
+    // supervisorJob will need the following queues to be initialized:
+    // supervisorJobQueue
+    // gdOrgReviewScraperJobQueue
+    //
+    // even if you've already initialized them in master process (the one w/ express server), this sandbox process is a completely separate process
+    // and does not share any object or resources with master process, thus having to initialize here again (some cross-process functionalities like job.progress()
+    // are handled by bull, using nodejs process.send/on('message') to communicate via serialized data)
+    gdOrgReviewScraperJobQueueManager.initialize();
+    supervisorJobQueueManager.initialize();
     if (!gdOrgReviewScraperJobQueueManager.queue) {
         throw new ServerError(
             `gdOrgReviewScraperJobQueueManager queue not yet initialized`
@@ -103,94 +115,110 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         supervisorJob.data.crossRequestData ? 1 : orgInfoList.length
     );
 
-    return supervisorJobQueueManager
-        .checkConcurrency(SUPERVISOR_JOB_CONCURRENCY, undefined, supervisorJob)
-        .then(() => {
-            return progressBar.setAbsolutePercentage(1);
-        })
-        .then(async () => {
-            // start dispatching job - resume scraping
-            if (supervisorJob.data.crossRequestData) {
-                if (
-                    !ScraperCrossRequest.isScraperCrossRequestData(
-                        supervisorJob.data.crossRequestData
-                    )
-                ) {
-                    throw new ServerError(
-                        `Illegal crossRequestData for supervisorJobData: ${JSON.stringify(
+    return (
+        supervisorJobQueueManager
+            .checkConcurrency(
+                SUPERVISOR_JOB_CONCURRENCY,
+                undefined,
+                supervisorJob
+            )
+            .then(() => {
+                return progressBar.setAbsolutePercentage(1);
+            })
+            .then(async () => {
+                // start dispatching job - resume scraping
+                if (supervisorJob.data.crossRequestData) {
+                    if (
+                        !ScraperCrossRequest.isScraperCrossRequestData(
                             supervisorJob.data.crossRequestData
-                        )}`
+                        )
+                    ) {
+                        throw new ServerError(
+                            `Illegal crossRequestData for supervisorJobData: ${JSON.stringify(
+                                supervisorJob.data.crossRequestData
+                            )}`
+                        );
+                    }
+                    return await processRenewalJob(
+                        supervisorJob.data.crossRequestData
                     );
                 }
-                return await processRenewalJob(
-                    supervisorJob.data.crossRequestData
-                );
-            }
 
-            // start dispatching job - scrape from beginning
-            if (!orgInfoList.length) {
-                console.log('org list empty, will do nothing');
-                return Promise.resolve('empty orgList');
-            }
-            console.log('supervisorJob will dispatch scraper jobs');
-            for (processed = 0; processed < orgInfoList.length; processed++) {
-                const orgInfo = orgInfoList[processed];
-                const orgFirstJob = await gdOrgReviewScraperJobQueueManagerQueue.add(
-                    {
-                        orgInfo
-                    }
-                );
-                console.log(
-                    `supervisorJob added scraper job ${orgFirstJob.id}`
-                );
-
-                const orgFirstJobReturnData: ScraperJobReturnData = await orgFirstJob.finished();
-                console.log(`supervisorJob: job ${orgFirstJob.id} finished`);
-                await asyncSendSlackMessage(
-                    `supervisorJob: job ${
-                        orgFirstJob.id
-                    } finished, return data:\n\`\`\`${JSON.stringify(
-                        orgFirstJobReturnData
-                    )}\`\`\``
-                );
-
-                if (
-                    typeof orgFirstJobReturnData !== 'string' &&
-                    !ScraperCrossRequest.isScraperCrossRequestData(
-                        orgFirstJobReturnData
-                    )
+                // start dispatching job - scrape from beginning
+                if (!orgInfoList.length) {
+                    console.log('org list empty, will do nothing');
+                    return Promise.resolve('empty orgList');
+                }
+                console.log('supervisorJob will dispatch scraper jobs');
+                for (
+                    processed = 0;
+                    processed < orgInfoList.length;
+                    processed++
                 ) {
-                    throw new ServerError(
+                    const orgInfo = orgInfoList[processed];
+                    const orgFirstJob = await gdOrgReviewScraperJobQueueManagerQueue.add(
+                        {
+                            orgInfo
+                        }
+                    );
+                    console.log(
+                        `supervisorJob added scraper job ${orgFirstJob.id}`
+                    );
+
+                    const orgFirstJobReturnData: ScraperJobReturnData = await orgFirstJob.finished();
+                    console.log(
+                        `supervisorJob: job ${orgFirstJob.id} finished`
+                    );
+                    await asyncSendSlackMessage(
                         `supervisorJob: job ${
                             orgFirstJob.id
-                        } returned illegal result data: ${JSON.stringify(
+                        } finished, return data:\n\`\`\`${JSON.stringify(
                             orgFirstJobReturnData
-                        )}`
+                        )}\`\`\``
                     );
+
+                    if (
+                        typeof orgFirstJobReturnData !== 'string' &&
+                        !ScraperCrossRequest.isScraperCrossRequestData(
+                            orgFirstJobReturnData
+                        )
+                    ) {
+                        throw new ServerError(
+                            `supervisorJob: job ${
+                                orgFirstJob.id
+                            } returned illegal result data: ${JSON.stringify(
+                                orgFirstJobReturnData
+                            )}`
+                        );
+                    }
+
+                    // process renewal jobs if necessary
+                    await processRenewalJob(orgFirstJobReturnData, orgFirstJob);
+
+                    console.log('supervisorJob: proceeding to next org');
+
+                    await progressBar.increment();
                 }
 
-                // process renewal jobs if necessary
-                await processRenewalJob(orgFirstJobReturnData, orgFirstJob);
+                console.log(
+                    'supervisorJob finish dispatching & waiting all jobs done'
+                );
 
-                console.log('supervisorJob: proceeding to next org');
+                return Promise.resolve('supervisorJob complete successfully');
+            })
+            .catch(async error => {
+                console.log(
+                    'supervisorJob interrupted due to error\n',
+                    error,
+                    'remaining orgList not yet finished (including failed one):',
+                    orgInfoList.slice(processed, orgInfoList.length)
+                );
 
-                await progressBar.increment();
-            }
+                await gdOrgReviewScraperJobQueueManagerQueue.empty();
 
-            console.log(
-                'supervisorJob finish dispatching & waiting all jobs done'
-            );
-
-            return Promise.resolve('supervisorJob complete successfully');
-        })
-        .catch(async error => {
-            console.log(
-                'supervisorJob interrupted due to error\n',
-                error,
-                'remaining orgList not yet finished (including failed one):',
-                orgInfoList.slice(processed, orgInfoList.length)
-            );
-            await gdOrgReviewScraperJobQueueManagerQueue.empty();
-            return Promise.reject(error);
-        });
+                return Promise.reject(error);
+            })
+            // clean up job queue resources created in this sandbox process
+            .finally(() => cleanupJobQueuesAndRedisClients())
+    );
 };
