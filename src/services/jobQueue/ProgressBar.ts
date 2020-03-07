@@ -61,8 +61,6 @@ export class ProgressBarManager {
     }
 
     public setRelativePercentage (curr: number, total: number) {
-        this.progressBar.total = total;
-
         // prefer to use .tick() instead of .render()
         if (
             this.progressBar.curr + 1 === curr &&
