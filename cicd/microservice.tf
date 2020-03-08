@@ -36,7 +36,8 @@ module "slack_middleware_service" {
 
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
     "/app/slack-middleware-service/SUPERVISOR_JOB_CONCURRENCY",
-    "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS"
+    "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS",
+    "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY"
   ]
 }
 
@@ -54,7 +55,7 @@ module "slack_middleware_service" {
 // KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment bash
 //
 // print client IDS where db=5:
-// KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment redis-cli -- client list | grep db=5 | cut -d ' ' -f 1 | cut -d = -f 2
+// KUBECONFIG=kubeconfig.yaml kubectl -n redis-cluster exec -it deploy/redis-cluster-deployment redis-cli client list | grep db=5 | cut -d ' ' -f 1 | cut -d = -f 2
 //
 // kill all client where db=5 (run in redis cluster container):
 // redis-cli client list | grep db=5 | cut -d ' ' -f 1 | cut -d = -f 2 | awk '{ print "CLIENT KILL ID " $0 }' | redis-cli -x

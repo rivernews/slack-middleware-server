@@ -21,10 +21,6 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
     : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
       3 * 60 * 1000;
 
-export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
-    ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
-    : 4;
-
 const initializeJobQueues = () => {
     gdOrgReviewScraperJobQueueManager.initialize();
     supervisorJobQueueManager.initialize();
@@ -84,34 +80,41 @@ export const startJobQueues = () => {
     }
 };
 
-export const cleanupJobQueuesAndRedisClients = async () => {
+export const cleanupJobQueuesAndRedisClients = async ({
+    closeQueues = true
+} = {}) => {
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    try {
-        supervisorJobQueueManager.queue &&
-            (await supervisorJobQueueManager.queue.close());
-    } catch (error) {
-        console.warn('supervisorJobQueueManager queue fail to close', error);
-    }
-    try {
-        gdOrgReviewScraperJobQueueManager.queue &&
-            (await gdOrgReviewScraperJobQueueManager.queue.close());
-    } catch (error) {
-        console.warn(
-            'gdOrgReviewScraperJobQueueManager queue fail to close',
-            error
-        );
-    }
-    try {
-        s3OrgsJobQueueManager.queue &&
-            (await s3OrgsJobQueueManager.queue.close());
-    } catch (error) {
-        console.warn('s3OrgsJobQueueManager queue fail to close', error);
-    }
+    if (closeQueues) {
+        try {
+            supervisorJobQueueManager.queue &&
+                (await supervisorJobQueueManager.queue.close());
+        } catch (error) {
+            console.warn(
+                'supervisorJobQueueManager queue fail to close',
+                error
+            );
+        }
+        try {
+            gdOrgReviewScraperJobQueueManager.queue &&
+                (await gdOrgReviewScraperJobQueueManager.queue.close());
+        } catch (error) {
+            console.warn(
+                'gdOrgReviewScraperJobQueueManager queue fail to close',
+                error
+            );
+        }
+        try {
+            s3OrgsJobQueueManager.queue &&
+                (await s3OrgsJobQueueManager.queue.close());
+        } catch (error) {
+            console.warn('s3OrgsJobQueueManager queue fail to close', error);
+        }
 
-    // Add more queue clean up here ...
+        // Add more queue clean up here ...
 
-    console.log('all job queues closed');
+        console.log('all job queues closed');
+    }
 
     // last check for all redis connection closed
     await redisManager.asyncCloseAllClients();

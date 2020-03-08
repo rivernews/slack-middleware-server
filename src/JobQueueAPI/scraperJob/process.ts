@@ -8,14 +8,14 @@ import {
     ScraperCrossRequest,
     ScraperJobMessageTo,
     ScraperJobMessageType,
-    ScraperProgressData,
-    ScraperAdminChannelName
+    ScraperProgressData
 } from '../../services/jobQueue/types';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
 import { composePubsubMessage } from '../../services/jobQueue/message';
+import { ServerError } from '../../utilities/serverExceptions';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -123,9 +123,11 @@ const onReceiveScraperJobMessage = async (
             scraperSupervisorReject
         );
     } else if (type === ScraperJobMessageType.TERMINATE) {
-        clearTimeout(timeoutTimer);
-        return scraperSupervisorResolve(
-            `job ${jobId} manually terminated: ${payloadAsString}`
+        return abortSubscription(
+            `job ${jobId} manually terminated`,
+            payloadAsString,
+            timeoutTimer,
+            scraperSupervisorReject
         );
     } else {
         return abortSubscription(
@@ -208,9 +210,20 @@ const superviseScraper = (
                 scraperSupervisorReject
             );
 
-            redisClientSubscription.on('subscribe', async () => {
+            redisClientSubscription.on('subscribe', async (channel, count) => {
+                // will only subscribe to admin channel or scraper session channel
+                // otherwise it's likely there's a typo in channel name
+                if (
+                    channel !== RedisPubSubChannelName.ADMIN &&
+                    channel !== redisPubsubChannelName
+                ) {
+                    throw new ServerError(
+                        `job ${job.id} subscribed to channel ${channel}, count ${count}, but desired channel is \`${redisPubsubChannelName}\``
+                    );
+                }
+
                 console.log(
-                    `job ${job.id} subscribed to channel ${redisPubsubChannelName}`
+                    `job ${job.id} subscribed to channel ${channel}, count ${count}`
                 );
 
                 // TODO: avoid the need to have to hard code things that you have to manually change
@@ -268,9 +281,10 @@ const superviseScraper = (
                     timeoutTimer
                 );
             });
+
             redisClientSubscription.subscribe([
                 redisPubsubChannelName,
-                ScraperAdminChannelName.ADMIN
+                RedisPubSubChannelName.ADMIN
             ]);
         }
     );
@@ -332,7 +346,7 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
                 redisClientPublish,
                 patchedJob.data.orgInfo || patchedJob.data.orgName
             );
-            return resultMessage;
+            return Promise.resolve(resultMessage);
         })
         .catch(error => {
             cleanupRedisSubscriptionConnection(

@@ -4,11 +4,9 @@ import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import {
-    SUPERVISOR_JOB_CONCURRENCY,
-    cleanupJobQueuesAndRedisClients
-} from '../../services/jobQueue';
+import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { ServerError } from '../../utilities/serverExceptions';
+import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
@@ -111,5 +109,9 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         })
         .then(resultList => Promise.resolve(resultList))
         .catch(error => Promise.reject(error))
-        .finally(() => cleanupJobQueuesAndRedisClients());
+        .finally(() =>
+            cleanupJobQueuesAndRedisClients({
+                closeQueues: false
+            })
+        );
 };

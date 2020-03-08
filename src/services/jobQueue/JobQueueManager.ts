@@ -7,18 +7,28 @@ import { asyncSendSlackMessage } from '../slack';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 
+export const SCRAPER_JOB_POOL_MAX_CONCURRENCY = process.env
+    .SCRAPER_JOB_POOL_MAX_CONCURRENCY
+    ? parseInt(process.env.SCRAPER_JOB_POOL_MAX_CONCURRENCY)
+    : 4;
+export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
+    ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
+    : 4;
+
 interface JobQueueManagerProps {
     __processDirname: string;
     relativePathWithoutExtension: string;
 
     queueName: JobQueueName;
+    concurrency?: number;
     queueAbbreviation?: string;
 
     defaultJobOptions?: Bull.JobOptions;
 }
 
 export class JobQueueManager<JobRequestData> {
-    private static CONCURRENCY = 1;
+    private static DEFAULT_CONCURRENCY = 1;
+    private concurrency: number;
 
     public queue?: Bull.Queue<JobRequestData>;
 
@@ -43,6 +53,8 @@ export class JobQueueManager<JobRequestData> {
             : processJavascriptPath;
 
         this.queueName = props.queueName;
+        this.concurrency =
+            props.concurrency || JobQueueManager.DEFAULT_CONCURRENCY;
         this.defaultJobOptions = props.defaultJobOptions;
         this.logPrefix = props.queueAbbreviation || props.queueName;
     }
@@ -106,7 +118,7 @@ export class JobQueueManager<JobRequestData> {
         });
         console.log(`initialized job queue for ${this.queueName}`);
 
-        this.queue.process(JobQueueManager.CONCURRENCY, this._processFileName);
+        this.queue.process(this.concurrency, this._processFileName);
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events

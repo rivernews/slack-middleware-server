@@ -7,7 +7,8 @@ import IORedis from 'ioredis';
 // https://github.com/NodeRedis/node-redis#pubsub
 
 export enum RedisPubSubChannelName {
-    SCRAPER_JOB_CHANNEL = 'scraperJobChannel'
+    SCRAPER_JOB_CHANNEL = 'scraperJobChannel',
+    ADMIN = 'scraperAdmin'
 }
 
 // creating a singleton

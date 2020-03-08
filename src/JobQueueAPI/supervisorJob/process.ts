@@ -7,12 +7,8 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import {
-    SUPERVISOR_JOB_CONCURRENCY,
-    cleanupJobQueuesAndRedisClients
-} from '../../services/jobQueue';
+import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
-import { supervisorJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 
@@ -94,7 +90,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     // and does not share any object or resources with master process, thus having to initialize here again (some cross-process functionalities like job.progress()
     // are handled by bull, using nodejs process.send/on('message') to communicate via serialized data)
     gdOrgReviewScraperJobQueueManager.initialize();
-    supervisorJobQueueManager.initialize();
+    // supervisorJobQueueManager.initialize();
     if (!gdOrgReviewScraperJobQueueManager.queue) {
         throw new ServerError(
             `gdOrgReviewScraperJobQueueManager queue not yet initialized`
@@ -116,15 +112,17 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     );
 
     return (
-        supervisorJobQueueManager
-            .checkConcurrency(
-                SUPERVISOR_JOB_CONCURRENCY,
-                undefined,
-                supervisorJob
-            )
-            .then(() => {
-                return progressBar.setAbsolutePercentage(1);
-            })
+        progressBar
+            .setAbsolutePercentage(1)
+            // supervisorJobQueueManager
+            //     .checkConcurrency(
+            //         SUPERVISOR_JOB_CONCURRENCY,
+            //         undefined,
+            //         supervisorJob
+            //     )
+            //     .then(() => {
+            //         return progressBar.setAbsolutePercentage(1);
+            //     })
             .then(async () => {
                 // start dispatching job - resume scraping
                 if (supervisorJob.data.crossRequestData) {
@@ -219,6 +217,10 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 return Promise.reject(error);
             })
             // clean up job queue resources created in this sandbox process
-            .finally(() => cleanupJobQueuesAndRedisClients())
+            .finally(() =>
+                cleanupJobQueuesAndRedisClients({
+                    closeQueues: false
+                })
+            )
     );
 };

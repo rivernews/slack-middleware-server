@@ -13,11 +13,13 @@ import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,
-    ScraperAdminChannelName,
     ScraperJobMessageType,
     ScraperJobMessageTo
 } from '../services/jobQueue/types';
-import { JobQueueSharedRedisClientsSingleton } from '../services/redis';
+import {
+    JobQueueSharedRedisClientsSingleton,
+    RedisPubSubChannelName
+} from '../services/redis';
 import { composePubsubMessage } from '../services/jobQueue/message';
 
 export const s3OrgsJobController = async (
@@ -122,7 +124,10 @@ export const singleOrgRenewalJobController = async (
     // and compliance to required fields in cross request data
 
     let supervisorJob;
-    if (typeof req.body.orgInfo === 'string') {
+    if (
+        typeof req.body.orgInfo === 'string' &&
+        req.body.orgInfo.trim() !== ''
+    ) {
         supervisorJob = await supervisorJobQueueManager.queue.add({
             orgInfo: (req.body.orgInfo as string).trim()
         });
@@ -170,13 +175,14 @@ export const terminateAllJobsController = async (
     res: Response,
     next: NextFunction
 ) => {
+    console.log('terminate job controller');
     JobQueueSharedRedisClientsSingleton.singleton.intialize();
     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
         return next(new ServerError(`Shared redis client did not initialize`));
     }
 
     const publishedResult = await JobQueueSharedRedisClientsSingleton.singleton.genericClient.publish(
-        ScraperAdminChannelName.ADMIN,
+        RedisPubSubChannelName.ADMIN,
         composePubsubMessage(
             ScraperJobMessageType.TERMINATE,
             ScraperJobMessageTo.ALL,
