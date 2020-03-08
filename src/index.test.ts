@@ -1,7 +1,7 @@
 'use strict';
 
 import { gracefulExpressServer, cleanUpExpressServer } from '.';
-import { gdOrgReviewRenewalDescribe } from './GdOrgReviewRenewal/GdOrgReviewRenewal.test';
+import { gdOrgReviewRenewalDescribe } from './JobQueueAPI/GdOrgReviewRenewal.test';
 import { qualitativeOrgReviewOrgDescribe } from './QualitativeOrgReview/QualitativeOrgReview.test';
 
 import { expect } from 'chai';

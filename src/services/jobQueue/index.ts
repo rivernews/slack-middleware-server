@@ -1,8 +1,8 @@
-import { supervisorJobQueueManager } from '../../GdOrgReviewRenewal/supervisorJob/queue';
+import { supervisorJobQueueManager } from '../../JobQueueAPI/supervisorJob/queue';
 import { setQueues } from 'bull-board';
-import { gdOrgReviewScraperJobQueueManager } from '../../GdOrgReviewRenewal/scraperJob/queue';
-import { redisManager } from '../redis';
-import { s3OrgsJobQueueManager } from '../../GdOrgReviewRenewal/s3OrgsJob/queue';
+import { gdOrgReviewScraperJobQueueManager } from '../../JobQueueAPI/scraperJob/queue';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
+import { s3OrgsJobQueueManager } from '../../JobQueueAPI/s3OrgsJob/queue';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 
@@ -61,17 +61,23 @@ const registerJobQueuesToDashboard = () => {
 
 export const startJobQueues = () => {
     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        const redisAdminClient = redisManager.newClient();
-        redisAdminClient.flushdb(error => {
-            if (error) {
-                console.error('failed to flush db', error);
-            } else {
-                console.debug(`flushed redis db ${redisManager.config.db}`);
+        JobQueueSharedRedisClientsSingleton.singleton.intialize();
+        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+            throw new ServerError(`Shared redis client did not initialize`);
+        }
 
-                initializeJobQueues();
-                registerJobQueuesToDashboard();
+        JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
+            error => {
+                if (error) {
+                    console.error('failed to flush db', error);
+                } else {
+                    console.debug(`flushed redis db ${redisManager.config.db}`);
+
+                    initializeJobQueues();
+                    registerJobQueuesToDashboard();
+                }
             }
-        });
+        );
     } else {
         initializeJobQueues();
         registerJobQueuesToDashboard();

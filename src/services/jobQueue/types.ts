@@ -3,16 +3,22 @@ import { ServerError } from '../../utilities/serverExceptions';
 // type guards in Typescript
 // https://www.typescriptlang.org/docs/handbook/advanced-types.html#user-defined-type-guards
 
+export enum ScraperAdminChannelName {
+    ADMIN = 'scraperAdmin'
+}
+
 export enum ScraperJobMessageType {
     PREFLIGHT = 'preflight',
     PROGRESS = 'progress',
     FINISH = 'finish',
-    ERROR = 'error'
+    ERROR = 'error',
+    TERMINATE = 'terminate'
 }
 
 export enum ScraperJobMessageTo {
     SLACK_MD_SVC = 'slackMiddlewareService',
-    SCRAPER = 'scraper'
+    SCRAPER = 'scraper',
+    ALL = 'all'
 }
 
 export enum ScraperMode {

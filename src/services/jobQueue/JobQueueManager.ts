@@ -53,9 +53,21 @@ export class JobQueueManager<JobRequestData> {
             return;
         }
 
+        // assign shared redis client for this JobQueueManager
         if (!JobQueueManager.jobQueueSharedRedisClientsSingleton) {
             JobQueueManager.jobQueueSharedRedisClientsSingleton =
                 JobQueueSharedRedisClientsSingleton.singleton;
+        }
+
+        // initialize shared redis client if needed
+        if (
+            !(
+                JobQueueManager.jobQueueSharedRedisClientsSingleton
+                    .genericClient &&
+                JobQueueManager.jobQueueSharedRedisClientsSingleton
+                    .subscriberClient
+            )
+        ) {
             JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize();
         }
 

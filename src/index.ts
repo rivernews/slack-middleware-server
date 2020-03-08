@@ -23,7 +23,7 @@ import {
 import {
     gdOrgReviewRenewalBaseUrl,
     gdOrgReviewRenewalRouter
-} from './GdOrgReviewRenewal/routes';
+} from './JobQueueAPI/routes';
 import { UI } from 'bull-board';
 import { redisManager } from './services/redis';
 

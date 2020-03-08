@@ -8,12 +8,14 @@ import {
     ScraperCrossRequest,
     ScraperJobMessageTo,
     ScraperJobMessageType,
-    ScraperProgressData
+    ScraperProgressData,
+    ScraperAdminChannelName
 } from '../../services/jobQueue/types';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
+import { composePubsubMessage } from '../../services/jobQueue/message';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -52,7 +54,10 @@ const onReceiveScraperJobMessage = async (
     const [type, messageTo, ...payload] = message.split(':');
     const payloadAsString = payload.join(':');
 
-    if (messageTo !== ScraperJobMessageTo.SLACK_MD_SVC) {
+    if (
+        messageTo !== ScraperJobMessageTo.SLACK_MD_SVC &&
+        messageTo !== ScraperJobMessageTo.ALL
+    ) {
         console.debug(
             `job ${jobId} ignoring messages that are not for us`,
             message
@@ -65,7 +70,11 @@ const onReceiveScraperJobMessage = async (
         if (
             !redisClientPublish.publish(
                 channel,
-                `${ScraperJobMessageType.PREFLIGHT}:${ScraperJobMessageTo.SCRAPER}:acknowledged`
+                composePubsubMessage(
+                    ScraperJobMessageType.PREFLIGHT,
+                    ScraperJobMessageTo.SCRAPER,
+                    'acknowledged'
+                )
             )
         ) {
             return abortSubscription(
@@ -112,6 +121,11 @@ const onReceiveScraperJobMessage = async (
             payloadAsString,
             timeoutTimer,
             scraperSupervisorReject
+        );
+    } else if (type === ScraperJobMessageType.TERMINATE) {
+        clearTimeout(timeoutTimer);
+        return scraperSupervisorResolve(
+            `job ${jobId} manually terminated: ${payloadAsString}`
         );
     } else {
         return abortSubscription(
@@ -254,7 +268,10 @@ const superviseScraper = (
                     timeoutTimer
                 );
             });
-            redisClientSubscription.subscribe(redisPubsubChannelName);
+            redisClientSubscription.subscribe([
+                redisPubsubChannelName,
+                ScraperAdminChannelName.ADMIN
+            ]);
         }
     );
 };

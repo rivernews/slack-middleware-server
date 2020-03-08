@@ -123,11 +123,16 @@ export class JobQueueSharedRedisClientsSingleton {
     private constructor () {}
 
     public intialize () {
-        this.genericClient = redisManager.newIORedisClient();
-        this.subscriberClient = redisManager.newIORedisClient();
+        if (!this.genericClient) {
+            this.genericClient = redisManager.newIORedisClient();
+        }
+
+        if (!this.subscriberClient) {
+            this.subscriberClient = redisManager.newIORedisClient();
+        }
     }
 
     public static get singleton () {
-        return this._singleton;
+        return JobQueueSharedRedisClientsSingleton._singleton;
     }
 }

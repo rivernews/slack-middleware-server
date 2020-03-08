@@ -11,7 +11,14 @@ import {
 } from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
-import { ScraperCrossRequest } from '../services/jobQueue/types';
+import {
+    ScraperCrossRequest,
+    ScraperAdminChannelName,
+    ScraperJobMessageType,
+    ScraperJobMessageTo
+} from '../services/jobQueue/types';
+import { JobQueueSharedRedisClientsSingleton } from '../services/redis';
+import { composePubsubMessage } from '../services/jobQueue/message';
 
 export const s3OrgsJobController = async (
     req: Request,
@@ -156,4 +163,32 @@ export const singleOrgRenewalJobController = async (
     }
 
     res.json(supervisorJob);
+};
+
+export const terminateAllJobsController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    JobQueueSharedRedisClientsSingleton.singleton.intialize();
+    if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+        return next(new ServerError(`Shared redis client did not initialize`));
+    }
+
+    const publishedResult = await JobQueueSharedRedisClientsSingleton.singleton.genericClient.publish(
+        ScraperAdminChannelName.ADMIN,
+        composePubsubMessage(
+            ScraperJobMessageType.TERMINATE,
+            ScraperJobMessageTo.ALL,
+            {
+                triggeredBy: 'terminateAllJobsEndpoint'
+            }
+        )
+    );
+
+    res.json({
+        publishedResult
+    });
+
+    return;
 };

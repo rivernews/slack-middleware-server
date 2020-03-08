@@ -4,10 +4,7 @@ import { expect } from 'chai';
 import axios from 'axios';
 import { describe, it } from 'mocha';
 import { STATUS_CODE, baseUrl } from '../utilities/serverExceptions';
-import {
-    gdOrgReviewRenewalBaseUrl,
-    singleOrgJobEndpoint
-} from '../GdOrgReviewRenewal/routes';
+import { gdOrgReviewRenewalBaseUrl, singleOrgJobEndpoint } from './routes';
 
 export const gdOrgReviewRenewalDescribe = describe('GdOrgReviewRenewal integration test', () => {
     describe('Test job queue endpoint auth', () => {
