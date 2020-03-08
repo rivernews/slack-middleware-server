@@ -21,6 +21,7 @@ import {
     RedisPubSubChannelName
 } from '../services/redis';
 import { composePubsubMessage } from '../services/jobQueue/message';
+import { gdOrgReviewScraperJobQueueManager } from './scraperJob/queue';
 
 export const s3OrgsJobController = async (
     req: Request,
@@ -175,7 +176,8 @@ export const terminateAllJobsController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.log('terminate job controller');
+    console.debug('terminate job controller');
+
     JobQueueSharedRedisClientsSingleton.singleton.intialize();
     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
         return next(new ServerError(`Shared redis client did not initialize`));
@@ -197,4 +199,56 @@ export const terminateAllJobsController = async (
     });
 
     return;
+};
+
+export const resumeAllQueuesController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    console.debug('resume all queues controller');
+
+    for (const queue of [
+        s3OrgsJobQueueManager.queue,
+        supervisorJobQueueManager.queue,
+        gdOrgReviewScraperJobQueueManager.queue
+    ]) {
+        if (queue) {
+            try {
+                await queue.resume();
+            } catch (error) {
+                console.warn(`failed to resume queue ${queue.name}`, error);
+            }
+        }
+    }
+
+    return res.json({
+        message: 'OK!'
+    });
+};
+
+export const pauseAllQueuesController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    console.debug('pause all queues controller');
+
+    for (const queue of [
+        s3OrgsJobQueueManager.queue,
+        supervisorJobQueueManager.queue,
+        gdOrgReviewScraperJobQueueManager.queue
+    ]) {
+        if (queue) {
+            try {
+                await queue.pause();
+            } catch (error) {
+                console.warn(`failed to pause queue ${queue.name}`, error);
+            }
+        }
+    }
+
+    return res.json({
+        message: 'OK!'
+    });
 };

@@ -158,7 +158,7 @@ export class JobQueueManager<JobRequestData> {
 
         this.queue.on('failed', (job, err) => {
             // A job failed with reason `err`!
-            console.error(`${this.logPrefix} ${job.id}  failed`, err);
+            console.error(`${this.logPrefix} ${job.id} failed`, err);
         });
 
         this.queue.on('paused', () => {
@@ -166,9 +166,9 @@ export class JobQueueManager<JobRequestData> {
             console.log(`${this.logPrefix} paused`);
         });
 
-        this.queue.on('resumed', (job: Bull.Job<any>) => {
+        this.queue.on('resumed', () => {
             // The queue has been resumed.
-            console.log(`${this.logPrefix} ${job.id} resumed`);
+            console.log(`${this.logPrefix} resumed`);
         });
 
         this.queue.on('cleaned', (jobs, type) => {

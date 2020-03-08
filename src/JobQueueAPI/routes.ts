@@ -3,7 +3,9 @@ import {
     s3OrgsJobController,
     singleOrgJobController,
     singleOrgRenewalJobController,
-    terminateAllJobsController
+    terminateAllJobsController,
+    resumeAllQueuesController,
+    pauseAllQueuesController
 } from './controllers';
 import cors from 'cors';
 import { RuntimeEnvironment } from '../utilities/runtime';
@@ -18,6 +20,8 @@ export const s3OrgsJobEndpoint = '/s3-orgs-job';
 export const singleOrgJobEndpoint = '/single-org-job';
 export const singleOrgRenewalJobEndpoint = '/single-org-renewal-job';
 export const terminateAllJobsEndpoint = '/terminate-all-jobs';
+export const resumeAllQueuesEndpoint = '/resume-all-queues';
+export const pauseAllQueuesEndpoint = '/pause-all-queues';
 // add more endpoints of controllers...
 
 // register controllers
@@ -40,4 +44,9 @@ gdOrgReviewRenewalRouter.post(
     terminateAllJobsEndpoint,
     terminateAllJobsController
 );
+gdOrgReviewRenewalRouter.post(
+    resumeAllQueuesEndpoint,
+    resumeAllQueuesController
+);
+gdOrgReviewRenewalRouter.post(pauseAllQueuesEndpoint, pauseAllQueuesController);
 // add more routes (endpoint - controller pairs)...
