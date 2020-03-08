@@ -226,6 +226,11 @@ const superviseScraper = (
                     `job ${job.id} subscribed to channel ${channel}, count ${count}`
                 );
 
+                if (channel === RedisPubSubChannelName.ADMIN) {
+                    // we do nothing upon ADMIN subscribed event other than logging, so abort here
+                    return;
+                }
+
                 // TODO: avoid the need to have to hard code things that you have to manually change
                 // remove this block if want to run scraper on local for debugging
                 if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
