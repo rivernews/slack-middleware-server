@@ -12,7 +12,7 @@ export class ProgressBarManager {
     private job: Bull.Job;
     private jobQueueName: string;
 
-    constructor (
+    private constructor (
         jobQueueName: string,
         job: Bull.Job,
         total?: number,
@@ -28,7 +28,7 @@ export class ProgressBarManager {
         );
     }
 
-    public static newProgressBar (
+    private static newProgressBar (
         jobQueueName: string,
         job: Bull.Job,
         total?: number,
@@ -46,6 +46,15 @@ export class ProgressBarManager {
         );
     }
 
+    public static newProgressBarManager (
+        jobQueueName: string,
+        job: Bull.Job,
+        total?: number,
+        curr?: number
+    ) {
+        return new ProgressBarManager(jobQueueName, job, total, curr);
+    }
+
     public setCurrent (value: number) {
         this.progressBar.curr = value;
     }
@@ -54,14 +63,14 @@ export class ProgressBarManager {
         this.progressBar.total = value;
     }
 
-    public setAbsolutePercentage (percentageNumber: number) {
+    public syncSetAbsolutePercentage (percentageNumber: number) {
         this.progressBar.curr = percentageNumber;
         this.progressBar.total = 100;
         this.progressBar.render();
         return this.job.progress(percentageNumber);
     }
 
-    public setRelativePercentage (currCount: number, totalCount: number) {
+    public syncSetRelativePercentage (currCount: number, totalCount: number) {
         // prefer to use .tick() instead of .render()
         if (
             this.progressBar.curr + 1 === currCount &&
@@ -78,6 +87,9 @@ export class ProgressBarManager {
             this.progressBar.render();
         }
 
+        // job.progress returns nothing if it's a set operation, thus it's synchronous
+        // only if it's a get operation (no args passed in) will job.progress return Promise
+        // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#jobprogress
         return this.job.progress(toPercentageValue(currCount / totalCount));
     }
 

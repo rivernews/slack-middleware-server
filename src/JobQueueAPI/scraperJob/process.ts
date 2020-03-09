@@ -93,7 +93,7 @@ const onReceiveScraperJobMessage = async (
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
         console.log(`job ${jobId} progress reported`, progressData);
 
-        await jobProgressBar.setRelativePercentage(
+        jobProgressBar.syncSetRelativePercentage(
             progressData.wentThrough,
             progressData.total
         );
@@ -194,7 +194,7 @@ const superviseScraper = (
     redisClientSubscription: Redis.RedisClient,
     redisClientPublish: Redis.RedisClient
 ) => {
-    const progressBar = new ProgressBarManager(
+    const progressBarManager = ProgressBarManager.newProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
         job,
         job.data.lastProgress ? job.data.lastProgress.total : undefined,
@@ -257,7 +257,7 @@ const superviseScraper = (
                     return scraperSupervisorReject(errorMessage);
                 }
 
-                await progressBar.increment();
+                await progressBarManager.increment();
 
                 const travisJob = triggerTravisJobRequest.data;
 
@@ -277,7 +277,7 @@ const superviseScraper = (
 
                 return await onReceiveScraperJobMessage(
                     job.id.toString(),
-                    progressBar,
+                    progressBarManager,
                     channel,
                     message,
                     redisClientPublish,

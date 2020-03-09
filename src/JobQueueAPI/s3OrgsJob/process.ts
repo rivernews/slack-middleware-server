@@ -19,7 +19,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         );
     }
 
-    const progressBar = new ProgressBarManager(
+    const progressBarManager = ProgressBarManager.newProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB,
         s3OrgsJob
     );
@@ -47,7 +47,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     .asyncGetOverviewPageUrls()
                     // increment progress after s3 org list fetched
                     .then(orgInfoList =>
-                        progressBar
+                        progressBarManager
                             .increment()
                             // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
@@ -72,6 +72,18 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     );
                                 }
 
+                                // report progress after bucket distributed
+                                if (!orgInfoListBucket.length) {
+                                    progressBarManager.syncSetAbsolutePercentage(
+                                        100
+                                    );
+                                } else {
+                                    progressBarManager.syncSetRelativePercentage(
+                                        0,
+                                        orgInfoListBucket.length
+                                    );
+                                }
+
                                 // TODO: remove
                                 console.debug(
                                     'orgInfoListBucket',
@@ -79,21 +91,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 );
 
                                 return orgInfoListBucket;
-                            })
-                            // report progress after bucket distributed
-                            .then(orgInfoListBucket => {
-                                if (!orgInfoListBucket.length) {
-                                    return progressBar
-                                        .setAbsolutePercentage(100)
-                                        .then(() => orgInfoListBucket);
-                                }
-
-                                return progressBar
-                                    .setRelativePercentage(
-                                        0,
-                                        orgInfoListBucket.length
-                                    )
-                                    .then(() => orgInfoListBucket);
                             })
                             .then(orgInfoListBucket => {
                                 return Promise.all(
@@ -112,7 +109,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     .finished()
                                     // increment progress after job finished, then propogate back job result
                                     .then(result =>
-                                        progressBar
+                                        progressBarManager
                                             .increment()
                                             .then(() => result)
                                     )

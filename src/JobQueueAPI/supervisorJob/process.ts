@@ -106,7 +106,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         : supervisorJob.data.orgInfoList || [];
     let processed = 0;
 
-    const progressBar = new ProgressBarManager(
+    const progressBarManager = ProgressBarManager.newProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB,
         supervisorJob,
         supervisorJob.data.crossRequestData ? 1 : orgInfoList.length
@@ -201,7 +201,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
 
                     console.log('supervisorJob: proceeding to next org');
 
-                    await progressBar.increment();
+                    await progressBarManager.increment();
                 }
 
                 console.log('supervisorJob: all scraper job finished');
