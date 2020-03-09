@@ -32,7 +32,8 @@ export class JobQueueManager<JobRequestData> {
 
     public queue?: Bull.Queue<JobRequestData>;
 
-    private logPrefix: string;
+    private jobWideLogPrefix: string;
+    private queueWideLogPrefix: string;
     private _processFileName: string;
     private queueName: string;
     private defaultJobOptions?: Bull.JobOptions;
@@ -56,7 +57,8 @@ export class JobQueueManager<JobRequestData> {
         this.concurrency =
             props.concurrency || JobQueueManager.DEFAULT_CONCURRENCY;
         this.defaultJobOptions = props.defaultJobOptions;
-        this.logPrefix = props.queueAbbreviation || props.queueName;
+        this.jobWideLogPrefix = props.queueAbbreviation || props.queueName;
+        this.queueWideLogPrefix = `${this.jobWideLogPrefix}Queue`;
     }
 
     public initialize () {
@@ -124,70 +126,73 @@ export class JobQueueManager<JobRequestData> {
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
         this.queue.on('error', error => {
             // An error occured.
-            console.error(`${this.logPrefix} error`, error);
+            console.error(`${this.jobWideLogPrefix} error`, error);
         });
 
         this.queue.on('waiting', jobId => {
             // A Job is waiting to be processed as soon as a worker is idling.
-            console.log(`${this.logPrefix} ${jobId} waiting`);
+            console.log(`${this.jobWideLogPrefix} ${jobId} waiting`);
         });
 
         this.queue.on('active', (job, jobPromise) => {
             // A job has started. You can use `jobPromise.cancel()`` to abort it.
-            console.log(`${this.logPrefix} ${job.id} active`);
+            console.log(`${this.jobWideLogPrefix} ${job.id} active`);
         });
 
         this.queue.on('stalled', job => {
             // A job has been marked as stalled. This is useful for debugging job
             // workers that crash or pause the event loop.
-            console.log(`${this.logPrefix} ${job.id} stalled`);
+            console.log(`${this.jobWideLogPrefix} ${job.id} stalled`);
         });
 
         this.queue.on('progress', (job, progress) => {
             // A job's progress was updated!
-            console.log(`${this.logPrefix} ${job.id}  progress`, progress);
+            console.log(
+                `${this.jobWideLogPrefix} ${job.id}  progress`,
+                progress
+            );
         });
 
         this.queue.on('completed', (job, result) => {
             // A job successfully completed with a `result`.
             console.log(
-                `${this.logPrefix} ${job.id}  completed, result:`,
+                `${this.jobWideLogPrefix} ${job.id}  completed, result:`,
                 result
             );
         });
 
         this.queue.on('failed', (job, err) => {
             // A job failed with reason `err`!
-            console.error(`${this.logPrefix} ${job.id} failed`, err);
+            console.error(`${this.jobWideLogPrefix} ${job.id} failed`, err);
         });
 
         this.queue.on('paused', () => {
             // The queue has been paused.
-            console.log(`${this.logPrefix} paused`);
+            console.log(`${this.queueWideLogPrefix} paused`);
         });
 
         this.queue.on('resumed', () => {
             // The queue has been resumed.
-            console.log(`${this.logPrefix} resumed`);
+            console.log(`${this.queueWideLogPrefix} resumed`);
         });
 
         this.queue.on('cleaned', (jobs, type) => {
             // Old jobs have been cleaned from the queue. `jobs` is an array of cleaned
             // jobs, and `type` is the type of jobs cleaned.
             console.log(
-                `${this.logPrefix} cleaned:`,
+                `${this.jobWideLogPrefix} cleaned:`,
                 jobs.map(job => job.id)
             );
         });
 
         this.queue.on('drained', () => {
             // Emitted every time the queue has processed all the waiting jobs (even if there can be some delayed jobs not yet processed)
-            console.log(`${this.logPrefix} drained`);
+            console.log(`${this.queueWideLogPrefix} drained`);
         });
 
         this.queue.on('removed', job => {
             // A job successfully removed.
-            console.log(`${this.logPrefix} ${job.id} removed`);
+            console.log(`${this.jobWideLogPrefix} ${job.id} removed`);
         });
     }
 
@@ -220,7 +225,7 @@ export class JobQueueManager<JobRequestData> {
                 (!job && jobsPresentCount >= concurrency)
             ) {
                 const rejectMessage =
-                    `${this.logPrefix} reach concurrency limit ${concurrency}, queue ${queueToBeCheck.name} already has ${jobsPresentCount} jobs running. ` +
+                    `${this.jobWideLogPrefix} reach concurrency limit ${concurrency}, queue ${queueToBeCheck.name} already has ${jobsPresentCount} jobs running. ` +
                     (job
                         ? `Rejecting this job \`\`\`${JSON.stringify(
                               job
