@@ -126,7 +126,7 @@ export class JobQueueManager<JobRequestData> {
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
         this.queue.on('error', error => {
             // An error occured.
-            console.error(`${this.jobWideLogPrefix} error`, error);
+            console.error(`${this.queueWideLogPrefix} error`, error);
         });
 
         this.queue.on('waiting', jobId => {

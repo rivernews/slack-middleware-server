@@ -54,31 +54,31 @@ export class ProgressBarManager {
         this.progressBar.total = value;
     }
 
-    public setAbsolutePercentage (value: number) {
-        this.progressBar.curr = value;
+    public setAbsolutePercentage (percentageNumber: number) {
+        this.progressBar.curr = percentageNumber;
         this.progressBar.total = 100;
         this.progressBar.render();
-        return this.job.progress(toPercentageValue(value / 100));
+        return this.job.progress(percentageNumber);
     }
 
-    public setRelativePercentage (curr: number, total: number) {
+    public setRelativePercentage (currCount: number, totalCount: number) {
         // prefer to use .tick() instead of .render()
         if (
-            this.progressBar.curr + 1 === curr &&
-            this.progressBar.total === total
+            this.progressBar.curr + 1 === currCount &&
+            this.progressBar.total === totalCount
         ) {
             this.progressBar.tick(1);
         } else {
             this.progressBar = ProgressBarManager.newProgressBar(
                 this.jobQueueName,
                 this.job,
-                total,
-                curr
+                totalCount,
+                currCount
             );
             this.progressBar.render();
         }
 
-        return this.job.progress(toPercentageValue(curr / total));
+        return this.job.progress(toPercentageValue(currCount / totalCount));
     }
 
     public increment () {

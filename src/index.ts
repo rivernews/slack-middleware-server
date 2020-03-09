@@ -5,7 +5,7 @@ import { ErrorResponse } from './utilities/serverExceptions';
 import { createTerminus } from '@godaddy/terminus';
 import {
     startJobQueues,
-    cleanupJobQueuesAndRedisClients
+    asyncCleanupJobQueuesAndRedisClients
 } from './services/jobQueue';
 import {
     RuntimeEnvironment,
@@ -106,7 +106,7 @@ export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
     RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING &&
-        (await cleanupJobQueuesAndRedisClients());
+        (await asyncCleanupJobQueuesAndRedisClients());
 
     return;
 };

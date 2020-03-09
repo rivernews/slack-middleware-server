@@ -80,7 +80,7 @@ export const startJobQueues = () => {
     }
 };
 
-export const cleanupJobQueuesAndRedisClients = async ({
+export const asyncCleanupJobQueuesAndRedisClients = async ({
     closeQueues = true
 } = {}) => {
     // Queue.close

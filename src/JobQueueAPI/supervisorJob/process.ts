@@ -7,7 +7,7 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
+import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
@@ -221,10 +221,13 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 return Promise.reject(error);
             })
             // clean up job queue resources created in this sandbox process
-            .finally(() =>
-                cleanupJobQueuesAndRedisClients({
+            .finally(() => {
+                console.log(
+                    'supervisor sandbox process: cleaning up redis clients'
+                );
+                return asyncCleanupJobQueuesAndRedisClients({
                     closeQueues: false
-                })
-            )
+                });
+            })
     );
 };

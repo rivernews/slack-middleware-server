@@ -4,7 +4,7 @@ import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
+import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
@@ -32,7 +32,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             // better to limit s3 job to launch only if no supervisor job exists
             1,
             supervisorJobQueueManagerQueue,
-            s3OrgsJob
+            s3OrgsJob,
+            JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
         )
         .then(supervisorJobsPresentCount => {
             // dispatch supervisors into parallel groups
@@ -77,11 +78,24 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     orgInfoListBucket
                                 );
 
-                                progressBar.setRelativePercentage(
-                                    0,
-                                    supervisorJobVacancy
-                                );
+                                return orgInfoListBucket;
+                            })
+                            // report progress after bucket distributed
+                            .then(orgInfoListBucket => {
+                                if (!orgInfoListBucket.length) {
+                                    return progressBar
+                                        .setAbsolutePercentage(100)
+                                        .then(() => orgInfoListBucket);
+                                }
 
+                                return progressBar
+                                    .setRelativePercentage(
+                                        0,
+                                        orgInfoListBucket.length
+                                    )
+                                    .then(() => orgInfoListBucket);
+                            })
+                            .then(orgInfoListBucket => {
                                 return Promise.all(
                                     orgInfoListBucket.map(bucketedOrgInfoList =>
                                         supervisorJobQueueManagerQueue.add({
@@ -109,9 +123,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         })
         .then(resultList => Promise.resolve(resultList))
         .catch(error => Promise.reject(error))
-        .finally(() =>
-            cleanupJobQueuesAndRedisClients({
+        .finally(() => {
+            console.log('s3Org sandbox process: cleaning up redis clients');
+            return asyncCleanupJobQueuesAndRedisClients({
                 closeQueues: false
-            })
-        );
+            });
+        });
 };
