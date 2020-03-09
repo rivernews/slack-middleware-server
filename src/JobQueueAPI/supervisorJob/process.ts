@@ -11,6 +11,7 @@ import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
+import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
 const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
@@ -112,8 +113,13 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     );
 
     return (
-        progressBar
-            .setAbsolutePercentage(1)
+        gdOrgReviewScraperJobQueueManager
+            .checkConcurrency(
+                SCRAPER_JOB_POOL_MAX_CONCURRENCY,
+                undefined,
+                supervisorJob,
+                JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB
+            )
             // supervisorJobQueueManager
             //     .checkConcurrency(
             //         SUPERVISOR_JOB_CONCURRENCY,
@@ -198,9 +204,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     await progressBar.increment();
                 }
 
-                console.log(
-                    'supervisorJob finish dispatching & waiting all jobs done'
-                );
+                console.log('supervisorJob: all scraper job finished');
 
                 return Promise.resolve('supervisorJob complete successfully');
             })

@@ -196,11 +196,28 @@ export class JobQueueManager<JobRequestData> {
         });
     }
 
+    /**
+     * Throws a promise rejection if concurrency limit reached, or a resolve if not.
+     *
+     * @param concurrency The concurrency limit for either the queue you pass in by `concurrencyCheckQueue`, or if you don't, this manager's own queue
+     * @param concurrencyCheckQueue Queue you want to explicitly check concurrency for
+     * @param currentActiveJobToBeCheck For better log information. Note that job can be from any queue, not just queue of this manager. If you are calling this `checkConcurrency` outside of process function (e.g. before dispatching a job), you may skip this argument.
+     * @param currentActiveJobQueueName When specified `currentActiveJobToBeCheck`, this is also required. This arg is for better log information, purpose same as `currentActiveJobToBeCheck`.
+     * @param countCurrentActiveJobIntoConcurrency As it's called literally. Useful for case when you are calling this function `checkConcurrency` in an active job (inside a process function), take the active job into consideration when determiing concurrency limit (e.g., the job is already occupy a concurrency in the queue, which decreases the remaining vacancy)
+     */
     public checkConcurrency (
         concurrency: number,
         concurrencyCheckQueue?: Bull.Queue,
-        job?: Bull.Job
+        currentActiveJobToBeCheck?: Bull.Job<JobRequestData>,
+        currentActiveJobQueueName?: string,
+        countCurrentActiveJobIntoConcurrency: boolean = false
     ) {
+        if (currentActiveJobToBeCheck && !currentActiveJobQueueName) {
+            throw new ServerError(
+                `You specified currentActiveJobToBeCheck but did not provide currentActiveJobQueueName. Please also pass in the queue name`
+            );
+        }
+
         const queueToBeCheck = concurrencyCheckQueue || this.queue;
 
         if (!queueToBeCheck) {
@@ -217,18 +234,26 @@ export class JobQueueManager<JobRequestData> {
         ]).then(([waiting, delayed, paused, active]) => {
             const jobsPresentCount = waiting + delayed + paused + active;
             if (
-                // if job passed in, means current job already active & is included in `jobsPresentCount`
-                // in this case, we are whether 'acknowledging' this job is conformed to concurrency limit or not
-                (job && jobsPresentCount > concurrency) ||
-                // if job not passed in, means job not created yet, so if jobsPresentCount == concurrency
+                // if want to count current job in, means current job already active & is included in `jobsPresentCount`
+                // in this case, we are whether 'acknowledging' this job conforms to concurrency limit or not
+                (countCurrentActiveJobIntoConcurrency &&
+                    jobsPresentCount > concurrency) ||
+                // otherwise, means job not created yet, so if jobsPresentCount == concurrency
                 // there's no space to add any new job, so we should reject
-                (!job && jobsPresentCount >= concurrency)
+                (!countCurrentActiveJobIntoConcurrency &&
+                    jobsPresentCount >= concurrency)
             ) {
                 const rejectMessage =
-                    `${this.jobWideLogPrefix} reach concurrency limit ${concurrency}, queue ${queueToBeCheck.name} already has ${jobsPresentCount} jobs running. ` +
-                    (job
+                    `${
+                        currentActiveJobToBeCheck && currentActiveJobQueueName
+                            ? `${currentActiveJobQueueName} ${currentActiveJobToBeCheck.id}`
+                            : queueToBeCheck.name
+                    } encountered concurrency limit ${concurrency}, queue ${
+                        queueToBeCheck.name
+                    } already has ${jobsPresentCount} jobs running. ` +
+                    (currentActiveJobToBeCheck
                         ? `Rejecting this job \`\`\`${JSON.stringify(
-                              job
+                              currentActiveJobToBeCheck
                           )}\`\`\``
                         : '');
 
