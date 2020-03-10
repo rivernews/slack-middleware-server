@@ -11,7 +11,9 @@ import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueMana
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
 
-    supervisorJobQueueManager.initialize();
+    supervisorJobQueueManager.initialize(
+        `${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} sandbox process`
+    );
     const supervisorJobQueueManagerQueue = supervisorJobQueueManager.queue;
     if (!supervisorJobQueueManagerQueue) {
         throw new ServerError(
@@ -121,8 +123,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         .then(resultList => Promise.resolve(resultList))
         .catch(error => Promise.reject(error))
         .finally(() => {
-            return supervisorJobQueueManager.asyncCleanUp({
-                sandboxProcessName: JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
-            });
+            return supervisorJobQueueManager.asyncCleanUp();
         });
 };

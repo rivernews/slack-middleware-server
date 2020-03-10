@@ -22,9 +22,9 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
       3 * 60 * 1000;
 
 const initializeJobQueues = () => {
-    gdOrgReviewScraperJobQueueManager.initialize();
-    supervisorJobQueueManager.initialize();
-    s3OrgsJobQueueManager.initialize();
+    gdOrgReviewScraperJobQueueManager.initialize('master process');
+    supervisorJobQueueManager.initialize('master process');
+    s3OrgsJobQueueManager.initialize('master process');
 };
 
 const registerJobQueuesToDashboard = () => {
@@ -90,9 +90,7 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
     if (closeQueues) {
         try {
-            await supervisorJobQueueManager.asyncCleanUp({
-                sandboxProcessName: 'master'
-            });
+            await supervisorJobQueueManager.asyncCleanUp();
         } catch (error) {
             console.warn(
                 `${processName}: supervisorJobQueueManager queue fail to close`,
@@ -100,9 +98,7 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
             );
         }
         try {
-            await gdOrgReviewScraperJobQueueManager.asyncCleanUp({
-                sandboxProcessName: 'master'
-            });
+            await gdOrgReviewScraperJobQueueManager.asyncCleanUp();
         } catch (error) {
             console.warn(
                 `${processName} gdOrgReviewScraperJobQueueManager queue fail to close`,
@@ -110,9 +106,7 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
             );
         }
         try {
-            await s3OrgsJobQueueManager.asyncCleanUp({
-                sandboxProcessName: 'master'
-            });
+            await s3OrgsJobQueueManager.asyncCleanUp();
         } catch (error) {
             console.warn(
                 `${processName} s3OrgsJobQueueManager queue fail to close`,
