@@ -116,7 +116,9 @@ export class JobQueueManager<JobRequestData> {
                             .jobQueueSharedRedisClientsSingleton
                             .subscriberClient;
                     default:
-                        return redisManager.newIORedisClient(`bull ${type}`);
+                        return redisManager.newIORedisClient(
+                            `${this.queueWideLogPrefix}: bull ${type}`
+                        );
                 }
             }
         });
