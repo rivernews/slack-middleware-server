@@ -67,7 +67,7 @@ export class JobQueueManager<JobRequestData> {
 
         if (this.queue) {
             console.log(
-                this.sandboxProcessName,
+                `In ${this.sandboxProcessName} process`,
                 'already initialized queue',
                 this.queueName
             );
@@ -110,7 +110,7 @@ export class JobQueueManager<JobRequestData> {
                     )
                 ) {
                     throw new ServerError(
-                        `${this.sandboxProcessName} jobQueueSharedRedisClientsSingleton genericClient & subscriberClient not yet initialized`
+                        `In ${this.sandboxProcessName} process, shared genericClient & subscriberClient not yet initialized`
                     );
                 }
 
@@ -123,14 +123,14 @@ export class JobQueueManager<JobRequestData> {
                             .jobQueueSharedRedisClientsSingleton
                             .subscriberClient;
                     default:
-                        return redisManager.newIORedisClient(
-                            `${this.sandboxProcessName} ${this.queueWideLogPrefix}: bull ${type}`
+                        return JobQueueManager.jobQueueSharedRedisClientsSingleton.newIORedisClient(
+                            `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix}: bull ${type}`
                         );
                 }
             }
         });
         console.log(
-            `${this.sandboxProcessName} initialized job queue for ${this.queueName}`
+            `In ${this.sandboxProcessName} process, initialized job queue for ${this.queueName}`
         );
 
         this.queue.process(this.concurrency, this._processFileName);
@@ -140,7 +140,7 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('error', error => {
             // An error occured.
             console.error(
-                `${this.sandboxProcessName} ${this.queueWideLogPrefix} error`,
+                `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix} error`,
                 error
             );
         });
@@ -148,14 +148,14 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('waiting', jobId => {
             // A Job is waiting to be processed as soon as a worker is idling.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${jobId} waiting`
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${jobId} waiting`
             );
         });
 
         this.queue.on('active', (job, jobPromise) => {
             // A job has started. You can use `jobPromise.cancel()`` to abort it.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id} active`
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id} active`
             );
         });
 
@@ -163,14 +163,14 @@ export class JobQueueManager<JobRequestData> {
             // A job has been marked as stalled. This is useful for debugging job
             // workers that crash or pause the event loop.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id} stalled`
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id} stalled`
             );
         });
 
         this.queue.on('progress', (job, progress) => {
             // A job's progress was updated!
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id}  progress`,
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id}  progress`,
                 progress
             );
         });
@@ -178,7 +178,7 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('completed', (job, result) => {
             // A job successfully completed with a `result`.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id}  completed, result:`,
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id}  completed, result:`,
                 result
             );
         });
@@ -186,7 +186,7 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('failed', (job, err) => {
             // A job failed with reason `err`!
             console.error(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id} failed`,
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id} failed`,
                 err
             );
         });
@@ -194,14 +194,14 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('paused', () => {
             // The queue has been paused.
             console.log(
-                `${this.sandboxProcessName} ${this.queueWideLogPrefix} paused`
+                `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix} paused`
             );
         });
 
         this.queue.on('resumed', () => {
             // The queue has been resumed.
             console.log(
-                `${this.sandboxProcessName} ${this.queueWideLogPrefix} resumed`
+                `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix} resumed`
             );
         });
 
@@ -209,7 +209,7 @@ export class JobQueueManager<JobRequestData> {
             // Old jobs have been cleaned from the queue. `jobs` is an array of cleaned
             // jobs, and `type` is the type of jobs cleaned.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} cleaned:`,
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} cleaned:`,
                 jobs.map(job => job.id)
             );
         });
@@ -217,14 +217,14 @@ export class JobQueueManager<JobRequestData> {
         this.queue.on('drained', () => {
             // Emitted every time the queue has processed all the waiting jobs (even if there can be some delayed jobs not yet processed)
             console.log(
-                `${this.sandboxProcessName} ${this.queueWideLogPrefix} drained`
+                `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix} drained`
             );
         });
 
         this.queue.on('removed', job => {
             // A job successfully removed.
             console.log(
-                `${this.sandboxProcessName} ${this.jobWideLogPrefix} ${job.id} removed`
+                `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id} removed`
             );
         });
     }
@@ -298,26 +298,28 @@ export class JobQueueManager<JobRequestData> {
                     Promise.reject(rejectMessage)
                 );
             } else {
-                return Promise.resolve(jobsPresentCount);
+                return jobsPresentCount;
             }
         });
     }
 
     public async asyncCleanUp () {
+        const logPrefix = `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix}`;
+
+        // cleaning up Bull Queue
         if (this.queue) {
-            console.debug(
-                `In ${this.sandboxProcessName}, ${this.queueWideLogPrefix}: start cleaning up connection...`
-            );
+            console.debug(`${logPrefix}: start cleaning up connection...`);
             await this.queue.close();
-            console.debug(
-                `In ${this.sandboxProcessName}, ${this.queueWideLogPrefix}: connection cleaned`
-            );
+            console.debug(`${logPrefix}: connection cleaned`);
             this.queue = undefined;
             return;
         }
 
-        console.debug(
-            `In ${this.sandboxProcessName}, ${this.queueWideLogPrefix}: no queue to clean up, skipping`
+        console.debug(`${logPrefix}: no queue to clean up, skipping`);
+
+        // cleaning up additional redis client resources (clients not reused but created by Bull.Queue.createClient())
+        JobQueueManager.jobQueueSharedRedisClientsSingleton.resetAllClientResources(
+            logPrefix
         );
     }
 }

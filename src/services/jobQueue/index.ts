@@ -22,9 +22,9 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
       3 * 60 * 1000;
 
 const initializeJobQueues = () => {
-    gdOrgReviewScraperJobQueueManager.initialize('master process');
-    supervisorJobQueueManager.initialize('master process');
-    s3OrgsJobQueueManager.initialize('master process');
+    gdOrgReviewScraperJobQueueManager.initialize('master');
+    supervisorJobQueueManager.initialize('master');
+    s3OrgsJobQueueManager.initialize('master');
 };
 
 const registerJobQueuesToDashboard = () => {
@@ -58,10 +58,12 @@ const registerJobQueuesToDashboard = () => {
 export const startJobQueues = () => {
     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
         JobQueueSharedRedisClientsSingleton.singleton.intialize(
-            'master process: startJobQueues'
+            'master:startJobQueues'
         );
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
-            throw new ServerError(`Shared redis client did not initialize`);
+            throw new ServerError(
+                `master: Shared redis client did not initialize`
+            );
         }
 
         JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
@@ -83,41 +85,40 @@ export const startJobQueues = () => {
 };
 
 export const asyncCleanupJobQueuesAndRedisClients = async ({
-    processName = '',
-    closeQueues = true
-} = {}) => {
+    processName
+}: {
+    processName: string;
+}) => {
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    if (closeQueues) {
-        try {
-            await supervisorJobQueueManager.asyncCleanUp();
-        } catch (error) {
-            console.warn(
-                `${processName}: supervisorJobQueueManager queue fail to close`,
-                error
-            );
-        }
-        try {
-            await gdOrgReviewScraperJobQueueManager.asyncCleanUp();
-        } catch (error) {
-            console.warn(
-                `${processName} gdOrgReviewScraperJobQueueManager queue fail to close`,
-                error
-            );
-        }
-        try {
-            await s3OrgsJobQueueManager.asyncCleanUp();
-        } catch (error) {
-            console.warn(
-                `${processName} s3OrgsJobQueueManager queue fail to close`,
-                error
-            );
-        }
-
-        // Add more queue clean up here ...
-
-        console.log(`${processName} all job queues closed`);
+    try {
+        await supervisorJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: supervisorJobQueueManager queue fail to close`,
+            error
+        );
     }
+    try {
+        await gdOrgReviewScraperJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: gdOrgReviewScraperJobQueueManager queue fail to close`,
+            error
+        );
+    }
+    try {
+        await s3OrgsJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: s3OrgsJobQueueManager queue fail to close`,
+            error
+        );
+    }
+
+    // Add more queue clean up here ...
+
+    console.log(`In ${processName} process: all job queues closed`);
 
     // TODO: manually closing redis client created by Bull, which use ioredis,
     // will cause memory consumption surge due to ioredis keep trying to reconnect

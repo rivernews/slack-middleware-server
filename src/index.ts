@@ -107,7 +107,7 @@ export const cleanUpExpressServer = async () => {
 
     RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING &&
         (await asyncCleanupJobQueuesAndRedisClients({
-            processName: 'master process'
+            processName: 'master'
         }));
 
     return;

@@ -11,13 +11,11 @@ import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueMana
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
 
-    supervisorJobQueueManager.initialize(
-        `${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} sandbox process`
-    );
+    supervisorJobQueueManager.initialize(`s3Org sandbox`);
     const supervisorJobQueueManagerQueue = supervisorJobQueueManager.queue;
     if (!supervisorJobQueueManagerQueue) {
         throw new ServerError(
-            `supervisorJobQueueManager queue not initialized yet`
+            `In s3Org sandbox process: supervisorJobQueueManager queue not initialized yet`
         );
     }
 
@@ -37,7 +35,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             s3OrgsJob,
             JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
         )
-        .then(supervisorJobsPresentCount => {
+        .then((supervisorJobsPresentCount: number) => {
             // dispatch supervisors into parallel groups
             const VACANCY_BUFFER = 1;
             const supervisorJobVacancy =
@@ -110,7 +108,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 supervisorJob
                                     .finished()
                                     // increment progress after job finished, then propogate back job result
-                                    .then(result =>
+                                    .then((result: string) =>
                                         progressBarManager
                                             .increment()
                                             .then(() => result)
@@ -120,8 +118,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     )
             );
         })
-        .then(resultList => Promise.resolve(resultList))
-        .catch(error => Promise.reject(error))
+        .then((resultList: string[]) => Promise.resolve(resultList))
+        .catch((error: Error) => Promise.reject(error))
         .finally(() => {
             return supervisorJobQueueManager.asyncCleanUp();
         });

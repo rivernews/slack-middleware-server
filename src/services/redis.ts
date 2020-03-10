@@ -28,7 +28,6 @@ class RedisManagerSingleton {
     public config: RedisConfig;
 
     private clients: Array<RedisClient> = [];
-    private redisIoClients: Array<IORedis.Redis> = [];
 
     private constructor () {
         if (
@@ -65,18 +64,6 @@ class RedisManagerSingleton {
         return newRedisClient;
     }
 
-    // have to have a separate func since 'redis' and 'ioredis'
-    // are not
-    public newIORedisClient (name: string = '') {
-        const newIoRedisClient = new IORedis(this.config);
-        this.redisIoClients.push(newIoRedisClient);
-        console.log(
-            `${name ? `${name} ` : ``}created ioredis client, total`,
-            this.redisIoClients.length
-        );
-        return newIoRedisClient;
-    }
-
     private static asyncCloseClient (client: RedisClient) {
         // expect client to be closed within 10 sec
         const closeClientProcessTimeout = 10 * 1000;
@@ -105,11 +92,6 @@ class RedisManagerSingleton {
             console.debug('closing redis client');
             await RedisManagerSingleton.asyncCloseClient(client);
         }
-
-        for (const redisIoClient of this.redisIoClients) {
-            console.debug('closing ioredis client');
-            redisIoClient.disconnect();
-        }
     }
 }
 
@@ -121,23 +103,56 @@ export class JobQueueSharedRedisClientsSingleton {
     public genericClient?: IORedis.Redis;
     public subscriberClient?: IORedis.Redis;
 
+    private processName: string = '';
+    private redisIoClientsRecord: Array<IORedis.Redis> = [];
+
     private constructor () {}
 
-    public intialize (name = '') {
+    public intialize (processName: string) {
+        this.processName = processName;
+
         if (!this.genericClient) {
-            this.genericClient = redisManager.newIORedisClient(
-                name ? `${name} shared generic` : `shared generic`
+            this.genericClient = this.newIORedisClient(
+                `${processName} shared generic`
             );
         }
 
         if (!this.subscriberClient) {
-            this.subscriberClient = redisManager.newIORedisClient(
-                name ? `${name} shared subscriber` : `shared subscriber`
+            this.subscriberClient = this.newIORedisClient(
+                `${processName} shared subscriber`
             );
         }
     }
 
     public static get singleton () {
         return JobQueueSharedRedisClientsSingleton._singleton;
+    }
+
+    // have to have a separate func since 'redis' and 'ioredis' libraries are not the same
+    public newIORedisClient (callerName: string) {
+        const newIoRedisClient = new IORedis(redisManager.config);
+        this.redisIoClientsRecord.push(newIoRedisClient);
+        console.log(
+            `${callerName} in ${this.processName} process, shared redis: created ioredis client, total`,
+            this.redisIoClientsRecord.length
+        );
+
+        return newIoRedisClient;
+    }
+
+    /**
+     * Releasing (resetting) redis clients created by `Bull.Queue.createClient()` 'bclient' type.
+     *
+     * There's no need to reset shared `this.genericClient` and `this.subscriberClient`, which is used by 'client' and 'subscriber' type in `Bull.Queue.createClient()`.
+     * Since there will always be a fixed total of 2 client instances per process, no memory leak in the long term. Don't reset them upon job finish / queue close as well, as they will be needed for establishing connection if Bull decides to reuse the sandbox process. When Bull decides to release sandbox process, they will be cleaned up along with the process as well.
+     *
+     * About redis connection clean up - as long as we are calling `Bull.Queue.close()`, Bull will handle all the clean up for us. Do not manually call client.quit() here, because Bull may want to reuse that client later; if you force such call, Bull will attempt to reconnect many times and cause memory pressure, causing the system to be unstable and killed / evicted.
+     */
+    public resetAllClientResources (callerName: string) {
+        console.debug(
+            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.redisIoClientsRecord.length} clients:`,
+            this.redisIoClientsRecord
+        );
+        this.redisIoClientsRecord = [];
     }
 }
