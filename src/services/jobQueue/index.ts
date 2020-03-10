@@ -57,7 +57,9 @@ const registerJobQueuesToDashboard = () => {
 
 export const startJobQueues = () => {
     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize();
+        JobQueueSharedRedisClientsSingleton.singleton.intialize(
+            'master process: startJobQueues'
+        );
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new ServerError(`Shared redis client did not initialize`);
         }

@@ -67,11 +67,11 @@ class RedisManagerSingleton {
 
     // have to have a separate func since 'redis' and 'ioredis'
     // are not
-    public newIORedisClient () {
+    public newIORedisClient (name: string = '') {
         const newIoRedisClient = new IORedis(this.config);
         this.redisIoClients.push(newIoRedisClient);
         console.log(
-            'created ioredis client, total',
+            `${name ? `${name} ` : ``}created ioredis client, total`,
             this.redisIoClients.length
         );
         return newIoRedisClient;
@@ -123,13 +123,17 @@ export class JobQueueSharedRedisClientsSingleton {
 
     private constructor () {}
 
-    public intialize () {
+    public intialize (name = '') {
         if (!this.genericClient) {
-            this.genericClient = redisManager.newIORedisClient();
+            this.genericClient = redisManager.newIORedisClient(
+                name ? `${name} shared generic` : `shared generic`
+            );
         }
 
         if (!this.subscriberClient) {
-            this.subscriberClient = redisManager.newIORedisClient();
+            this.subscriberClient = redisManager.newIORedisClient(
+                name ? `${name} shared subscriber` : `shared subscriber`
+            );
         }
     }
 

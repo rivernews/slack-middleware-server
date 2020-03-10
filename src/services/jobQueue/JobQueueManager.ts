@@ -82,7 +82,9 @@ export class JobQueueManager<JobRequestData> {
                     .subscriberClient
             )
         ) {
-            JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize();
+            JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize(
+                this.queueWideLogPrefix
+            );
         }
 
         this.queue = new Bull<JobRequestData>(this.queueName, {
@@ -114,7 +116,7 @@ export class JobQueueManager<JobRequestData> {
                             .jobQueueSharedRedisClientsSingleton
                             .subscriberClient;
                     default:
-                        return redisManager.newIORedisClient();
+                        return redisManager.newIORedisClient(`bull ${type}`);
                 }
             }
         });
