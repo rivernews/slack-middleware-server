@@ -220,9 +220,6 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             })
             // clean up job queue resources created in this sandbox process
             .finally(() => {
-                console.log(
-                    `${JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB} sandbox process: cleaning up redis clients`
-                );
                 // TODO: remove this if queue is correctly cleaned up
                 // return asyncCleanupJobQueuesAndRedisClients({
                 //     processName: `${JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB} sandbox process`
