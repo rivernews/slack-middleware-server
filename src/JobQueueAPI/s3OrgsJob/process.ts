@@ -102,6 +102,17 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 );
                             })
                     )
+                    .then(supervisorJobList => {
+                        // TODO: examine code below
+                        // queue no longer needed in this job cycle
+                        // queue events shall already be handled in master process
+                        return supervisorJobQueueManager
+                            .asyncCleanUp({
+                                sandboxProcessName:
+                                    JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
+                            })
+                            .then(() => supervisorJobList);
+                    })
                     .then(supervisorJobList =>
                         Promise.all(
                             supervisorJobList.map(supervisorJob =>
@@ -119,9 +130,12 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             );
         })
         .then(resultList => Promise.resolve(resultList))
-        .catch(error => Promise.reject(error))
-        .finally(() => {
-            console.log('s3Org sandbox process: cleaning up redis clients');
-            return asyncCleanupJobQueuesAndRedisClients();
-        });
+        .catch(error => Promise.reject(error));
+    // TODO: remove this code if we can clean up earlier
+    // .finally(() => {
+    //     console.log(`${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} sandbox process: cleaning up redis clients`);
+    //     return asyncCleanupJobQueuesAndRedisClients({
+    //         processName: `${JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB} sandbox process`
+    //     });
+    // });
 };

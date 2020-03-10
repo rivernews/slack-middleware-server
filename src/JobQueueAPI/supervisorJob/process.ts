@@ -216,16 +216,21 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     orgInfoList.slice(processed, orgInfoList.length)
                 );
 
-                await gdOrgReviewScraperJobQueueManagerQueue.empty();
-
                 return Promise.reject(error);
             })
             // clean up job queue resources created in this sandbox process
             .finally(() => {
                 console.log(
-                    'supervisor sandbox process: cleaning up redis clients'
+                    `${JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB} sandbox process: cleaning up redis clients`
                 );
-                return asyncCleanupJobQueuesAndRedisClients();
+                // TODO: remove this if queue is correctly cleaned up
+                // return asyncCleanupJobQueuesAndRedisClients({
+                //     processName: `${JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB} sandbox process`
+                // });
+                return gdOrgReviewScraperJobQueueManager.asyncCleanUp({
+                    sandboxProcessName:
+                        JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB
+                });
             })
     );
 };

@@ -269,4 +269,22 @@ export class JobQueueManager<JobRequestData> {
             }
         });
     }
+
+    public async asyncCleanUp ({ sandboxProcessName = '' }) {
+        if (this.queue) {
+            console.debug(
+                `In ${sandboxProcessName} sandbox process, ${this.queueWideLogPrefix}: start cleaning up connection...`
+            );
+            await this.queue.close();
+            console.debug(
+                `In ${sandboxProcessName} sandbox process, ${this.queueWideLogPrefix}: connection cleaned`
+            );
+            this.queue = undefined;
+            return;
+        }
+
+        console.debug(
+            `In ${sandboxProcessName} sandbox process, ${this.queueWideLogPrefix}: no queue to clean up, skipping`
+        );
+    }
 }
