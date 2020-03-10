@@ -124,7 +124,7 @@ export class JobQueueManager<JobRequestData> {
                             .subscriberClient;
                     default:
                         return JobQueueManager.jobQueueSharedRedisClientsSingleton.newIORedisClient(
-                            `In ${this.sandboxProcessName} process, ${this.queueWideLogPrefix}: bull ${type}`
+                            `Bull:${this.queueWideLogPrefix}:${type}Type`
                         );
                 }
             }

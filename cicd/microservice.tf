@@ -44,6 +44,8 @@ module "slack_middleware_service" {
 // See the logs of production server
 // logs
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment
+// logs & write to file
+// ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment 2>&1 | tee server.log
 // exec
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment sh
 // port-forward

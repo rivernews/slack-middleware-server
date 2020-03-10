@@ -112,14 +112,12 @@ export class JobQueueSharedRedisClientsSingleton {
         this.processName = processName;
 
         if (!this.genericClient) {
-            this.genericClient = this.newIORedisClient(
-                `${processName} shared generic`
-            );
+            this.genericClient = this.newIORedisClient(`initialize generic`);
         }
 
         if (!this.subscriberClient) {
             this.subscriberClient = this.newIORedisClient(
-                `${processName} shared subscriber`
+                `initialize subscriber`
             );
         }
     }
@@ -133,7 +131,7 @@ export class JobQueueSharedRedisClientsSingleton {
         const newIoRedisClient = new IORedis(redisManager.config);
         this.redisIoClientsRecord.push(newIoRedisClient);
         console.log(
-            `${callerName} in ${this.processName} process, shared redis: created ioredis client, total`,
+            `In ${this.processName} process, ${callerName}, shared redis: created ioredis client, total`,
             this.redisIoClientsRecord.length
         );
 
