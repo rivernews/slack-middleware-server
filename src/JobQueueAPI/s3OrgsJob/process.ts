@@ -122,8 +122,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         .catch(error => Promise.reject(error))
         .finally(() => {
             console.log('s3Org sandbox process: cleaning up redis clients');
-            return asyncCleanupJobQueuesAndRedisClients({
-                closeQueues: false
-            });
+            return asyncCleanupJobQueuesAndRedisClients();
         });
 };

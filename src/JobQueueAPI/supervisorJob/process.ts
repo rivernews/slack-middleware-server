@@ -225,9 +225,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 console.log(
                     'supervisor sandbox process: cleaning up redis clients'
                 );
-                return asyncCleanupJobQueuesAndRedisClients({
-                    closeQueues: false
-                });
+                return asyncCleanupJobQueuesAndRedisClients();
             })
     );
 };

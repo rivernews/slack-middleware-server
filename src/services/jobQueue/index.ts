@@ -81,6 +81,7 @@ export const startJobQueues = () => {
 };
 
 export const asyncCleanupJobQueuesAndRedisClients = async ({
+    processName = '',
     closeQueues = true
 } = {}) => {
     // Queue.close
@@ -91,7 +92,7 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
                 (await supervisorJobQueueManager.queue.close());
         } catch (error) {
             console.warn(
-                'supervisorJobQueueManager queue fail to close',
+                `${processName}: supervisorJobQueueManager queue fail to close`,
                 error
             );
         }
@@ -100,7 +101,7 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
                 (await gdOrgReviewScraperJobQueueManager.queue.close());
         } catch (error) {
             console.warn(
-                'gdOrgReviewScraperJobQueueManager queue fail to close',
+                `${processName} gdOrgReviewScraperJobQueueManager queue fail to close`,
                 error
             );
         }
@@ -108,14 +109,20 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
             s3OrgsJobQueueManager.queue &&
                 (await s3OrgsJobQueueManager.queue.close());
         } catch (error) {
-            console.warn('s3OrgsJobQueueManager queue fail to close', error);
+            console.warn(
+                `${processName} s3OrgsJobQueueManager queue fail to close`,
+                error
+            );
         }
 
         // Add more queue clean up here ...
 
-        console.log('all job queues closed');
+        console.log(`${processName} all job queues closed`);
     }
 
+    // TODO: manually closing redis client created by Bull, which use ioredis,
+    // will cause memory consumption surge due to ioredis keep trying to reconnect
+    // Use this with caution, or remove it in the future
     // last check for all redis connection closed
     await redisManager.asyncCloseAllClients();
 
