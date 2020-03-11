@@ -6,7 +6,7 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = "v0.1.1"
+  version = "v0.1.7"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
@@ -39,12 +39,15 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS",
     "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY"
   ]
+
+  use_recreate_deployment_strategy = true
 }
 
 // See the logs of production server
 // logs
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment
 // logs & write to file
+// https://askubuntu.com/questions/420981/how-do-i-save-terminal-output-to-a-file
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment 2>&1 | tee server.log
 // exec
 // ./cicd$ KUBECONFIG=kubeconfig.yaml kubectl -n slack-middleware-service exec -it deploy/slack-middleware-service-deployment sh
