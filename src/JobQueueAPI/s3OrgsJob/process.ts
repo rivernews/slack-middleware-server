@@ -42,6 +42,11 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                 SUPERVISOR_JOB_CONCURRENCY -
                 supervisorJobsPresentCount -
                 VACANCY_BUFFER;
+
+            console.debug(
+                `s3OrgJob: we have ${supervisorJobVacancy} vacancies, will divide orgs into this amount of buckets`
+            );
+
             return (
                 s3ArchiveManager
                     .asyncGetOverviewPageUrls()
