@@ -90,7 +90,7 @@ export class JobQueueManager<JobRequestData> {
             )
         ) {
             JobQueueManager.jobQueueSharedRedisClientsSingleton.intialize(
-                `${this.sandboxProcessName} ${this.queueWideLogPrefix}`
+                `${this.sandboxProcessName}`
             );
         }
 

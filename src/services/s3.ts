@@ -53,35 +53,34 @@ class S3ArchiveManager {
     public async asyncGetOverviewPageUrls (): Promise<string[]> {
         // TODO: remove this once finish debugging
         // https://github.com/rivernews/slack-middleware-server/issues/43
-        return [
-            // 'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
-            'https://www.glassdoor.com/Overview/Working-at-HealthCrowd-EI_IE755450.11,22.htm'
-        ];
+        // return [
+        //     // 'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
+        //     'https://www.glassdoor.com/Overview/Working-at-HealthCrowd-EI_IE755450.11,22.htm'
+        // ];
 
-        // TODO: uncomment this block
-        // let objectKeys = [];
-        // objectKeys = await this.asyncListOverviewPageUrlObjectKeys();
+        let objectKeys = [];
+        objectKeys = await this.asyncListOverviewPageUrlObjectKeys();
 
-        // let urls: string[] = [];
+        let urls: string[] = [];
 
-        // for (const objectKey of objectKeys) {
-        //     // make request to get object content
-        //     const params: GetObjectInput = {
-        //         Bucket: this.bucketName,
-        //         Key: objectKey
-        //     };
-        //     const res = await this.s3Client.send(new GetObjectCommand(params));
+        for (const objectKey of objectKeys) {
+            // make request to get object content
+            const params: GetObjectInput = {
+                Bucket: this.bucketName,
+                Key: objectKey
+            };
+            const res = await this.s3Client.send(new GetObjectCommand(params));
 
-        //     if (!res.Body) {
-        //         throw new ServerError(
-        //             `while fetching overview page urls, an empty value returned. At key ${objectKey}. All object must contain the url of org overview page. Please check the object on S3, and re-try again.`
-        //         );
-        //     }
+            if (!res.Body) {
+                throw new ServerError(
+                    `while fetching overview page urls, an empty value returned. At key ${objectKey}. All object must contain the url of org overview page. Please check the object on S3, and re-try again.`
+                );
+            }
 
-        //     urls.push(await this.readS3ObjectContentAsPlainText(res.Body));
-        // }
+            urls.push(await this.readS3ObjectContentAsPlainText(res.Body));
+        }
 
-        // return urls;
+        return urls;
     }
 
     private async asyncListOverviewPageUrlObjectKeys (): Promise<string[]> {
