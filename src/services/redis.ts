@@ -1,6 +1,5 @@
 import { ServerError } from '../utilities/serverExceptions';
 import { RuntimeEnvironment } from '../utilities/runtime';
-import { RedisClient, createClient } from 'redis';
 import IORedis from 'ioredis';
 
 // node-redis pubsub doc
@@ -26,8 +25,6 @@ class RedisManagerSingleton {
     private static _singleton = new RedisManagerSingleton();
 
     public config: RedisConfig;
-
-    private clients: Array<RedisClient> = [];
 
     private constructor () {
         if (
@@ -58,40 +55,15 @@ class RedisManagerSingleton {
     }
 
     public newClient () {
-        const newRedisClient = createClient(this.config);
-        this.clients.push(newRedisClient);
-        console.log('created redis client, total', this.clients.length);
-        return newRedisClient;
-    }
-
-    private static asyncCloseClient (client: RedisClient) {
-        // expect client to be closed within 10 sec
-        const closeClientProcessTimeout = 10 * 1000;
-        return new Promise<string>((resolve, reject) => {
-            const timeoutHandle = setTimeout(() => {
-                return reject('Timed out while trying to close redis client');
-            }, closeClientProcessTimeout);
-
-            client.quit(error => {
-                if (error) {
-                    return reject(
-                        `client failed to close + ${JSON.stringify(error)}`
-                    );
-                }
-
-                clearTimeout(timeoutHandle);
-                return resolve('OK');
-            });
+        const newRedisClient = new IORedis({
+            ...this.config,
+            //
+            // retryStrategy
+            // https://github.com/luin/ioredis#auto-reconnect
+            retryStrategy: times => null
         });
-    }
-
-    public async asyncCloseAllClients () {
-        // will continue even if client is already close
-        // but at the end we'll be confident that all clients are closed
-        for (const client of this.clients) {
-            console.debug('closing redis client');
-            await RedisManagerSingleton.asyncCloseClient(client);
-        }
+        console.log('created redis client');
+        return newRedisClient;
     }
 }
 
@@ -104,7 +76,7 @@ export class JobQueueSharedRedisClientsSingleton {
     public subscriberClient?: IORedis.Redis;
 
     private processName: string = '';
-    private redisIoClientsRecord: Array<IORedis.Redis> = [];
+    private jobQueueIORedisClientsRecord: Array<IORedis.Redis> = [];
 
     private constructor () {}
 
@@ -112,11 +84,13 @@ export class JobQueueSharedRedisClientsSingleton {
         this.processName = processName;
 
         if (!this.genericClient) {
-            this.genericClient = this.newIORedisClient(`initialize generic`);
+            this.genericClient = this.newJobQueueIORedisClient(
+                `initialize generic`
+            );
         }
 
         if (!this.subscriberClient) {
-            this.subscriberClient = this.newIORedisClient(
+            this.subscriberClient = this.newJobQueueIORedisClient(
                 `initialize subscriber`
             );
         }
@@ -127,12 +101,12 @@ export class JobQueueSharedRedisClientsSingleton {
     }
 
     // have to have a separate func since 'redis' and 'ioredis' libraries are not the same
-    public newIORedisClient (callerName: string) {
-        const newIoRedisClient = new IORedis(redisManager.config);
-        this.redisIoClientsRecord.push(newIoRedisClient);
+    public newJobQueueIORedisClient (callerName: string) {
+        const newIoRedisClient = redisManager.newClient();
+        this.jobQueueIORedisClientsRecord.push(newIoRedisClient);
         console.log(
             `In ${this.processName} process, ${callerName}, shared redis: created ioredis client, total`,
-            this.redisIoClientsRecord.length
+            this.jobQueueIORedisClientsRecord.length
         );
 
         return newIoRedisClient;
@@ -148,9 +122,9 @@ export class JobQueueSharedRedisClientsSingleton {
      */
     public resetAllClientResources (callerName: string) {
         console.debug(
-            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.redisIoClientsRecord.length} clients:`,
-            this.redisIoClientsRecord
+            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`,
+            this.jobQueueIORedisClientsRecord
         );
-        this.redisIoClientsRecord = [];
+        this.jobQueueIORedisClientsRecord = [];
     }
 }

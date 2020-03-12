@@ -120,11 +120,5 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
 
     console.log(`In ${processName} process: all job queues closed`);
 
-    // TODO: manually closing redis client created by Bull, which use ioredis,
-    // will cause memory consumption surge due to ioredis keep trying to reconnect
-    // Use this with caution, or remove it in the future
-    // last check for all redis connection closed
-    await redisManager.asyncCloseAllClients();
-
     return;
 };

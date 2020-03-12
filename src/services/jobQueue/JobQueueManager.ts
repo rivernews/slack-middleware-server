@@ -123,7 +123,7 @@ export class JobQueueManager<JobRequestData> {
                             .jobQueueSharedRedisClientsSingleton
                             .subscriberClient;
                     default:
-                        return JobQueueManager.jobQueueSharedRedisClientsSingleton.newIORedisClient(
+                        return JobQueueManager.jobQueueSharedRedisClientsSingleton.newJobQueueIORedisClient(
                             `Bull:${this.queueWideLogPrefix}:${type}Type`
                         );
                 }
