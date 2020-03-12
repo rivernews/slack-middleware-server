@@ -62,7 +62,7 @@ export class JobQueueManager<JobRequestData> {
         this.queueWideLogPrefix = `${this.jobWideLogPrefix}Queue`;
     }
 
-    public initialize (processName: string) {
+    public initialize (processName: string, registerEvents: boolean) {
         this.sandboxProcessName = processName;
 
         if (this.queue) {
@@ -137,6 +137,10 @@ export class JobQueueManager<JobRequestData> {
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
+        if (!registerEvents) {
+            return;
+        }
+
         this.queue.on('error', error => {
             // An error occured.
             console.error(

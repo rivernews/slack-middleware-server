@@ -90,7 +90,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     // even if you've already initialized them in master process (the one w/ express server), this sandbox process is a completely separate process
     // and does not share any object or resources with master process, thus having to initialize here again (some cross-process functionalities like job.progress()
     // are handled by bull, using nodejs process.send/on('message') to communicate via serialized data)
-    gdOrgReviewScraperJobQueueManager.initialize(`supervisor sandbox`);
+    gdOrgReviewScraperJobQueueManager.initialize(`supervisor sandbox`, false);
     // supervisorJobQueueManager.initialize();
     if (!gdOrgReviewScraperJobQueueManager.queue) {
         throw new ServerError(

@@ -11,7 +11,7 @@ import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueMana
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
 
-    supervisorJobQueueManager.initialize(`s3Org sandbox`);
+    supervisorJobQueueManager.initialize(`s3Org sandbox`, false);
     const supervisorJobQueueManagerQueue = supervisorJobQueueManager.queue;
     if (!supervisorJobQueueManagerQueue) {
         throw new ServerError(

@@ -19,12 +19,12 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
     ? // default to 10 minutes in production
       10 * 60 * 1000
     : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
-      3 * 60 * 1000;
+      1 * 60 * 1000;
 
 const initializeJobQueues = () => {
-    gdOrgReviewScraperJobQueueManager.initialize('master');
-    supervisorJobQueueManager.initialize('master');
-    s3OrgsJobQueueManager.initialize('master');
+    gdOrgReviewScraperJobQueueManager.initialize('master', true);
+    supervisorJobQueueManager.initialize('master', true);
+    s3OrgsJobQueueManager.initialize('master', true);
 };
 
 const registerJobQueuesToDashboard = () => {
@@ -56,32 +56,32 @@ const registerJobQueuesToDashboard = () => {
 };
 
 export const startJobQueues = () => {
-    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize(
-            'master:startJobQueues'
-        );
-        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
-            throw new ServerError(
-                `master: Shared redis client did not initialize`
-            );
-        }
+    // if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+    //     JobQueueSharedRedisClientsSingleton.singleton.intialize(
+    //         'master:startJobQueues'
+    //     );
+    //     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+    //         throw new ServerError(
+    //             `master: Shared redis client did not initialize`
+    //         );
+    //     }
 
-        JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
-            error => {
-                if (error) {
-                    console.error('failed to flush db', error);
-                } else {
-                    console.debug(`flushed redis db ${redisManager.config.db}`);
+    //     JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
+    //         error => {
+    //             if (error) {
+    //                 console.error('failed to flush db', error);
+    //             } else {
+    //                 console.debug(`flushed redis db ${redisManager.config.db}`);
 
-                    initializeJobQueues();
-                    registerJobQueuesToDashboard();
-                }
-            }
-        );
-    } else {
-        initializeJobQueues();
-        registerJobQueuesToDashboard();
-    }
+    //                 initializeJobQueues();
+    //                 registerJobQueuesToDashboard();
+    //             }
+    //         }
+    //     );
+    // } else {
+    initializeJobQueues();
+    registerJobQueuesToDashboard();
+    // }
 };
 
 export const asyncCleanupJobQueuesAndRedisClients = async ({

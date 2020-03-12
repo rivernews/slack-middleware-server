@@ -19,6 +19,98 @@ import IORedis from 'ioredis';
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
 
+const cleanupRedisSubscriptionConnection = async (
+    redisPubsubChannelName: string,
+    redisClientSubscription: IORedis.Redis,
+    redisClientPublish: IORedis.Redis,
+    org: string = 'null',
+    jobIdString: string
+) => {
+    const lockValue = await redisClientPublish.get(
+        `lock:${redisPubsubChannelName}`
+    );
+    if (lockValue) {
+        console.debug('lock value', lockValue);
+        if (lockValue === jobIdString) {
+            await redisClientPublish.del(`lock:${redisPubsubChannelName}`);
+            console.debug(`cleared pubsub lock:${redisPubsubChannelName}`);
+        } else {
+            console.debug(
+                `job ${jobIdString}: not owner of lock ${lockValue}, skipping lock clean up`
+            );
+        }
+    } else {
+        console.debug('no lock, skipping lock clean up');
+    }
+
+    if (await redisClientSubscription.unsubscribe()) {
+        console.log(
+            `unsubscribed channel ${redisPubsubChannelName} successfully, org:`,
+            org
+        );
+    } else {
+        console.error(
+            `Failed to unsubscribe pubsub for travis scraper job, org: ${org}, trying to quit client anyway`
+        );
+    }
+
+    await redisClientSubscription.quit();
+    await redisClientPublish.quit();
+};
+
+class RedisCleaner {
+    private static _singleton = new RedisCleaner();
+
+    private pid: number;
+
+    public processName: string = 'master';
+
+    private constructor (
+        public lastRedisPubsubChannelName?: string,
+        public lastRedisClientSubscription?: IORedis.Redis,
+        public lastRedisClientPublish?: IORedis.Redis,
+        public lastOrg?: string,
+        public lastJobIdString?: string
+    ) {
+        this.pid = process.pid;
+    }
+
+    public static get singleton () {
+        return RedisCleaner._singleton;
+    }
+
+    public async asyncCleanup () {
+        if (
+            this.lastRedisPubsubChannelName &&
+            this.lastRedisClientSubscription &&
+            this.lastRedisClientPublish &&
+            this.lastOrg &&
+            this.lastJobIdString
+        ) {
+            console.debug(
+                `In ${this.processName} process pid ${this.pid}, redis cleaner starting...`
+            );
+            return cleanupRedisSubscriptionConnection(
+                this.lastRedisPubsubChannelName,
+                this.lastRedisClientSubscription,
+                this.lastRedisClientPublish,
+                this.lastOrg,
+                this.lastJobIdString
+            );
+        }
+
+        console.debug(
+            `In ${this.processName} process pid ${this.pid}, redis cleaner has insufficient arguments so skipping clean up`
+        );
+    }
+
+    public reset () {
+        this.lastRedisClientPublish = this.lastRedisClientSubscription = this.lastRedisPubsubChannelName = this.lastOrg = this.lastJobIdString = undefined;
+    }
+}
+
+const redisCleaner = RedisCleaner.singleton;
+
 const abortSubscription = (
     message: string,
     payload: string,
@@ -200,192 +292,180 @@ const superviseScraper = (
         job.data.lastProgress ? job.data.lastProgress.wentThrough : undefined
     );
 
-    return new Promise<string | ScraperCrossRequest>(
-        (scraperSupervisorResolve, scraperSupervisorReject) => {
-            // check channel name locker first
-            // if the channel already exists, then reject this job
-            redisClientPublish
-                .get(`lock:${redisPubsubChannelName}`)
-                .then(lockValue => {
-                    if (lockValue) {
-                        console.error(
-                            `Channel ${redisPubsubChannelName} locked, aborting job ${job.id}, job params:`,
-                            job.data
-                        );
-                        return asyncSendSlackMessage(
-                            `ERROR: Channel ${redisPubsubChannelName} locked but job is trying to subscribe to it; aborting scraper job ${
-                                job.id
-                            }, job params are\n\`\`\`${JSON.stringify(
-                                job.data
-                            )}\`\`\``
-                        ).then(() =>
-                            scraperSupervisorReject(
-                                `Channel ${redisPubsubChannelName} locked so cannot start scraper job ${job.id}`
-                            )
-                        );
-                    } else {
-                        console.debug(
-                            'no lock, will allow scraper job',
-                            job.id
-                        );
-                    }
-                });
-
-            let timeoutTimer = getMessageTimeoutTimer(
-                job.id.toString(),
-                job.data.orgName || job.data.orgInfo,
-                redisPubsubChannelName,
-                scraperSupervisorReject
+    // check channel name locker first
+    // if the channel already exists, then reject this job
+    return redisClientPublish
+        .get(`lock:${redisPubsubChannelName}`)
+        .then(lockValue => {
+            console.debug(
+                'lock',
+                `lock:${redisPubsubChannelName}`,
+                'lockValue',
+                lockValue
             );
-
-            // redisClientSubscription.on('subscribe', async (channel, count) => {
-            //     console.log(
-            //         `job ${job.id} subscribed to channel ${channel}, count ${count}`
-            //     );
-
-            //     // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
-            //     // the same channel (no other job working on the same org)
-            //     await redisClientPublish.set(
-            //         `lock:${redisPubsubChannelName}`, `scraperJob${job.id}:${JSON.stringify(job.data)}`
-            //     );
-
-            //     if (channel === RedisPubSubChannelName.ADMIN) {
-            //         // we do nothing upon ADMIN subscribed event other than logging, so abort here
-            //         return;
-            //     }
-
-            //     // TODO: avoid the need to have to hard code things that you have to manually change
-            //     // remove this block if want to run scraper on local for debugging
-            //     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-            //         console.log(
-            //             'in development environment, skipping travis request. Please run scraper locally if needed'
-            //         );
-            //         return;
-            //     }
-
-            //     const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-            //         job.data,
-            //         {
-            //             branch: 'master'
-            //         }
-            //     );
-            //     if (triggerTravisJobRequest.status >= 400) {
-            //         const errorMessage =
-            //             `job ${job.id} error when requesting travis job: ` +
-            //             JSON.stringify(triggerTravisJobRequest.data);
-            //         console.error(
-            //             `job ${job.id} error when requesting travis job:`,
-            //             triggerTravisJobRequest.data
-            //         );
-            //         return scraperSupervisorReject(errorMessage);
-            //     }
-
-            //     await progressBarManager.increment();
-
-            //     const travisJob = triggerTravisJobRequest.data;
-
-            //     console.log(
-            //         `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
-            //     );
-            // });
-
-            redisClientSubscription.on('message', async (channel, message) => {
-                clearTimeout(timeoutTimer);
-                timeoutTimer = getMessageTimeoutTimer(
-                    job.id.toString(),
-                    job.data.orgName || job.data.orgInfo,
-                    redisPubsubChannelName,
-                    scraperSupervisorReject
+            if (lockValue) {
+                console.error(
+                    `Channel ${redisPubsubChannelName} locked, aborting job ${job.id}, job params:`,
+                    job.data
                 );
-
-                return await onReceiveScraperJobMessage(
-                    job.id.toString(),
-                    progressBarManager,
-                    channel,
-                    message,
-                    redisClientPublish,
-                    scraperSupervisorResolve,
-                    scraperSupervisorReject,
-                    timeoutTimer
-                );
-            });
-
-            redisClientSubscription
-                .subscribe(redisPubsubChannelName, RedisPubSubChannelName.ADMIN)
-                .then(async count => {
-                    console.log(
-                        `job ${job.id} subscribed to channels [${redisPubsubChannelName},${RedisPubSubChannelName.ADMIN}], count ${count}`
-                    );
-
-                    // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
-                    // the same channel (no other job working on the same org)
-                    await redisClientPublish.set(
-                        `lock:${redisPubsubChannelName}`,
-                        `scraperJob${job.id}:${JSON.stringify(job.data)}`
-                    );
-
-                    // `ioredis` will only run this callback once upon subscribed
-                    // so no need to filter out which channel it is, as oppose to `node-redis`
-
-                    if (
-                        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT
-                    ) {
-                        console.log(
-                            'in development environment, skipping travis request. Please run scraper locally if needed'
-                        );
-                        return;
-                    }
-
-                    const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                        job.data,
-                        {
-                            branch: 'master'
-                        }
-                    );
-                    if (triggerTravisJobRequest.status >= 400) {
-                        const errorMessage =
-                            `job ${job.id} error when requesting travis job: ` +
-                            JSON.stringify(triggerTravisJobRequest.data);
-                        console.error(
-                            `job ${job.id} error when requesting travis job:`,
-                            triggerTravisJobRequest.data
-                        );
-                        return scraperSupervisorReject(errorMessage);
-                    }
-                    await progressBarManager.increment();
-                    const travisJob = triggerTravisJobRequest.data;
-
-                    console.log(
-                        `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
-                    );
+                return asyncSendSlackMessage(
+                    `ERROR: Channel ${redisPubsubChannelName} locked but job is trying to subscribe to it; aborting scraper job ${
+                        job.id
+                    }, job params are\n\`\`\`${JSON.stringify(job.data)}\`\`\``
+                ).then(() => {
+                    throw Error(`channelLocked`);
                 });
-        }
-    );
-};
+            } else {
+                console.debug('no lock, will allow scraper job', job.id);
+                return;
+            }
+        })
+        .then(
+            () =>
+                new Promise<string | ScraperCrossRequest>(
+                    (scraperSupervisorResolve, scraperSupervisorReject) => {
+                        let timeoutTimer = getMessageTimeoutTimer(
+                            job.id.toString(),
+                            job.data.orgName || job.data.orgInfo,
+                            redisPubsubChannelName,
+                            scraperSupervisorReject
+                        );
 
-const cleanupRedisSubscriptionConnection = async (
-    redisPubsubChannelName: string,
-    redisClientSubscription: IORedis.Redis,
-    redisClientPublish: IORedis.Redis,
-    org: string = 'null'
-) => {
-    // remove locker for scraper by channel name
-    await redisClientPublish.del(`lock:${redisPubsubChannelName}`);
-    console.debug(`cleared pubsub lock:${redisPubsubChannelName}`);
+                        // redisClientSubscription.on('subscribe', async (channel, count) => {
+                        //     console.log(
+                        //         `job ${job.id} subscribed to channel ${channel}, count ${count}`
+                        //     );
 
-    if (await redisClientSubscription.unsubscribe()) {
-        console.log(
-            `unsubscribed channel ${redisPubsubChannelName} successfully, org:`,
-            org
+                        //     // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
+                        //     // the same channel (no other job working on the same org)
+                        //     await redisClientPublish.set(
+                        //         `lock:${redisPubsubChannelName}`, `scraperJob${job.id}:${JSON.stringify(job.data)}`
+                        //     );
+
+                        //     if (channel === RedisPubSubChannelName.ADMIN) {
+                        //         // we do nothing upon ADMIN subscribed event other than logging, so abort here
+                        //         return;
+                        //     }
+
+                        //     // TODO: avoid the need to have to hard code things that you have to manually change
+                        //     // remove this block if want to run scraper on local for debugging
+                        //     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
+                        //         console.log(
+                        //             'in development environment, skipping travis request. Please run scraper locally if needed'
+                        //         );
+                        //         return;
+                        //     }
+
+                        //     const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
+                        //         job.data,
+                        //         {
+                        //             branch: 'master'
+                        //         }
+                        //     );
+                        //     if (triggerTravisJobRequest.status >= 400) {
+                        //         const errorMessage =
+                        //             `job ${job.id} error when requesting travis job: ` +
+                        //             JSON.stringify(triggerTravisJobRequest.data);
+                        //         console.error(
+                        //             `job ${job.id} error when requesting travis job:`,
+                        //             triggerTravisJobRequest.data
+                        //         );
+                        //         return scraperSupervisorReject(errorMessage);
+                        //     }
+
+                        //     await progressBarManager.increment();
+
+                        //     const travisJob = triggerTravisJobRequest.data;
+
+                        //     console.log(
+                        //         `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
+                        //     );
+                        // });
+
+                        redisClientSubscription.on(
+                            'message',
+                            async (channel, message) => {
+                                clearTimeout(timeoutTimer);
+                                timeoutTimer = getMessageTimeoutTimer(
+                                    job.id.toString(),
+                                    job.data.orgName || job.data.orgInfo,
+                                    redisPubsubChannelName,
+                                    scraperSupervisorReject
+                                );
+
+                                return await onReceiveScraperJobMessage(
+                                    job.id.toString(),
+                                    progressBarManager,
+                                    channel,
+                                    message,
+                                    redisClientPublish,
+                                    scraperSupervisorResolve,
+                                    scraperSupervisorReject,
+                                    timeoutTimer
+                                );
+                            }
+                        );
+
+                        redisClientSubscription
+                            .subscribe(
+                                redisPubsubChannelName,
+                                RedisPubSubChannelName.ADMIN
+                            )
+                            .then(async count => {
+                                console.log(
+                                    `job ${job.id} subscribed to channels [${redisPubsubChannelName},${RedisPubSubChannelName.ADMIN}], count ${count}`
+                                );
+
+                                // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
+                                // the same channel (no other job working on the same org)
+                                await redisClientPublish.set(
+                                    `lock:${redisPubsubChannelName}`,
+                                    job.id
+                                );
+
+                                // `ioredis` will only run this callback once upon subscribed
+                                // so no need to filter out which channel it is, as oppose to `node-redis`
+
+                                if (
+                                    process.env.NODE_ENV ===
+                                    RuntimeEnvironment.DEVELOPMENT
+                                ) {
+                                    console.log(
+                                        'in development environment, skipping travis request. Please run scraper locally if needed'
+                                    );
+                                    return;
+                                }
+
+                                const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
+                                    job.data,
+                                    {
+                                        branch: 'master'
+                                    }
+                                );
+                                if (triggerTravisJobRequest.status >= 400) {
+                                    const errorMessage =
+                                        `job ${job.id} error when requesting travis job: ` +
+                                        JSON.stringify(
+                                            triggerTravisJobRequest.data
+                                        );
+                                    console.error(
+                                        `job ${job.id} error when requesting travis job:`,
+                                        triggerTravisJobRequest.data
+                                    );
+                                    return scraperSupervisorReject(
+                                        errorMessage
+                                    );
+                                }
+                                await progressBarManager.increment();
+                                const travisJob = triggerTravisJobRequest.data;
+
+                                console.log(
+                                    `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
+                                );
+                            });
+                    }
+                )
         );
-    } else {
-        console.error(
-            `Failed to unsubscribe pubsub for travis scraper job, org: ${org}, trying to quit client anyway`
-        );
-    }
-
-    await redisClientSubscription.quit();
-    await redisClientPublish.quit();
 };
 
 module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
@@ -393,23 +473,27 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         `scraper job ${job.id} started processing, with params`,
         job.data
     );
+    redisCleaner.lastJobIdString = job.id.toString();
+    redisCleaner.processName = 'scraperJob sandbox';
 
     const patchedJob: Bull.Job<ScraperJobRequestData> = {
         ...job,
         data: patchOrgNameOnScraperJobRequestData(job.data)
     };
+    redisCleaner.lastOrg =
+        patchedJob.data.orgInfo || patchedJob.data.orgName || 'null';
 
     console.log(`scraper job ${patchedJob.id} patched params`, patchedJob.data);
 
-    const redisClientSubscription = redisManager.newClient();
-    const redisClientPublish = redisManager.newClient();
-    const redisPubsubChannelName = `${
+    const redisClientSubscription = (redisCleaner.lastRedisClientSubscription = redisManager.newClient());
+    const redisClientPublish = (redisCleaner.lastRedisClientPublish = redisManager.newClient());
+    const redisPubsubChannelName = (redisCleaner.lastRedisPubsubChannelName = `${
         RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
     }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${
         patchedJob.data.lastProgress
             ? patchedJob.data.lastProgress.processedSession
             : 0
-    }`;
+    }`);
 
     return superviseScraper(
         patchedJob,
@@ -417,20 +501,39 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         redisClientSubscription,
         redisClientPublish
     )
-        .then(resultMessage => {
-            return cleanupRedisSubscriptionConnection(
-                redisPubsubChannelName,
-                redisClientSubscription,
-                redisClientPublish,
-                patchedJob.data.orgInfo || patchedJob.data.orgName
-            ).then(() => resultMessage);
-        })
+        .then(resultMessage => Promise.resolve(resultMessage))
         .catch(error => {
-            return cleanupRedisSubscriptionConnection(
-                redisPubsubChannelName,
-                redisClientSubscription,
-                redisClientPublish,
-                patchedJob.data.orgInfo || patchedJob.data.orgName
-            ).then(() => Promise.reject(error));
+            throw error;
+        })
+        .finally(() => {
+            return redisCleaner.asyncCleanup();
+        })
+        .finally(() => {
+            redisCleaner.reset();
         });
 };
+
+(['SIGINT', 'SIGTERM', 'SIGHUP'] as NodeJS.Signals[]).forEach(
+    terminateEventName => {
+        process.on(terminateEventName, () => {
+            console.log(
+                `In process pid ${process.pid} received termination signal ${terminateEventName}`
+            );
+            return redisCleaner
+                .asyncCleanup()
+                .then(() => {
+                    console.log(
+                        'finished best effort to clean up locks and redis connections'
+                    );
+                    process.exit(0);
+                })
+                .catch(error => {
+                    console.error(error);
+                    console.log(
+                        'error while best effort cleaning up locks and redis connections, skipping'
+                    );
+                    process.exit(1);
+                });
+        });
+    }
+);
