@@ -102,8 +102,6 @@ export const listOrgsController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.log('listOrgsController() invoked');
-
     // when using async function, needs to handle the error and then pass
     // error to next()
     // https://expressjs.com/en/guide/error-handling.html
