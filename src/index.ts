@@ -50,7 +50,7 @@ app.use(
 
 app.get('/', async (req, res) => {
     res.send(
-        'Hello! This is our slack service. <a href="/dashboard">Queue Dashboard</a> (credential required)<br>' +
+        'Hello! This is our slack service.' +
             'Visit the <a target="_blank" href="https://slack.shaungc.com">frontend website</a>.'
     );
 });
