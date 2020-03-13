@@ -56,32 +56,35 @@ const registerJobQueuesToDashboard = () => {
 };
 
 export const startJobQueues = () => {
-    // if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-    //     JobQueueSharedRedisClientsSingleton.singleton.intialize(
-    //         'master:startJobQueues'
-    //     );
-    //     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
-    //         throw new ServerError(
-    //             `master: Shared redis client did not initialize`
-    //         );
-    //     }
+    if (
+        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT ||
+        process.env.FLUSHDB_ON_START === 'true'
+    ) {
+        JobQueueSharedRedisClientsSingleton.singleton.intialize(
+            'master:startJobQueues'
+        );
+        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+            throw new ServerError(
+                `master: Shared redis client did not initialize`
+            );
+        }
 
-    //     JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
-    //         error => {
-    //             if (error) {
-    //                 console.error('failed to flush db', error);
-    //             } else {
-    //                 console.debug(`flushed redis db ${redisManager.config.db}`);
+        JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
+            error => {
+                if (error) {
+                    console.error('failed to flush db', error);
+                } else {
+                    console.debug(`flushed redis db ${redisManager.config.db}`);
 
-    //                 initializeJobQueues();
-    //                 registerJobQueuesToDashboard();
-    //             }
-    //         }
-    //     );
-    // } else {
-    initializeJobQueues();
-    registerJobQueuesToDashboard();
-    // }
+                    initializeJobQueues();
+                    registerJobQueuesToDashboard();
+                }
+            }
+        );
+    } else {
+        initializeJobQueues();
+        registerJobQueuesToDashboard();
+    }
 };
 
 export const asyncCleanupJobQueuesAndRedisClients = async ({

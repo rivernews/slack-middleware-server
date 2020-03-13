@@ -97,8 +97,19 @@ export class JobQueueManager<JobRequestData> {
         this.queue = new Bull<JobRequestData>(this.queueName, {
             redis: redisManager.config,
             defaultJobOptions: {
+                // prevent job from retrying
                 attempts: 1,
+
                 ...this.defaultJobOptions
+            },
+
+            settings: {
+                // prevent job from retrying if get stalled
+                // https://github.com/OptimalBits/bull/issues/1591#issuecomment-566745597
+                maxStalledCount: 0,
+
+                // avoid job being moved to stalled, usually happens for CPU-intensive jobs
+                lockDuration: 2 * 60 * 1000
             },
 
             // reuse redis connection

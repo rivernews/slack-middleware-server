@@ -182,7 +182,10 @@ const onReceiveScraperJobMessage = async (
     } else if (type === ScraperJobMessageType.PROGRESS) {
         // TODO: validate progress data; but have to handle optional props first, do this in class `ScraperProgress`.
         const progressData = JSON.parse(payloadAsString) as ScraperProgressData;
-        console.log(`job ${jobId} progress reported`, progressData);
+        console.log(
+            `job ${jobId} (pid ${process.pid}) progress reported`,
+            progressData
+        );
 
         jobProgressBar.syncSetRelativePercentage(
             progressData.wentThrough,
@@ -298,14 +301,13 @@ const superviseScraper = (
         .get(`lock:${redisPubsubChannelName}`)
         .then(lockValue => {
             console.debug(
-                'lock',
-                `lock:${redisPubsubChannelName}`,
-                'lockValue',
+                `job ${job.id} checking lock first,`,
+                `lock:${redisPubsubChannelName} =`,
                 lockValue
             );
             if (lockValue) {
                 console.error(
-                    `Channel ${redisPubsubChannelName} locked, aborting job ${job.id}, job params:`,
+                    `Channel ${redisPubsubChannelName} locked, invalidating & aborting job ${job.id}, job params:`,
                     job.data
                 );
                 return asyncSendSlackMessage(
