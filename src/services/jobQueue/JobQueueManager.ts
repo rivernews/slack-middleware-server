@@ -96,7 +96,10 @@ export class JobQueueManager<JobRequestData> {
 
         this.queue = new Bull<JobRequestData>(this.queueName, {
             redis: redisManager.config,
-            defaultJobOptions: this.defaultJobOptions,
+            defaultJobOptions: {
+                attempts: 1,
+                ...this.defaultJobOptions
+            },
 
             // reuse redis connection
             // https://github.com/OptimalBits/bull/blob/master/PATTERNS.md#reusing-redis-connections
