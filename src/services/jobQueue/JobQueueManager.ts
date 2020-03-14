@@ -27,7 +27,7 @@ interface JobQueueManagerProps {
 }
 
 export class JobQueueManager<JobRequestData> {
-    private static CONCURRENCY_PER_SANDBOX_PROCESSOR = 1;
+    // private static CONCURRENCY_PER_SANDBOX_PROCESSOR = 1;
     private jobConcurrency: number;
 
     public queue?: Bull.Queue<JobRequestData>;
@@ -63,7 +63,7 @@ export class JobQueueManager<JobRequestData> {
 
     public initialize (
         processName: string,
-        registerProcessorsAndEvents: boolean
+        registerProcessorAndEvents: boolean
     ) {
         this.sandboxProcessName = processName;
 
@@ -149,19 +149,20 @@ export class JobQueueManager<JobRequestData> {
             `In ${this.sandboxProcessName} process, initialized job queue for ${this.queueName}`
         );
 
-        if (!registerProcessorsAndEvents) {
+        if (!registerProcessorAndEvents) {
             return;
         }
 
-        // TODO: we may want to widen concurrency (but each process will have heavier load running multiple jobs), or define multiple processes (but will spawn more child processes eating up system resources; and one job per processor might let processor be idle too often)
-        // only one processor per queue
-        for (let i = 0; i < this.jobConcurrency; i++) {
-            this.queue.process(
-                getProssesorName(this.queueName),
-                JobQueueManager.CONCURRENCY_PER_SANDBOX_PROCESSOR,
-                this._processFileName
-            );
-        }
+        // concurrency `n`: one sandbox process for each job - sandbox process is child process, piles till `n` child process
+        // note that do not run .process() i.e. register processor for another queue in child process, otherwise the actual
+        // concurrency will pile up
+        //
+        // for "worker" - you need a brand new process, not child process. That means another `node index.js` process.
+        this.queue.process(
+            getProssesorName(this.queueName),
+            this.jobConcurrency,
+            this._processFileName
+        );
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
