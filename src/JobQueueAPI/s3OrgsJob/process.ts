@@ -100,7 +100,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             .then(orgInfoListBucket => {
                                 return Promise.all(
                                     orgInfoListBucket.map(bucketedOrgInfoList =>
-                                        supervisorJobQueueManagerQueue.add({
+                                        supervisorJobQueueManager.asyncAdd({
                                             orgInfoList: bucketedOrgInfoList
                                         })
                                     )

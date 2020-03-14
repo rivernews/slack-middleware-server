@@ -9,7 +9,10 @@ import {
     ParameterRequirementNotMet,
     ServerError
 } from '../utilities/serverExceptions';
-import { JobQueueName } from '../services/jobQueue/jobQueueName';
+import {
+    JobQueueName,
+    getProssesorName
+} from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,
@@ -44,7 +47,7 @@ export const s3OrgsJobController = async (
             `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, ready to dispatch job`
         );
 
-        const s3OrgsJob = await s3OrgsJobQueueManager.queue.add(null);
+        const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(null);
 
         await asyncSendSlackMessage(
             `added ${
@@ -84,7 +87,7 @@ export const singleOrgJobController = async (
                 `supervisorJobQueueManager queue not yet initialized`
             );
         }
-        const supervisorJob = await supervisorJobQueueManager.queue.add({
+        const supervisorJob = await supervisorJobQueueManager.asyncAdd({
             orgInfo: companyInformationString
         });
 
@@ -129,11 +132,11 @@ export const singleOrgRenewalJobController = async (
         typeof req.body.orgInfo === 'string' &&
         req.body.orgInfo.trim() !== ''
     ) {
-        supervisorJob = await supervisorJobQueueManager.queue.add({
+        supervisorJob = await supervisorJobQueueManager.asyncAdd({
             orgInfo: (req.body.orgInfo as string).trim()
         });
     } else if (ScraperCrossRequest.isScraperCrossRequestData(req.body, true)) {
-        supervisorJob = await supervisorJobQueueManager.queue.add({
+        supervisorJob = await supervisorJobQueueManager.asyncAdd({
             crossRequestData: req.body
         });
     } else {

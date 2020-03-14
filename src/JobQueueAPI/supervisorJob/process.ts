@@ -10,7 +10,10 @@ import { ServerError } from '../../utilities/serverExceptions';
 import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
-import { JobQueueName } from '../../services/jobQueue/jobQueueName';
+import {
+    JobQueueName,
+    getProssesorName
+} from '../../services/jobQueue/jobQueueName';
 import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
 const processRenewalJob = async (
@@ -35,7 +38,7 @@ const processRenewalJob = async (
 
     do {
         console.log(`${logPrefix} dispatching renewal job`);
-        const renewalJob = await gdOrgReviewScraperJobQueueManager.queue.add(
+        const renewalJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
             jobResult
         );
 
@@ -160,7 +163,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     processed++
                 ) {
                     const orgInfo = orgInfoList[processed];
-                    const orgFirstJob = await gdOrgReviewScraperJobQueueManagerQueue.add(
+                    const orgFirstJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
                         {
                             orgInfo
                         }

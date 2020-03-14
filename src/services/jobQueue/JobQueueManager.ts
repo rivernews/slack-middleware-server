@@ -1,7 +1,7 @@
 import Bull from 'bull';
 import path from 'path';
 import fs from 'fs';
-import { JobQueueName } from './jobQueueName';
+import { JobQueueName, getProssesorName } from './jobQueueName';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { asyncSendSlackMessage } from '../slack';
 import { RuntimeEnvironment } from '../../utilities/runtime';
@@ -35,7 +35,7 @@ export class JobQueueManager<JobRequestData> {
 
     private jobWideLogPrefix: string;
     private queueWideLogPrefix: string;
-    private queueName: string;
+    private queueName: JobQueueName;
     private sandboxProcessName: string = '';
     private defaultJobOptions?: Bull.JobOptions;
     private static jobQueueSharedRedisClientsSingleton: JobQueueSharedRedisClientsSingleton;
@@ -147,7 +147,13 @@ export class JobQueueManager<JobRequestData> {
             `In ${this.sandboxProcessName} process, initialized job queue for ${this.queueName}`
         );
 
-        this.queue.process(this.concurrency, this._processFileName);
+        // TODO: we may want to widen concurrency (but each process will have heavier load running multiple jobs), or define multiple processes (but will spawn more child processes eating up system resources; and one job per processor might let processor be idle too often)
+        // only one processor per queue
+        this.queue.process(
+            getProssesorName(this.queueName),
+            this.concurrency,
+            this._processFileName
+        );
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
@@ -245,6 +251,18 @@ export class JobQueueManager<JobRequestData> {
                 `In ${this.sandboxProcessName} process, ${this.jobWideLogPrefix} ${job.id} removed`
             );
         });
+    }
+
+    public asyncAdd (jobData: JobRequestData) {
+        if (!this.queue) {
+            return Promise.reject(
+                new Error(
+                    `You want to dispatch job but queue not yet initialized, did you call ${this.queueName}Manager.initialize() first?`
+                )
+            );
+        }
+
+        return this.queue.add(getProssesorName(this.queueName), jobData);
     }
 
     /**
