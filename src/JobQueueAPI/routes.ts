@@ -30,7 +30,7 @@ gdOrgReviewRenewalRouter.use(
         origin:
             process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
                 ? // TODO: use env var to configure this
-                  `https://slack.shuangc.com`
+                  `https://slack.shaungc.com`
                 : true
     })
 ); // TODO: needs to secure origin to only production site. cors(): https://expressjs.com/en/resources/middleware/cors.html#installation

@@ -19,12 +19,12 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
     ? // default to 10 minutes in production
       10 * 60 * 1000
     : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
-      3 * 60 * 1000;
+      1 * 60 * 1000;
 
 const initializeJobQueues = () => {
-    gdOrgReviewScraperJobQueueManager.initialize();
-    supervisorJobQueueManager.initialize();
-    s3OrgsJobQueueManager.initialize();
+    gdOrgReviewScraperJobQueueManager.initialize('master', true);
+    supervisorJobQueueManager.initialize('master', true);
+    s3OrgsJobQueueManager.initialize('master', true);
 };
 
 const registerJobQueuesToDashboard = () => {
@@ -56,10 +56,17 @@ const registerJobQueuesToDashboard = () => {
 };
 
 export const startJobQueues = () => {
-    if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize();
+    if (
+        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT ||
+        process.env.FLUSHDB_ON_START === 'true'
+    ) {
+        JobQueueSharedRedisClientsSingleton.singleton.intialize(
+            'master:startJobQueues'
+        );
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
-            throw new ServerError(`Shared redis client did not initialize`);
+            throw new ServerError(
+                `master: Shared redis client did not initialize`
+            );
         }
 
         JobQueueSharedRedisClientsSingleton.singleton.genericClient.flushdb(
@@ -80,44 +87,41 @@ export const startJobQueues = () => {
     }
 };
 
-export const cleanupJobQueuesAndRedisClients = async ({
-    closeQueues = true
-} = {}) => {
+export const asyncCleanupJobQueuesAndRedisClients = async ({
+    processName
+}: {
+    processName: string;
+}) => {
     // Queue.close
     // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueclose
-    if (closeQueues) {
-        try {
-            supervisorJobQueueManager.queue &&
-                (await supervisorJobQueueManager.queue.close());
-        } catch (error) {
-            console.warn(
-                'supervisorJobQueueManager queue fail to close',
-                error
-            );
-        }
-        try {
-            gdOrgReviewScraperJobQueueManager.queue &&
-                (await gdOrgReviewScraperJobQueueManager.queue.close());
-        } catch (error) {
-            console.warn(
-                'gdOrgReviewScraperJobQueueManager queue fail to close',
-                error
-            );
-        }
-        try {
-            s3OrgsJobQueueManager.queue &&
-                (await s3OrgsJobQueueManager.queue.close());
-        } catch (error) {
-            console.warn('s3OrgsJobQueueManager queue fail to close', error);
-        }
-
-        // Add more queue clean up here ...
-
-        console.log('all job queues closed');
+    try {
+        await supervisorJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: supervisorJobQueueManager queue fail to close`,
+            error
+        );
+    }
+    try {
+        await gdOrgReviewScraperJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: gdOrgReviewScraperJobQueueManager queue fail to close`,
+            error
+        );
+    }
+    try {
+        await s3OrgsJobQueueManager.asyncCleanUp();
+    } catch (error) {
+        console.warn(
+            `In ${processName} process: s3OrgsJobQueueManager queue fail to close`,
+            error
+        );
     }
 
-    // last check for all redis connection closed
-    await redisManager.asyncCloseAllClients();
+    // Add more queue clean up here ...
+
+    console.log(`In ${processName} process: all job queues closed`);
 
     return;
 };

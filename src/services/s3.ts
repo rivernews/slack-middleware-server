@@ -51,6 +51,13 @@ class S3ArchiveManager {
     }
 
     public async asyncGetOverviewPageUrls (): Promise<string[]> {
+        // TODO: remove this once finish debugging
+        // https://github.com/rivernews/slack-middleware-server/issues/43
+        // return [
+        //     // 'https://www.glassdoor.com/Overview/Working-at-Pinterest-EI_IE503467.11,20.htm',
+        //     'https://www.glassdoor.com/Overview/Working-at-HealthCrowd-EI_IE755450.11,22.htm'
+        // ];
+
         let objectKeys = [];
         objectKeys = await this.asyncListOverviewPageUrlObjectKeys();
 

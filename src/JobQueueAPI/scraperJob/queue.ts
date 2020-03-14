@@ -20,5 +20,5 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         //     every: 60 * (60 * 1000)
         // }
     },
-    concurrency: SCRAPER_JOB_POOL_MAX_CONCURRENCY
+    jobConcurrency: SCRAPER_JOB_POOL_MAX_CONCURRENCY
 });

@@ -12,7 +12,7 @@ export class ProgressBarManager {
     private job: Bull.Job;
     private jobQueueName: string;
 
-    constructor (
+    private constructor (
         jobQueueName: string,
         job: Bull.Job,
         total?: number,
@@ -28,7 +28,7 @@ export class ProgressBarManager {
         );
     }
 
-    public static newProgressBar (
+    private static newProgressBar (
         jobQueueName: string,
         job: Bull.Job,
         total?: number,
@@ -46,6 +46,15 @@ export class ProgressBarManager {
         );
     }
 
+    public static newProgressBarManager (
+        jobQueueName: string,
+        job: Bull.Job,
+        total?: number,
+        curr?: number
+    ) {
+        return new ProgressBarManager(jobQueueName, job, total, curr);
+    }
+
     public setCurrent (value: number) {
         this.progressBar.curr = value;
     }
@@ -54,31 +63,34 @@ export class ProgressBarManager {
         this.progressBar.total = value;
     }
 
-    public setAbsolutePercentage (value: number) {
-        this.progressBar.curr = value;
+    public syncSetAbsolutePercentage (percentageNumber: number) {
+        this.progressBar.curr = percentageNumber;
         this.progressBar.total = 100;
         this.progressBar.render();
-        return this.job.progress(toPercentageValue(value / 100));
+        return this.job.progress(percentageNumber);
     }
 
-    public setRelativePercentage (curr: number, total: number) {
+    public syncSetRelativePercentage (currCount: number, totalCount: number) {
         // prefer to use .tick() instead of .render()
         if (
-            this.progressBar.curr + 1 === curr &&
-            this.progressBar.total === total
+            this.progressBar.curr + 1 === currCount &&
+            this.progressBar.total === totalCount
         ) {
             this.progressBar.tick(1);
         } else {
             this.progressBar = ProgressBarManager.newProgressBar(
                 this.jobQueueName,
                 this.job,
-                total,
-                curr
+                totalCount,
+                currCount
             );
             this.progressBar.render();
         }
 
-        return this.job.progress(toPercentageValue(curr / total));
+        // job.progress returns nothing if it's a set operation, thus it's synchronous
+        // only if it's a get operation (no args passed in) will job.progress return Promise
+        // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#jobprogress
+        return this.job.progress(toPercentageValue(currCount / totalCount));
     }
 
     public increment () {

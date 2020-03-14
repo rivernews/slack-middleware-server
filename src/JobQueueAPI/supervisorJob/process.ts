@@ -7,10 +7,14 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import { cleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
+import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
-import { JobQueueName } from '../../services/jobQueue/jobQueueName';
+import {
+    JobQueueName,
+    getProssesorName
+} from '../../services/jobQueue/jobQueueName';
+import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
 const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
@@ -34,7 +38,7 @@ const processRenewalJob = async (
 
     do {
         console.log(`${logPrefix} dispatching renewal job`);
-        const renewalJob = await gdOrgReviewScraperJobQueueManager.queue.add(
+        const renewalJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
             jobResult
         );
 
@@ -89,7 +93,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     // even if you've already initialized them in master process (the one w/ express server), this sandbox process is a completely separate process
     // and does not share any object or resources with master process, thus having to initialize here again (some cross-process functionalities like job.progress()
     // are handled by bull, using nodejs process.send/on('message') to communicate via serialized data)
-    gdOrgReviewScraperJobQueueManager.initialize();
+    gdOrgReviewScraperJobQueueManager.initialize(`supervisor sandbox`, false);
     // supervisorJobQueueManager.initialize();
     if (!gdOrgReviewScraperJobQueueManager.queue) {
         throw new ServerError(
@@ -105,15 +109,20 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         : supervisorJob.data.orgInfoList || [];
     let processed = 0;
 
-    const progressBar = new ProgressBarManager(
+    const progressBarManager = ProgressBarManager.newProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB,
         supervisorJob,
         supervisorJob.data.crossRequestData ? 1 : orgInfoList.length
     );
 
     return (
-        progressBar
-            .setAbsolutePercentage(1)
+        gdOrgReviewScraperJobQueueManager
+            .checkConcurrency(
+                SCRAPER_JOB_POOL_MAX_CONCURRENCY,
+                undefined,
+                supervisorJob,
+                JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB
+            )
             // supervisorJobQueueManager
             //     .checkConcurrency(
             //         SUPERVISOR_JOB_CONCURRENCY,
@@ -154,7 +163,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     processed++
                 ) {
                     const orgInfo = orgInfoList[processed];
-                    const orgFirstJob = await gdOrgReviewScraperJobQueueManagerQueue.add(
+                    const orgFirstJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
                         {
                             orgInfo
                         }
@@ -195,32 +204,34 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
 
                     console.log('supervisorJob: proceeding to next org');
 
-                    await progressBar.increment();
+                    await progressBarManager.increment();
                 }
 
-                console.log(
-                    'supervisorJob finish dispatching & waiting all jobs done'
-                );
+                console.log('supervisorJob: all scraper job finished');
 
-                return Promise.resolve('supervisorJob complete successfully');
+                return `supervisorJob ${supervisorJob.id} OK`;
             })
-            .catch(async error => {
+            .catch((error: Error) => {
                 console.log(
-                    'supervisorJob interrupted due to error\n',
+                    `supervisorJob ${
+                        supervisorJob.id
+                    } interrupted due to error (job params: ${JSON.stringify(
+                        supervisorJob.data
+                    )})\n`,
                     error,
                     'remaining orgList not yet finished (including failed one):',
                     orgInfoList.slice(processed, orgInfoList.length)
                 );
 
-                await gdOrgReviewScraperJobQueueManagerQueue.empty();
-
-                return Promise.reject(error);
+                throw error;
             })
             // clean up job queue resources created in this sandbox process
-            .finally(() =>
-                cleanupJobQueuesAndRedisClients({
-                    closeQueues: false
-                })
-            )
+            .finally(() => {
+                // TODO: remove this if queue is correctly cleaned up
+                // return asyncCleanupJobQueuesAndRedisClients({
+                //     processName: `${JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB} sandbox process`
+                // });
+                return gdOrgReviewScraperJobQueueManager.asyncCleanUp();
+            })
     );
 };

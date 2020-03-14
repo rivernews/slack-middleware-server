@@ -1,6 +1,5 @@
 import { ServerError } from '../utilities/serverExceptions';
 import { RuntimeEnvironment } from '../utilities/runtime';
-import { RedisClient, createClient } from 'redis';
 import IORedis from 'ioredis';
 
 // node-redis pubsub doc
@@ -26,9 +25,6 @@ class RedisManagerSingleton {
     private static _singleton = new RedisManagerSingleton();
 
     public config: RedisConfig;
-
-    private clients: Array<RedisClient> = [];
-    private redisIoClients: Array<IORedis.Redis> = [];
 
     private constructor () {
         if (
@@ -59,57 +55,15 @@ class RedisManagerSingleton {
     }
 
     public newClient () {
-        const newRedisClient = createClient(this.config);
-        this.clients.push(newRedisClient);
-        console.log('created redis client, total', this.clients.length);
-        return newRedisClient;
-    }
-
-    // have to have a separate func since 'redis' and 'ioredis'
-    // are not
-    public newIORedisClient () {
-        const newIoRedisClient = new IORedis(this.config);
-        this.redisIoClients.push(newIoRedisClient);
-        console.log(
-            'created ioredis client, total',
-            this.redisIoClients.length
-        );
-        return newIoRedisClient;
-    }
-
-    private static asyncCloseClient (client: RedisClient) {
-        // expect client to be closed within 10 sec
-        const closeClientProcessTimeout = 10 * 1000;
-        return new Promise<string>((resolve, reject) => {
-            const timeoutHandle = setTimeout(() => {
-                return reject('Timed out while trying to close redis client');
-            }, closeClientProcessTimeout);
-
-            client.quit(error => {
-                if (error) {
-                    return reject(
-                        `client failed to close + ${JSON.stringify(error)}`
-                    );
-                }
-
-                clearTimeout(timeoutHandle);
-                return resolve('OK');
-            });
+        const newRedisClient = new IORedis({
+            ...this.config,
+            //
+            // retryStrategy
+            // https://github.com/luin/ioredis#auto-reconnect
+            retryStrategy: times => null
         });
-    }
-
-    public async asyncCloseAllClients () {
-        // will continue even if client is already close
-        // but at the end we'll be confident that all clients are closed
-        for (const client of this.clients) {
-            console.debug('closing redis client');
-            await RedisManagerSingleton.asyncCloseClient(client);
-        }
-
-        for (const redisIoClient of this.redisIoClients) {
-            console.debug('closing ioredis client');
-            redisIoClient.disconnect();
-        }
+        console.log('created redis client');
+        return newRedisClient;
     }
 }
 
@@ -121,19 +75,68 @@ export class JobQueueSharedRedisClientsSingleton {
     public genericClient?: IORedis.Redis;
     public subscriberClient?: IORedis.Redis;
 
+    private processName: string = '';
+    private jobQueueIORedisClientsRecord: Array<IORedis.Redis> = [];
+
     private constructor () {}
 
-    public intialize () {
+    public intialize (processName: string) {
+        this.processName = processName;
+
         if (!this.genericClient) {
-            this.genericClient = redisManager.newIORedisClient();
+            this.genericClient = this.newJobQueueIORedisClient(
+                `initialize generic`
+            );
         }
 
         if (!this.subscriberClient) {
-            this.subscriberClient = redisManager.newIORedisClient();
+            this.subscriberClient = this.newJobQueueIORedisClient(
+                `initialize subscriber`
+            );
         }
     }
 
     public static get singleton () {
         return JobQueueSharedRedisClientsSingleton._singleton;
+    }
+
+    // have to have a separate func since 'redis' and 'ioredis' libraries are not the same
+    public newJobQueueIORedisClient (callerName: string) {
+        const newIoRedisClient = redisManager.newClient();
+        this.jobQueueIORedisClientsRecord.push(newIoRedisClient);
+        console.log(
+            `In ${this.processName} process, ${callerName}, shared redis: created ioredis client, total`,
+            this.jobQueueIORedisClientsRecord.length
+        );
+
+        return newIoRedisClient;
+    }
+
+    /**
+     * Releasing (resetting) redis clients created by `Bull.Queue.createClient()` 'bclient' type.
+     *
+     * There's no need to reset shared `this.genericClient` and `this.subscriberClient`, which is used by 'client' and 'subscriber' type in `Bull.Queue.createClient()`.
+     * Since there will always be a fixed total of 2 client instances per process, no memory leak in the long term. Don't reset them upon job finish / queue close as well, as they will be needed for establishing connection if Bull decides to reuse the sandbox process. When Bull decides to release sandbox process, they will be cleaned up along with the process as well.
+     *
+     * About redis connection clean up - as long as we are calling `Bull.Queue.close()`, Bull will handle all the clean up for us. Do not manually call client.quit() here, because Bull may want to reuse that client later; if you force such call, Bull will attempt to reconnect many times and cause memory pressure, causing the system to be unstable and killed / evicted.
+     */
+    public async resetAllClientResources (callerName: string) {
+        for (const client of this.jobQueueIORedisClientsRecord) {
+            try {
+                await client.quit();
+            } catch (error) {
+                console.error(
+                    `${callerName} in ${this.processName} process, shared redis: double check connection closed; error closing`,
+                    error,
+                    `skipping...`
+                );
+            }
+        }
+
+        console.debug(
+            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`,
+            this.jobQueueIORedisClientsRecord
+        );
+        this.jobQueueIORedisClientsRecord = [];
     }
 }

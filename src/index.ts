@@ -5,7 +5,7 @@ import { ErrorResponse } from './utilities/serverExceptions';
 import { createTerminus } from '@godaddy/terminus';
 import {
     startJobQueues,
-    cleanupJobQueuesAndRedisClients
+    asyncCleanupJobQueuesAndRedisClients
 } from './services/jobQueue';
 import {
     RuntimeEnvironment,
@@ -50,7 +50,7 @@ app.use(
 
 app.get('/', async (req, res) => {
     res.send(
-        'Hello! This is our slack service. <a href="/dashboard">Queue Dashboard</a> (credential required)<br>' +
+        'Hello! This is our slack service.' +
             'Visit the <a target="_blank" href="https://slack.shaungc.com">frontend website</a>.'
     );
 });
@@ -106,7 +106,9 @@ export const cleanUpExpressServer = async () => {
     console.log('cleaning up...');
 
     RUNTIME_CI_ENVIRONMENT != RuntimeEnvironment.TESTING &&
-        (await cleanupJobQueuesAndRedisClients());
+        (await asyncCleanupJobQueuesAndRedisClients({
+            processName: 'master'
+        }));
 
     return;
 };
