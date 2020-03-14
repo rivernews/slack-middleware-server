@@ -120,7 +120,19 @@ export class JobQueueSharedRedisClientsSingleton {
      *
      * About redis connection clean up - as long as we are calling `Bull.Queue.close()`, Bull will handle all the clean up for us. Do not manually call client.quit() here, because Bull may want to reuse that client later; if you force such call, Bull will attempt to reconnect many times and cause memory pressure, causing the system to be unstable and killed / evicted.
      */
-    public resetAllClientResources (callerName: string) {
+    public async resetAllClientResources (callerName: string) {
+        for (const client of this.jobQueueIORedisClientsRecord) {
+            try {
+                await client.quit();
+            } catch (error) {
+                console.error(
+                    `${callerName} in ${this.processName} process, shared redis: double check connection closed; error closing`,
+                    error,
+                    `skipping...`
+                );
+            }
+        }
+
         console.debug(
             `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`,
             this.jobQueueIORedisClientsRecord
