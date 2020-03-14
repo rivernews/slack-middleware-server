@@ -62,7 +62,10 @@ export class JobQueueManager<JobRequestData> {
         this.queueWideLogPrefix = `${this.jobWideLogPrefix}Queue`;
     }
 
-    public initialize (processName: string, registerEvents: boolean) {
+    public initialize (
+        processName: string,
+        registerProcessorsAndEvents: boolean
+    ) {
         this.sandboxProcessName = processName;
 
         if (this.queue) {
@@ -147,6 +150,10 @@ export class JobQueueManager<JobRequestData> {
             `In ${this.sandboxProcessName} process, initialized job queue for ${this.queueName}`
         );
 
+        if (!registerProcessorsAndEvents) {
+            return;
+        }
+
         // TODO: we may want to widen concurrency (but each process will have heavier load running multiple jobs), or define multiple processes (but will spawn more child processes eating up system resources; and one job per processor might let processor be idle too often)
         // only one processor per queue
         this.queue.process(
@@ -157,10 +164,6 @@ export class JobQueueManager<JobRequestData> {
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
-        if (!registerEvents) {
-            return;
-        }
-
         this.queue.on('error', error => {
             // An error occured.
             console.error(
