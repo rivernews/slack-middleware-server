@@ -20,5 +20,5 @@ export const supervisorJobQueueManager = new JobQueueManager<
         //     every: 60 * (60 * 1000)
         // }
     },
-    concurrency: SUPERVISOR_JOB_CONCURRENCY
+    concurrency: 1
 });
