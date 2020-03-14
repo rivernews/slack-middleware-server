@@ -20,15 +20,15 @@ interface JobQueueManagerProps {
     relativePathWithoutExtension: string;
 
     queueName: JobQueueName;
-    concurrency?: number;
+    jobConcurrency: number;
     queueAbbreviation?: string;
 
     defaultJobOptions?: Bull.JobOptions;
 }
 
 export class JobQueueManager<JobRequestData> {
-    private static DEFAULT_CONCURRENCY = 1;
-    private concurrency: number;
+    private static CONCURRENCY_PER_SANDBOX_PROCESSOR = 1;
+    private jobConcurrency: number;
 
     public queue?: Bull.Queue<JobRequestData>;
     private _processFileName: string;
@@ -55,8 +55,7 @@ export class JobQueueManager<JobRequestData> {
             : processJavascriptPath;
 
         this.queueName = props.queueName;
-        this.concurrency =
-            props.concurrency || JobQueueManager.DEFAULT_CONCURRENCY;
+        this.jobConcurrency = props.jobConcurrency;
         this.defaultJobOptions = props.defaultJobOptions;
         this.jobWideLogPrefix = props.queueAbbreviation || props.queueName;
         this.queueWideLogPrefix = `${this.jobWideLogPrefix}Queue`;
@@ -156,11 +155,13 @@ export class JobQueueManager<JobRequestData> {
 
         // TODO: we may want to widen concurrency (but each process will have heavier load running multiple jobs), or define multiple processes (but will spawn more child processes eating up system resources; and one job per processor might let processor be idle too often)
         // only one processor per queue
-        this.queue.process(
-            getProssesorName(this.queueName),
-            this.concurrency,
-            this._processFileName
-        );
+        for (let i = 0; i < this.jobConcurrency; i++) {
+            this.queue.process(
+                getProssesorName(this.queueName),
+                JobQueueManager.CONCURRENCY_PER_SANDBOX_PROCESSOR,
+                this._processFileName
+            );
+        }
 
         // Events API
         // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#events
