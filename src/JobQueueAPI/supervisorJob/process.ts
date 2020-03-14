@@ -210,7 +210,11 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
             })
             .catch((error: Error) => {
                 console.log(
-                    'supervisorJob interrupted due to error\n',
+                    `supervisorJob ${
+                        supervisorJob.id
+                    } interrupted due to error (job params: ${JSON.stringify(
+                        supervisorJob.data
+                    )})\n`,
                     error,
                     'remaining orgList not yet finished (including failed one):',
                     orgInfoList.slice(processed, orgInfoList.length)
