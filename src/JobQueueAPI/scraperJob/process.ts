@@ -15,6 +15,7 @@ import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
+import { KubernetesService } from '../../services/kubernetes';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -433,7 +434,35 @@ const superviseScraper = (
                                     RuntimeEnvironment.DEVELOPMENT
                                 ) {
                                     console.log(
-                                        'in development environment, skipping travis request. Please run scraper locally if needed'
+                                        // 'In development environment, skipping travis request. Please run scraper locally if needed'
+                                        'In dev env, using k8 job'
+                                    );
+
+                                    let k8Job;
+                                    try {
+                                        k8Job = await KubernetesService.singleton.asyncAddScraperJob(
+                                            job.data
+                                        );
+                                    } catch (error) {
+                                        const errorMessage = `job ${
+                                            job.id
+                                        } error when requesting k8 job: ${JSON.stringify(
+                                            error
+                                        )}`;
+                                        console.error(
+                                            `job ${job.id} error when requesting k8 job:`,
+                                            error
+                                        );
+                                        return scraperSupervisorReject(
+                                            errorMessage
+                                        );
+                                    }
+
+                                    await progressBarManager.increment();
+
+                                    console.log(
+                                        `job ${job.id} request k8 job successfully:`,
+                                        k8Job.body.metadata
                                     );
                                     return;
                                 }

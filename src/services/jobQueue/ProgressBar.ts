@@ -73,10 +73,13 @@ export class ProgressBarManager {
     public syncSetRelativePercentage (currCount: number, totalCount: number) {
         // prefer to use .tick() instead of .render()
         if (
-            this.progressBar.curr + 1 === currCount &&
+            this.progressBar.curr < currCount &&
             this.progressBar.total === totalCount
         ) {
-            this.progressBar.tick(1);
+            console.debug(
+                `tick progress from ${this.progressBar.curr} to ${currCount}`
+            );
+            this.progressBar.tick(currCount - this.progressBar.curr, {});
         } else {
             this.progressBar = ProgressBarManager.newProgressBar(
                 this.jobQueueName,
