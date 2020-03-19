@@ -6,7 +6,7 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = "v0.1.7"
+  version = "v0.1.10"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
@@ -36,13 +36,40 @@ module "slack_middleware_service" {
 
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
     "/app/slack-middleware-service/FLUSHDB_ON_START",
-    
+
     "/app/slack-middleware-service/SUPERVISOR_JOB_CONCURRENCY",
     "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS",
-    "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY"
+    "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY",
+
+    # for scraper in k8 jobs
+    "/service/selenium-service/SELENIUM_SERVER_HOST"
   ]
 
   use_recreate_deployment_strategy = true
+}
+
+module "selenium_service" {
+  source  = "rivernews/kubernetes-microservice/digitalocean"
+  version = "v0.1.11"
+
+  aws_region     = var.aws_region
+  aws_access_key = var.aws_access_key
+  aws_secret_key = var.aws_secret_key
+  cluster_name   = "project-shaungc-digitalocean-cluster"
+
+  app_label                = "selenium-service"
+  app_exposed_port         = 4444
+  # additional_exposed_ports = [5900]
+
+  # Docker Selenium
+  # https://github.com/SeleniumHQ/docker-selenium
+  app_container_image     = "selenium/standalone-chrome"
+  app_container_image_tag = "3.141.59-zirconium"
+
+  use_recreate_deployment_strategy = true
+  
+  share_host_memory = true
+  memory_max_allowed = "1536Mi"
 }
 
 // See the logs of production server
