@@ -334,57 +334,6 @@ const superviseScraper = (
                             scraperSupervisorReject
                         );
 
-                        // redisClientSubscription.on('subscribe', async (channel, count) => {
-                        //     console.log(
-                        //         `job ${job.id} subscribed to channel ${channel}, count ${count}`
-                        //     );
-
-                        //     // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
-                        //     // the same channel (no other job working on the same org)
-                        //     await redisClientPublish.set(
-                        //         `lock:${redisPubsubChannelName}`, `scraperJob${job.id}:${JSON.stringify(job.data)}`
-                        //     );
-
-                        //     if (channel === RedisPubSubChannelName.ADMIN) {
-                        //         // we do nothing upon ADMIN subscribed event other than logging, so abort here
-                        //         return;
-                        //     }
-
-                        //     // TODO: avoid the need to have to hard code things that you have to manually change
-                        //     // remove this block if want to run scraper on local for debugging
-                        //     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-                        //         console.log(
-                        //             'in development environment, skipping travis request. Please run scraper locally if needed'
-                        //         );
-                        //         return;
-                        //     }
-
-                        //     const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                        //         job.data,
-                        //         {
-                        //             branch: 'master'
-                        //         }
-                        //     );
-                        //     if (triggerTravisJobRequest.status >= 400) {
-                        //         const errorMessage =
-                        //             `job ${job.id} error when requesting travis job: ` +
-                        //             JSON.stringify(triggerTravisJobRequest.data);
-                        //         console.error(
-                        //             `job ${job.id} error when requesting travis job:`,
-                        //             triggerTravisJobRequest.data
-                        //         );
-                        //         return scraperSupervisorReject(errorMessage);
-                        //     }
-
-                        //     await progressBarManager.increment();
-
-                        //     const travisJob = triggerTravisJobRequest.data;
-
-                        //     console.log(
-                        //         `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
-                        //     );
-                        // });
-
                         redisClientSubscription.on(
                             'message',
                             async (channel, message) => {
@@ -434,37 +383,37 @@ const superviseScraper = (
                                     RuntimeEnvironment.DEVELOPMENT
                                 ) {
                                     console.log(
-                                        // 'In development environment, skipping travis request. Please run scraper locally if needed'
-                                        'In dev env, using k8 job'
+                                        'In development environment, skipping travis request. Please run scraper locally if needed'
+                                        // 'In dev env, using k8 job'
                                     );
 
-                                    let k8Job;
-                                    try {
-                                        k8Job = await KubernetesService.singleton.asyncAddScraperJob(
-                                            job.data
-                                        );
-                                    } catch (error) {
-                                        const errorMessage = `job ${
-                                            job.id
-                                        } error when requesting k8 job: ${JSON.stringify(
-                                            error
-                                        )}`;
-                                        console.error(
-                                            `job ${job.id} error when requesting k8 job:`,
-                                            error
-                                        );
-                                        return scraperSupervisorReject(
-                                            errorMessage
-                                        );
-                                    }
+                                    // let k8Job;
+                                    // try {
+                                    //     k8Job = await KubernetesService.singleton.asyncAddScraperJob(
+                                    //         job.data
+                                    //     );
+                                    // } catch (error) {
+                                    //     const errorMessage = `job ${
+                                    //         job.id
+                                    //     } error when requesting k8 job: ${JSON.stringify(
+                                    //         error
+                                    //     )}`;
+                                    //     console.error(
+                                    //         `job ${job.id} error when requesting k8 job:`,
+                                    //         error
+                                    //     );
+                                    //     return scraperSupervisorReject(
+                                    //         errorMessage
+                                    //     );
+                                    // }
 
-                                    await progressBarManager.increment();
+                                    // await progressBarManager.increment();
 
-                                    console.log(
-                                        `job ${job.id} request k8 job successfully:`,
-                                        k8Job.body.metadata
-                                    );
-                                    return;
+                                    // console.log(
+                                    //     `job ${job.id} request k8 job successfully:`,
+                                    //     k8Job.body.metadata
+                                    // );
+                                    // return;
                                 }
 
                                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
