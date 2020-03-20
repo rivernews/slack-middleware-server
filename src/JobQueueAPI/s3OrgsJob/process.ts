@@ -4,7 +4,6 @@ import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
@@ -102,7 +101,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     orgInfoListBucket.map(
                                         (bucketedOrgInfoList, index) =>
                                             new Promise(res =>
-                                                setTimeout(res, 5000 * index)
+                                                setTimeout(
+                                                    res,
+                                                    10 * 1000 * index
+                                                )
                                             ).then(() =>
                                                 supervisorJobQueueManager.asyncAdd(
                                                     {

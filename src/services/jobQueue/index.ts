@@ -19,7 +19,7 @@ export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
     ? // default to 10 minutes in production
       10 * 60 * 1000
     : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
-      2 * 60 * 1000;
+      4 * 60 * 1000;
 
 const initializeJobQueues = () => {
     gdOrgReviewScraperJobQueueManager.initialize('master', true);

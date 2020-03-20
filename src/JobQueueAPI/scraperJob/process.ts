@@ -383,37 +383,37 @@ const superviseScraper = (
                                     RuntimeEnvironment.DEVELOPMENT
                                 ) {
                                     console.log(
-                                        'In development environment, skipping travis request. Please run scraper locally if needed'
-                                        // 'In dev env, using k8 job'
+                                        // 'In development environment, skipping travis request. Please run scraper locally if needed'
+                                        'In dev env, using k8 job'
                                     );
 
-                                    // let k8Job;
-                                    // try {
-                                    //     k8Job = await KubernetesService.singleton.asyncAddScraperJob(
-                                    //         job.data
-                                    //     );
-                                    // } catch (error) {
-                                    //     const errorMessage = `job ${
-                                    //         job.id
-                                    //     } error when requesting k8 job: ${JSON.stringify(
-                                    //         error
-                                    //     )}`;
-                                    //     console.error(
-                                    //         `job ${job.id} error when requesting k8 job:`,
-                                    //         error
-                                    //     );
-                                    //     return scraperSupervisorReject(
-                                    //         errorMessage
-                                    //     );
-                                    // }
+                                    let k8Job;
+                                    try {
+                                        k8Job = await KubernetesService.singleton.asyncAddScraperJob(
+                                            job.data
+                                        );
+                                    } catch (error) {
+                                        const errorMessage = `job ${
+                                            job.id
+                                        } error when requesting k8 job: ${JSON.stringify(
+                                            error
+                                        )}`;
+                                        console.error(
+                                            `job ${job.id} error when requesting k8 job:`,
+                                            error
+                                        );
+                                        return scraperSupervisorReject(
+                                            errorMessage
+                                        );
+                                    }
 
-                                    // await progressBarManager.increment();
+                                    await progressBarManager.increment();
 
-                                    // console.log(
-                                    //     `job ${job.id} request k8 job successfully:`,
-                                    //     k8Job.body.metadata
-                                    // );
-                                    // return;
+                                    console.log(
+                                        `job ${job.id} request k8 job successfully:`,
+                                        k8Job.body.metadata
+                                    );
+                                    return;
                                 }
 
                                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(

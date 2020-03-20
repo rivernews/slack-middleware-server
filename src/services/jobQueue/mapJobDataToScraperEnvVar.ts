@@ -27,15 +27,13 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
             const progressData = jobData[cur] as ScraperProgressData;
             return {
                 ...acc,
-                TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.processed,
-                TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH:
-                    progressData.wentThrough,
-                TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total,
+                TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.processed.toString(),
+                TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH: progressData.wentThrough.toString(),
+                TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total.toString(),
                 TEST_COMPANY_LAST_PROGRESS_DURATION:
                     progressData.durationInMilli,
-                TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page,
-                TEST_COMPANY_LAST_PROGRESS_SESSION:
-                    progressData.processedSession
+                TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page.toString(),
+                TEST_COMPANY_LAST_PROGRESS_SESSION: progressData.processedSession.toString()
             };
         } else if (cur === 'lastReviewPage') {
             return {
@@ -57,7 +55,14 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
         TEST_COMPANY_INFORMATION_STRING:
             scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
 
-        SUPERVISOR_PUBSUB_REDIS_DB: redisManager.config.db.toString()
+        SUPERVISOR_PUBSUB_REDIS_DB: redisManager.config.db.toString(),
+
+        ...(process.env.AWS_S3_ARCHIVE_BUCKET_NAME
+            ? {
+                  AWS_S3_ARCHIVE_BUCKET_NAME:
+                      process.env.AWS_S3_ARCHIVE_BUCKET_NAME
+              }
+            : {})
     };
 
     return scraperJobEnvironmentVaribles;
