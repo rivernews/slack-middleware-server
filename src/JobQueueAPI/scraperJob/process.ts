@@ -379,8 +379,11 @@ const superviseScraper = (
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
                                 if (
+                                    // TODO: replace this by dispatch algorithm
                                     process.env.NODE_ENV ===
-                                    RuntimeEnvironment.DEVELOPMENT
+                                        RuntimeEnvironment.DEVELOPMENT ||
+                                    process.env.NODE_ENV ===
+                                        RuntimeEnvironment.PRODUCTION
                                 ) {
                                     console.log(
                                         // 'In development environment, skipping travis request. Please run scraper locally if needed'

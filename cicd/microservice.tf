@@ -6,7 +6,7 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = "v0.1.10"
+  version = ">= v0.1.14"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
@@ -50,7 +50,7 @@ module "slack_middleware_service" {
 
 module "selenium_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = "v0.1.11"
+  version = ">= v0.1.14"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
@@ -59,7 +59,6 @@ module "selenium_service" {
 
   app_label                = "selenium-service"
   app_exposed_port         = 4444
-  # additional_exposed_ports = [5900]
 
   # Docker Selenium
   # https://github.com/SeleniumHQ/docker-selenium
@@ -69,7 +68,11 @@ module "selenium_service" {
   use_recreate_deployment_strategy = true
   
   share_host_memory = true
-  memory_max_allowed = "1536Mi"
+
+  # specifying unit
+  # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
+  memory_guaranteed = "128Mi"
+  memory_max_allowed = "6.5G"
 }
 
 // See the logs of production server
