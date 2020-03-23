@@ -210,7 +210,7 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    CROSS_SESSION_TIME_LIMIT_MINUTES: '35',
+                                    CROSS_SESSION_TIME_LIMIT_MINUTES: '90',
 
                                     DEBUG: 'false',
                                     LOGGER_LEVEL: '3',

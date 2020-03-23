@@ -22,6 +22,11 @@ module "slack_middleware_service" {
   app_secret_name_list = [
     "/provider/aws/account/iriversland2-15pro/AWS_ACCESS_KEY_ID",
     "/provider/aws/account/iriversland2-15pro/AWS_SECRET_ACCESS_KEY",
+    "/app/slack-middleware-service/AWS_S3_ARCHIVE_BUCKET_NAME",
+    "/provider/digitalocean/DIGITALOCEAN_ACCESS_TOKEN",
+
+    "/service/glassdoor/GLASSDOOR_USERNAME",
+    "/service/glassdoor/GLASSDOOR_PASSWORD",
 
     "/app/slack-middleware-service/NODE_ENV",
     "/app/slack-middleware-service/HOST",
