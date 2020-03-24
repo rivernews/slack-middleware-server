@@ -13,14 +13,12 @@ import {
     ScraperJobMessageType,
     ScraperProgressData
 } from '../../services/jobQueue/types';
-import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes';
-import { Semaphore } from 'redis-semaphore';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -117,13 +115,19 @@ class RedisCleaner {
 
             // release redis clients
 
-            return cleanupRedisSubscriptionConnection(
+            await cleanupRedisSubscriptionConnection(
                 this.lastRedisPubsubChannelName,
                 this.lastRedisClientSubscription,
                 this.lastRedisClientPublish,
                 this.lastOrg,
                 this.lastJobIdString
             );
+
+            // reset all `last...` attribute so that in case this process is reused,
+            // already cleaned resources don't get clean up again,
+            // which may cause failure (like release semaphore but such semaphore
+            // is already been cleaned up and cause some strange error
+            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.lastK8JobSemaphoreResourceString = this.lastTravisJobSemaphoreResourceString = undefined;
         }
 
         console.debug(

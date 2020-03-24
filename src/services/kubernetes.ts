@@ -53,7 +53,13 @@ export class KubernetesService {
         this.jobVacancySemaphore = new Semaphore(
             JobQueueSharedRedisClientsSingleton.singleton.genericClient,
             'k8JobResourceLock',
-            4
+            4,
+            {
+                // when k8 has no vacancy, this situation will be
+                // detected after 6 sec when someone call `.acquire()`
+                acquireTimeout: 6 * 1000,
+                retryInterval: 1000
+            }
         );
     }
 
