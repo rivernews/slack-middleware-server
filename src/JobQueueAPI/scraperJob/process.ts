@@ -104,9 +104,7 @@ class RedisCleaner {
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
                 await KubernetesService.singleton.jobVacancySemaphore.release();
-            }
-
-            if (this.lastTravisJobSemaphoreResourceString) {
+            } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.debug(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
@@ -125,8 +123,8 @@ class RedisCleaner {
 
             // reset all `last...` attribute so that in case this process is reused,
             // already cleaned resources don't get clean up again,
-            // which may cause failure (like release semaphore but such semaphore
-            // is already been cleaned up and cause some strange error
+            // which will cause issues like accidentally releasing other process's
+            // travis semaphore, even if this process uses k8 job semaphore
             this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.lastK8JobSemaphoreResourceString = this.lastTravisJobSemaphoreResourceString = undefined;
         }
 
