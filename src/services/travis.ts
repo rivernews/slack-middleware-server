@@ -1,10 +1,54 @@
 import axios from 'axios';
 import { ScraperJobRequestData, ScraperProgressData } from './jobQueue/types';
-import { redisManager } from './redis';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
+import { ServerError } from '../utilities/serverExceptions';
+import { Semaphore } from 'redis-semaphore';
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
+
+export class TravisManager {
+    private static _singleton: TravisManager;
+
+    public travisJobResourceSemaphore: Semaphore;
+
+    private constructor () {
+        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+            throw new ServerError(
+                'KubernetesService:jobVacancySemaphore: Shared job queue redis client did not initialize'
+            );
+        }
+
+        // Current travis environment is suitable for running up to 6 jobs in parallel
+        this.travisJobResourceSemaphore = new Semaphore(
+            JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+            'travisJobResourceLock',
+            6,
+            {
+                // when travis has no vacancy, the full situation will be
+                // detected after 6 sec when someone call `.acquire()`
+                acquireTimeout: 6 * 1000,
+                retryInterval: 1000
+            }
+        );
+    }
+
+    public static get singleton () {
+        if (!TravisManager._singleton) {
+            TravisManager._singleton = new TravisManager();
+        }
+        return TravisManager._singleton;
+    }
+}
+
+const USERNAME = 'rivernews';
+const REPO = 'review-scraper-java-development-environment';
+const FULL_REPO_NAME = `${USERNAME}/${REPO}`;
+const URL_ENCODED_REPO_NAME = encodeURIComponent(FULL_REPO_NAME);
+const GITHUB_ID = '15918424';
+const TRAVIS_CONCURRENT_JOB_LIMIT = 6;
 
 export interface TravisJobOption {
     branch?: string;
@@ -34,27 +78,71 @@ export interface ScraperEnvironmentVariable {
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
 }
 
+const requestTravisApi = async (
+    method: 'post' | 'get' = 'get',
+    endpoint: string,
+    data?: any
+) => {
+    const url = `https://api.travis-ci.com${endpoint}`;
+    if (method == 'post') {
+        return axios.post(url, data, {
+            headers: getTravisCiRequestHeaders()
+        });
+    } else {
+        return axios.get(url, {
+            headers: getTravisCiRequestHeaders()
+        });
+    }
+};
+
 export const asyncTriggerQualitativeReviewRepoBuild = async (
     scraperJobData: ScraperJobRequestData,
     travisJobOption: TravisJobOption = {}
 ) => {
-    const username = 'rivernews';
-    const repo = 'review-scraper-java-development-environment';
-    const fullRepoName = `${username}/${repo}`;
-    const urlEncodedRepoName = encodeURIComponent(fullRepoName);
-
-    return axios.post(
-        `https://api.travis-ci.com/repo/${urlEncodedRepoName}/requests`,
-        {
-            config: {
-                env: {
-                    ...mapJobDataToScraperEnvVar(scraperJobData)
-                }
-            },
-            ...travisJobOption
+    return requestTravisApi('post', `/repo/${URL_ENCODED_REPO_NAME}/requests`, {
+        config: {
+            env: {
+                ...mapJobDataToScraperEnvVar(scraperJobData)
+            }
         },
-        {
-            headers: getTravisCiRequestHeaders()
-        }
+        ...travisJobOption
+    });
+};
+
+export const checkTravisHasVacancy = async () => {
+    // try semaphore first
+    let travisJobResourceSemaphoreString: string;
+    try {
+        travisJobResourceSemaphoreString = await TravisManager.singleton.travisJobResourceSemaphore.acquire();
+    } catch (error) {
+        console.debug('travis semaphore acquire failed', error);
+        return false;
+    }
+
+    // double check vacancy with travis api
+
+    const res = await requestTravisApi(
+        'get',
+        // active endpoint
+        // https://developer.travis-ci.com/resource/active#Active
+        `/owner/github_id/${GITHUB_ID}/active`
     );
+
+    if (!Array.isArray(res.data.builds)) {
+        throw new ServerError(
+            `Invalid response while checking travis active job: ${JSON.stringify(
+                res.data
+            )}`
+        );
+    }
+
+    const activeBuildCount = res.data.builds.length;
+
+    console.debug(`travis active job count is ${activeBuildCount}`);
+
+    if (activeBuildCount < TRAVIS_CONCURRENT_JOB_LIMIT) {
+        return travisJobResourceSemaphoreString;
+    }
+
+    return false;
 };

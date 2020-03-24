@@ -4,14 +4,16 @@ import {
     V1Job,
     V1EnvVar
 } from '@kubernetes/client-node';
+import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
 import { IKubernetesCluster } from 'dots-wrapper/dist/modules/kubernetes/types/kubernetes-cluster';
 import { ScraperJobRequestData } from './jobQueue/types';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
 import { ScraperEnvironmentVariable } from './travis';
-import { redisManager } from './redis';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
 import { s3ArchiveManager } from './s3';
 import { RuntimeEnvironment } from '../utilities/runtime';
+import { ServerError } from '../utilities/serverExceptions';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -21,6 +23,7 @@ import { RuntimeEnvironment } from '../utilities/runtime';
 
 export class KubernetesService {
     private static _singleton: KubernetesService;
+    private static CROSS_SESSION_TIME_LIMIT_MINUTES = 90;
 
     private static DIGITALOCEAN_KUBERNETES_CLUSTER_NAME =
         'project-shaungc-digitalocean-cluster';
@@ -30,12 +33,28 @@ export class KubernetesService {
 
     private digitalOceanToken: string;
 
+    public jobVacancySemaphore: Semaphore;
+
     private constructor () {
         if (!process.env.DIGITALOCEAN_ACCESS_TOKEN) {
             throw new Error('Digitalocean token not configured');
         }
 
         this.digitalOceanToken = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+
+        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+            throw new ServerError(
+                'KubernetesService:jobVacancySemaphore: Shared job queue redis client did not initialize'
+            );
+        }
+
+        // Currently our k8 cluster is suitable for running up to 4 scraper job at most
+        this.jobVacancySemaphore = new Semaphore(
+            JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+            'k8JobResourceLock',
+            4
+        );
     }
 
     public static get singleton () {
@@ -210,7 +229,7 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    CROSS_SESSION_TIME_LIMIT_MINUTES: '90',
+                                    CROSS_SESSION_TIME_LIMIT_MINUTES: KubernetesService.CROSS_SESSION_TIME_LIMIT_MINUTES.toString(),
 
                                     DEBUG: 'false',
                                     LOGGER_LEVEL: '3',

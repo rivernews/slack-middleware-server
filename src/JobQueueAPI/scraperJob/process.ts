@@ -1,6 +1,10 @@
 import Bull from 'bull';
 import { redisManager, RedisPubSubChannelName } from '../../services/redis';
-import { asyncTriggerQualitativeReviewRepoBuild } from '../../services/travis';
+import {
+    asyncTriggerQualitativeReviewRepoBuild,
+    checkTravisHasVacancy,
+    TravisManager
+} from '../../services/travis';
 import { asyncSendSlackMessage } from '../../services/slack';
 import {
     ScraperJobRequestData,
@@ -16,6 +20,7 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jo
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes';
+import { Semaphore } from 'redis-semaphore';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -71,7 +76,9 @@ class RedisCleaner {
         public lastRedisClientSubscription?: IORedis.Redis,
         public lastRedisClientPublish?: IORedis.Redis,
         public lastOrg?: string,
-        public lastJobIdString?: string
+        public lastJobIdString?: string,
+        public lastK8JobSemaphoreResourceString?: string,
+        public lastTravisJobSemaphoreResourceString?: string
     ) {
         this.pid = process.pid;
     }
@@ -91,6 +98,25 @@ class RedisCleaner {
             console.debug(
                 `In ${this.processName} process pid ${this.pid}, redis cleaner starting...`
             );
+
+            // release semaphores
+
+            if (this.lastK8JobSemaphoreResourceString) {
+                console.debug(
+                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
+                );
+                await KubernetesService.singleton.jobVacancySemaphore.release();
+            }
+
+            if (this.lastTravisJobSemaphoreResourceString) {
+                console.debug(
+                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
+                );
+                await TravisManager.singleton.travisJobResourceSemaphore.release();
+            }
+
+            // release redis clients
+
             return cleanupRedisSubscriptionConnection(
                 this.lastRedisPubsubChannelName,
                 this.lastRedisClientSubscription,
@@ -378,16 +404,18 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                if (
-                                    // TODO: replace this by dispatch algorithm
-                                    process.env.NODE_ENV ===
-                                        RuntimeEnvironment.DEVELOPMENT ||
-                                    process.env.NODE_ENV ===
-                                        RuntimeEnvironment.PRODUCTION
-                                ) {
+                                const travisCheckResult = await checkTravisHasVacancy();
+                                if (!travisCheckResult) {
                                     console.log(
                                         // 'In development environment, skipping travis request. Please run scraper locally if needed'
-                                        'In dev env, using k8 job'
+                                        // 'In dev env, using k8 job'
+                                        'no travis vacancy available, try to use k8 job'
+                                    );
+
+                                    RedisCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
+
+                                    console.debug(
+                                        `job ${job.id} got k8 job semaphore ${RedisCleaner.singleton.lastK8JobSemaphoreResourceString}`
                                     );
 
                                     let k8Job;
@@ -418,6 +446,8 @@ const superviseScraper = (
                                     );
                                     return;
                                 }
+
+                                RedisCleaner.singleton.lastTravisJobSemaphoreResourceString = travisCheckResult;
 
                                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
                                     job.data,

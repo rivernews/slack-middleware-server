@@ -57,23 +57,16 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             .then(() => {
                                 const orgInfoListBucket: Array<Array<
                                     string
-                                >> = [];
-
-                                // safe in terms of ensuring `orgInfoListBucket.length` not exceeding concurrency vacancy
-                                const chunkSizeSafeUpperBound = Math.ceil(
-                                    orgInfoList.length / supervisorJobVacancy
+                                >> = [...Array(supervisorJobVacancy)].map(
+                                    list => []
                                 );
-                                for (
-                                    let index = 0;
-                                    index < orgInfoList.length;
-                                    index += chunkSizeSafeUpperBound
-                                ) {
-                                    orgInfoListBucket.push(
-                                        orgInfoList.slice(
-                                            index,
-                                            index + chunkSizeSafeUpperBound
-                                        )
-                                    );
+
+                                // distribute orgs into buckets while maximizing concurrency
+                                // TODO: find a way to avoid looping all orgs
+                                for (let i = 0; i < orgInfoList.length; i++) {
+                                    orgInfoListBucket[
+                                        i % supervisorJobVacancy
+                                    ].push(orgInfoList[i]);
                                 }
 
                                 // report progress after bucket distributed
@@ -91,7 +84,9 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 // TODO: remove
                                 console.debug(
                                     'orgInfoListBucket',
-                                    orgInfoListBucket
+                                    orgInfoListBucket,
+                                    'length:',
+                                    orgInfoListBucket.length
                                 );
 
                                 return orgInfoListBucket;

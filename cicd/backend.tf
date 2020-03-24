@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
     bucket = "iriversland-cloud"
-    key    = "terraform/slack-middleware-service.remote-terraform.tfstate"
+    key    = "terraform/kubernetes/slack-middleware-service.remote-terraform.tfstate"
   }
 }
