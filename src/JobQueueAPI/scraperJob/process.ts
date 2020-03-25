@@ -104,11 +104,13 @@ class RedisCleaner {
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
                 await KubernetesService.singleton.jobVacancySemaphore.release();
+                this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.debug(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
                 await TravisManager.singleton.travisJobResourceSemaphore.release();
+                this.lastTravisJobSemaphoreResourceString = undefined;
             }
 
             // release redis clients
@@ -125,7 +127,7 @@ class RedisCleaner {
             // already cleaned resources don't get clean up again,
             // which will cause issues like accidentally releasing other process's
             // travis semaphore, even if this process uses k8 job semaphore
-            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.lastK8JobSemaphoreResourceString = this.lastTravisJobSemaphoreResourceString = undefined;
+            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
         }
 
         console.debug(
@@ -524,7 +526,7 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
             return redisCleaner.asyncCleanup();
         })
         .finally(() => {
-            redisCleaner.reset();
+            return redisCleaner.reset();
         });
 };
 
