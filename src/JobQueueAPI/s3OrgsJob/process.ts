@@ -36,11 +36,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         )
         .then((supervisorJobsPresentCount: number) => {
             // dispatch supervisors into parallel groups
-            const VACANCY_BUFFER = 1;
             const supervisorJobVacancy =
-                SUPERVISOR_JOB_CONCURRENCY -
-                supervisorJobsPresentCount -
-                VACANCY_BUFFER;
+                SUPERVISOR_JOB_CONCURRENCY - supervisorJobsPresentCount;
 
             console.debug(
                 `s3OrgJob: we have ${supervisorJobVacancy} vacancies, will divide orgs into this amount of buckets`

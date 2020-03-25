@@ -128,15 +128,13 @@ class RedisCleaner {
             // which will cause issues like accidentally releasing other process's
             // travis semaphore, even if this process uses k8 job semaphore
             this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
+
+            return;
         }
 
         console.debug(
             `In ${this.processName} process pid ${this.pid}, redis cleaner has insufficient arguments so skipping clean up`
         );
-    }
-
-    public reset () {
-        this.lastRedisClientPublish = this.lastRedisClientSubscription = this.lastRedisPubsubChannelName = this.lastOrg = this.lastJobIdString = undefined;
     }
 }
 
@@ -524,9 +522,6 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         })
         .finally(() => {
             return redisCleaner.asyncCleanup();
-        })
-        .finally(() => {
-            return redisCleaner.reset();
         });
 };
 
