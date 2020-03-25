@@ -406,8 +406,11 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                const travisCheckResult = await checkTravisHasVacancy();
-                                if (!travisCheckResult) {
+                                const travisSemaphoreResourceString = await checkTravisHasVacancy(
+                                    redisPubsubChannelName
+                                );
+
+                                if (!travisSemaphoreResourceString) {
                                     console.log(
                                         // 'In development environment, skipping travis request. Please run scraper locally if needed'
                                         // 'In dev env, using k8 job'
@@ -449,7 +452,7 @@ const superviseScraper = (
                                     return;
                                 }
 
-                                RedisCleaner.singleton.lastTravisJobSemaphoreResourceString = travisCheckResult;
+                                RedisCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
                                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
                                     job.data,

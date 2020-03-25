@@ -4,6 +4,7 @@ import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
 import { ServerError } from '../utilities/serverExceptions';
 import { Semaphore } from 'redis-semaphore';
+import { asyncSendSlackMessage } from './slack';
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
@@ -109,14 +110,16 @@ export const asyncTriggerQualitativeReviewRepoBuild = async (
     });
 };
 
-export const checkTravisHasVacancy = async () => {
+export const checkTravisHasVacancy = async (
+    currentProcessIdentifier: string
+) => {
     // try semaphore first
     let travisJobResourceSemaphoreString: string;
     try {
         travisJobResourceSemaphoreString = await TravisManager.singleton.travisJobResourceSemaphore.acquire();
     } catch (error) {
         console.debug('travis semaphore acquire failed', error);
-        return false;
+        return;
     }
 
     // double check vacancy with travis api
@@ -130,7 +133,7 @@ export const checkTravisHasVacancy = async () => {
 
     if (!Array.isArray(res.data.builds)) {
         throw new ServerError(
-            `Invalid response while checking travis active job: ${JSON.stringify(
+            `During ${currentProcessIdentifier}: Invalid travis api response while checking active job: ${JSON.stringify(
                 res.data
             )}`
         );
@@ -138,11 +141,15 @@ export const checkTravisHasVacancy = async () => {
 
     const activeBuildCount = res.data.builds.length;
 
-    console.debug(`travis active job count is ${activeBuildCount}`);
+    console.debug(
+        `During ${currentProcessIdentifier}: travis active job count is ${activeBuildCount}`
+    );
 
-    if (activeBuildCount < TRAVIS_CONCURRENT_JOB_LIMIT) {
-        return travisJobResourceSemaphoreString;
+    if (activeBuildCount >= TRAVIS_CONCURRENT_JOB_LIMIT) {
+        await asyncSendSlackMessage(
+            `🟠 During ${currentProcessIdentifier}: got travis semaphore, but travis still has too many active jobs ${activeBuildCount}; will proceed anyway, but please be aware if this is a mistake, the travis job will not carry out before active job decreases, possibly causing supervisor to time out`
+        );
     }
 
-    return false;
+    return travisJobResourceSemaphoreString;
 };
