@@ -52,58 +52,54 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             .increment()
                             // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
-                                const orgInfoListBucket: Array<Array<
-                                    string
-                                >> = [...Array(supervisorJobVacancy)].map(
-                                    list => []
-                                );
+                                // TODO: remove this as we'll adopt pool approach and will just let Bull queue manage it
 
-                                // distribute orgs into buckets while maximizing concurrency
-                                // TODO: find a way to avoid looping all orgs
-                                for (let i = 0; i < orgInfoList.length; i++) {
-                                    orgInfoListBucket[
-                                        i % supervisorJobVacancy
-                                    ].push(orgInfoList[i]);
-                                }
+                                // const orgInfoListBucket: Array<Array<
+                                //     string
+                                // >> = [...Array(supervisorJobVacancy)].map(
+                                //     list => []
+                                // );
+
+                                // // distribute orgs into buckets while maximizing concurrency
+                                // // TODO: find a way to avoid looping all orgs
+                                // for (let i = 0; i < orgInfoList.length; i++) {
+                                //     orgInfoListBucket[
+                                //         i % supervisorJobVacancy
+                                //     ].push(orgInfoList[i]);
+                                // }
 
                                 // report progress after bucket distributed
-                                if (!orgInfoListBucket.length) {
+                                if (!orgInfoList.length) {
                                     progressBarManager.syncSetAbsolutePercentage(
                                         100
                                     );
                                 } else {
                                     progressBarManager.syncSetRelativePercentage(
                                         0,
-                                        orgInfoListBucket.length
+                                        orgInfoList.length
                                     );
                                 }
 
-                                // TODO: remove
-                                console.debug(
-                                    'orgInfoListBucket',
-                                    orgInfoListBucket,
-                                    'length:',
-                                    orgInfoListBucket.length
-                                );
+                                // // TODO: remove
+                                // console.debug(
+                                //     'orgInfoListBucket',
+                                //     orgInfoListBucket,
+                                //     'length:',
+                                //     orgInfoListBucket.length
+                                // );
 
-                                return orgInfoListBucket;
+                                // return orgInfoListBucket;
                             })
-                            .then(orgInfoListBucket => {
+                            .then(() => {
                                 return Promise.all(
-                                    orgInfoListBucket.map(
-                                        (bucketedOrgInfoList, index) =>
-                                            new Promise(res =>
-                                                setTimeout(
-                                                    res,
-                                                    10 * 1000 * index
-                                                )
-                                            ).then(() =>
-                                                supervisorJobQueueManager.asyncAdd(
-                                                    {
-                                                        orgInfoList: bucketedOrgInfoList
-                                                    }
-                                                )
-                                            )
+                                    orgInfoList.map((orgInfo, index) =>
+                                        new Promise(res =>
+                                            setTimeout(res, 3 * 1000 * index)
+                                        ).then(() =>
+                                            supervisorJobQueueManager.asyncAdd({
+                                                orgInfo
+                                            })
+                                        )
                                     )
                                 );
                             })
