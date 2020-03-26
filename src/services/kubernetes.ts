@@ -28,6 +28,8 @@ export class KubernetesService {
     private static DIGITALOCEAN_KUBERNETES_CLUSTER_NAME =
         'project-shaungc-digitalocean-cluster';
 
+    private static JOB_NAMESPACE = 'slack-middleware-service';
+
     private kubernetesConfig?: KubeConfig;
     private kubernetesBatchClient?: BatchV1Api;
 
@@ -161,12 +163,7 @@ export class KubernetesService {
         }) as V1EnvVar[];
     }
 
-    public async asyncAddScraperJob (jobData: ScraperJobRequestData) {
-        await this.asyncInitialize();
-        if (!this.kubernetesBatchClient) {
-            throw new Error('kubernetesBatchClient not initialized yet');
-        }
-
+    private createK8JobTemplate (jobData: ScraperJobRequestData) {
         if (
             !(
                 process.env.GLASSDOOR_PASSWORD &&
@@ -179,14 +176,13 @@ export class KubernetesService {
         }
 
         // prepare job specs
-        const NAMESPACE = 'slack-middleware-service';
 
         // create job request
         const job = new V1Job();
         job.metadata = {
             // must use lower case or hyphens
             name: `scraper-job-${Date.now()}`,
-            namespace: NAMESPACE
+            namespace: KubernetesService.JOB_NAMESPACE
         };
         job.spec = {
             // do not retry job; if failed just fail permanently
@@ -262,6 +258,45 @@ export class KubernetesService {
             }
         };
 
-        return this.kubernetesBatchClient.createNamespacedJob(NAMESPACE, job);
+        return job;
+    }
+
+    public async asyncAddScraperJob (jobData: ScraperJobRequestData) {
+        await this.asyncInitialize();
+        if (!this.kubernetesBatchClient) {
+            throw new Error('kubernetesBatchClient not initialized yet');
+        }
+
+        // create k8 job
+        const k8JobTemplate = this.createK8JobTemplate(jobData);
+
+        try {
+            const k8Job = await this.kubernetesBatchClient.createNamespacedJob(
+                KubernetesService.JOB_NAMESPACE,
+                k8JobTemplate
+            );
+            return k8Job;
+        } catch (error) {
+            // maybe digitalocean rotated (updated) kubernetes credentials, so we need to re-initialize kubernetes client
+            if (error.response.statusCode === 401) {
+                this.kubernetesBatchClient = undefined;
+                await this.asyncInitialize();
+                if (!this.kubernetesBatchClient) {
+                    throw new Error(
+                        'kubernetesBatchClient not initialized yet'
+                    );
+                }
+
+                const k8Job = await (this
+                    .kubernetesBatchClient as BatchV1Api).createNamespacedJob(
+                    KubernetesService.JOB_NAMESPACE,
+                    k8JobTemplate
+                );
+
+                return k8Job;
+            }
+
+            throw error;
+        }
     }
 }
