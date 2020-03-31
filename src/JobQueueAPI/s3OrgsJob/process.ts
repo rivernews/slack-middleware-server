@@ -52,22 +52,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             .increment()
                             // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
-                                // TODO: remove this as we'll adopt pool approach and will just let Bull queue manage it
-
-                                // const orgInfoListBucket: Array<Array<
-                                //     string
-                                // >> = [...Array(supervisorJobVacancy)].map(
-                                //     list => []
-                                // );
-
-                                // // distribute orgs into buckets while maximizing concurrency
-                                // // TODO: find a way to avoid looping all orgs
-                                // for (let i = 0; i < orgInfoList.length; i++) {
-                                //     orgInfoListBucket[
-                                //         i % supervisorJobVacancy
-                                //     ].push(orgInfoList[i]);
-                                // }
-
                                 // report progress after bucket distributed
                                 if (!orgInfoList.length) {
                                     progressBarManager.syncSetAbsolutePercentage(
@@ -80,15 +64,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     );
                                 }
 
-                                // // TODO: remove
-                                // console.debug(
-                                //     'orgInfoListBucket',
-                                //     orgInfoListBucket,
-                                //     'length:',
-                                //     orgInfoListBucket.length
-                                // );
-
-                                // return orgInfoListBucket;
+                                return;
                             })
                             .then(() => {
                                 return Promise.all(
