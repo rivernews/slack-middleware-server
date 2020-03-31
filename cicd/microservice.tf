@@ -38,6 +38,7 @@ module "slack_middleware_service" {
 
     "/database/redis_cluster_kubernetes/REDIS_HOST",
     "/database/redis_cluster_kubernetes/REDIS_PORT",
+    "/database/redis_cluster_kubernetes/REDIS_PASSWORD",
 
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
     "/app/slack-middleware-service/FLUSHDB_ON_START",

@@ -248,7 +248,9 @@ export class KubernetesService {
                                             ? process.env
                                                   .REDIS_HOST_ON_KUBERNETES ||
                                               ''
-                                            : redisManager.config.host
+                                            : redisManager.config.host,
+                                    REDIS_PASSWORD:
+                                        process.env.REDIS_PASSWORD || ''
                                 }
                             )
                         }
