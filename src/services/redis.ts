@@ -37,7 +37,7 @@ class RedisManagerSingleton {
             )
         ) {
             throw new ServerError(
-                'Redis misconfigured. Make sure you have these env vars: REDIS_HOST, REDIS_PORT, SUPERVISOR_PUBSUB_REDIS_DB'
+                'Redis misconfigured. Make sure you have these env vars: REDIS_HOST, REDIS_PORT, SUPERVISOR_PUBSUB_REDIS_DB, REDIS_PASSWORD'
             );
         }
 
