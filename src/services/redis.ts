@@ -1,6 +1,6 @@
 import { ServerError } from '../utilities/serverExceptions';
 import { RuntimeEnvironment } from '../utilities/runtime';
-import IORedis from 'ioredis';
+import IORedis, { RedisOptions } from 'ioredis';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub
@@ -13,25 +13,18 @@ export enum RedisPubSubChannelName {
 // creating a singleton
 // https://stackoverflow.com/a/54351936/9814131
 
-class RedisConfig {
-    public constructor (
-        public host: string,
-        public port: number,
-        public db: number
-    ) {}
-}
-
 class RedisManagerSingleton {
     private static _singleton = new RedisManagerSingleton();
 
-    public config: RedisConfig;
+    public config: RedisOptions;
 
     private constructor () {
         if (
             !(
                 process.env.REDIS_HOST &&
                 process.env.REDIS_PORT &&
-                process.env.SUPERVISOR_PUBSUB_REDIS_DB
+                process.env.SUPERVISOR_PUBSUB_REDIS_DB &&
+                process.env.REDIS_PASSWORD
             )
         ) {
             throw new ServerError(
@@ -42,7 +35,8 @@ class RedisManagerSingleton {
         this.config = {
             host: process.env.REDIS_HOST,
             port: parseInt(process.env.REDIS_PORT),
-            db: parseInt(process.env.SUPERVISOR_PUBSUB_REDIS_DB)
+            db: parseInt(process.env.SUPERVISOR_PUBSUB_REDIS_DB),
+            password: process.env.REDIS_PASSWORD
         };
 
         if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
