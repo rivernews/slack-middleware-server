@@ -4,7 +4,6 @@ import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
@@ -37,11 +36,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         )
         .then((supervisorJobsPresentCount: number) => {
             // dispatch supervisors into parallel groups
-            const VACANCY_BUFFER = 1;
             const supervisorJobVacancy =
-                SUPERVISOR_JOB_CONCURRENCY -
-                supervisorJobsPresentCount -
-                VACANCY_BUFFER;
+                SUPERVISOR_JOB_CONCURRENCY - supervisorJobsPresentCount;
 
             console.debug(
                 `s3OrgJob: we have ${supervisorJobVacancy} vacancies, will divide orgs into this amount of buckets`
@@ -56,53 +52,54 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             .increment()
                             // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
-                                const orgInfoListBucket: Array<Array<
-                                    string
-                                >> = [];
+                                // TODO: remove this as we'll adopt pool approach and will just let Bull queue manage it
 
-                                // safe in terms of ensuring `orgInfoListBucket.length` not exceeding concurrency vacancy
-                                const chunkSizeSafeUpperBound = Math.ceil(
-                                    orgInfoList.length / supervisorJobVacancy
-                                );
-                                for (
-                                    let index = 0;
-                                    index < orgInfoList.length;
-                                    index += chunkSizeSafeUpperBound
-                                ) {
-                                    orgInfoListBucket.push(
-                                        orgInfoList.slice(
-                                            index,
-                                            index + chunkSizeSafeUpperBound
-                                        )
-                                    );
-                                }
+                                // const orgInfoListBucket: Array<Array<
+                                //     string
+                                // >> = [...Array(supervisorJobVacancy)].map(
+                                //     list => []
+                                // );
+
+                                // // distribute orgs into buckets while maximizing concurrency
+                                // // TODO: find a way to avoid looping all orgs
+                                // for (let i = 0; i < orgInfoList.length; i++) {
+                                //     orgInfoListBucket[
+                                //         i % supervisorJobVacancy
+                                //     ].push(orgInfoList[i]);
+                                // }
 
                                 // report progress after bucket distributed
-                                if (!orgInfoListBucket.length) {
+                                if (!orgInfoList.length) {
                                     progressBarManager.syncSetAbsolutePercentage(
                                         100
                                     );
                                 } else {
                                     progressBarManager.syncSetRelativePercentage(
                                         0,
-                                        orgInfoListBucket.length
+                                        orgInfoList.length
                                     );
                                 }
 
-                                // TODO: remove
-                                console.debug(
-                                    'orgInfoListBucket',
-                                    orgInfoListBucket
-                                );
+                                // // TODO: remove
+                                // console.debug(
+                                //     'orgInfoListBucket',
+                                //     orgInfoListBucket,
+                                //     'length:',
+                                //     orgInfoListBucket.length
+                                // );
 
-                                return orgInfoListBucket;
+                                // return orgInfoListBucket;
                             })
-                            .then(orgInfoListBucket => {
+                            .then(() => {
                                 return Promise.all(
-                                    orgInfoListBucket.map(bucketedOrgInfoList =>
-                                        supervisorJobQueueManager.asyncAdd({
-                                            orgInfoList: bucketedOrgInfoList
-                                        })
+                                    orgInfoList.map((orgInfo, index) =>
+                                        new Promise(res =>
+                                            setTimeout(res, 3 * 1000 * index)
+                                        ).then(() =>
+                                            supervisorJobQueueManager.asyncAdd({
+                                                orgInfo
+                                            })
+                                        )
                                     )
                                 );
                             })

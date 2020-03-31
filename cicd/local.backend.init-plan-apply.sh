@@ -3,5 +3,4 @@ docker run --rm -v $(pwd):$(pwd) -w $(pwd) --env ZSH=${ZSH} shaungc/terraform-ku
 && /bin/terraform plan \
 && /bin/terraform apply -auto-approve \
 && /bin/terraform -v \
-&& env \
 '

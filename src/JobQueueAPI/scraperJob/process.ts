@@ -1,6 +1,10 @@
 import Bull from 'bull';
 import { redisManager, RedisPubSubChannelName } from '../../services/redis';
-import { asyncTriggerQualitativeReviewRepoBuild } from '../../services/travis';
+import {
+    asyncTriggerQualitativeReviewRepoBuild,
+    checkTravisHasVacancy,
+    TravisManager
+} from '../../services/travis';
 import { asyncSendSlackMessage } from '../../services/slack';
 import {
     ScraperJobRequestData,
@@ -9,12 +13,12 @@ import {
     ScraperJobMessageType,
     ScraperProgressData
 } from '../../services/jobQueue/types';
-import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
+import { KubernetesService } from '../../services/kubernetes';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -70,7 +74,9 @@ class RedisCleaner {
         public lastRedisClientSubscription?: IORedis.Redis,
         public lastRedisClientPublish?: IORedis.Redis,
         public lastOrg?: string,
-        public lastJobIdString?: string
+        public lastJobIdString?: string,
+        public lastK8JobSemaphoreResourceString?: string,
+        public lastTravisJobSemaphoreResourceString?: string
     ) {
         this.pid = process.pid;
     }
@@ -90,22 +96,45 @@ class RedisCleaner {
             console.debug(
                 `In ${this.processName} process pid ${this.pid}, redis cleaner starting...`
             );
-            return cleanupRedisSubscriptionConnection(
+
+            // release semaphores
+
+            if (this.lastK8JobSemaphoreResourceString) {
+                console.debug(
+                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
+                );
+                await KubernetesService.singleton.jobVacancySemaphore.release();
+                this.lastK8JobSemaphoreResourceString = undefined;
+            } else if (this.lastTravisJobSemaphoreResourceString) {
+                console.debug(
+                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
+                );
+                await TravisManager.singleton.travisJobResourceSemaphore.release();
+                this.lastTravisJobSemaphoreResourceString = undefined;
+            }
+
+            // release redis clients
+
+            await cleanupRedisSubscriptionConnection(
                 this.lastRedisPubsubChannelName,
                 this.lastRedisClientSubscription,
                 this.lastRedisClientPublish,
                 this.lastOrg,
                 this.lastJobIdString
             );
+
+            // reset all `last...` attribute so that in case this process is reused,
+            // already cleaned resources don't get clean up again,
+            // which will cause issues like accidentally releasing other process's
+            // travis semaphore, even if this process uses k8 job semaphore
+            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
+
+            return;
         }
 
         console.debug(
             `In ${this.processName} process pid ${this.pid}, redis cleaner has insufficient arguments so skipping clean up`
         );
-    }
-
-    public reset () {
-        this.lastRedisClientPublish = this.lastRedisClientSubscription = this.lastRedisPubsubChannelName = this.lastOrg = this.lastJobIdString = undefined;
     }
 }
 
@@ -333,57 +362,6 @@ const superviseScraper = (
                             scraperSupervisorReject
                         );
 
-                        // redisClientSubscription.on('subscribe', async (channel, count) => {
-                        //     console.log(
-                        //         `job ${job.id} subscribed to channel ${channel}, count ${count}`
-                        //     );
-
-                        //     // after subscribing, register it to locker, so that no other scrpaer job can subscribe to
-                        //     // the same channel (no other job working on the same org)
-                        //     await redisClientPublish.set(
-                        //         `lock:${redisPubsubChannelName}`, `scraperJob${job.id}:${JSON.stringify(job.data)}`
-                        //     );
-
-                        //     if (channel === RedisPubSubChannelName.ADMIN) {
-                        //         // we do nothing upon ADMIN subscribed event other than logging, so abort here
-                        //         return;
-                        //     }
-
-                        //     // TODO: avoid the need to have to hard code things that you have to manually change
-                        //     // remove this block if want to run scraper on local for debugging
-                        //     if (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT) {
-                        //         console.log(
-                        //             'in development environment, skipping travis request. Please run scraper locally if needed'
-                        //         );
-                        //         return;
-                        //     }
-
-                        //     const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
-                        //         job.data,
-                        //         {
-                        //             branch: 'master'
-                        //         }
-                        //     );
-                        //     if (triggerTravisJobRequest.status >= 400) {
-                        //         const errorMessage =
-                        //             `job ${job.id} error when requesting travis job: ` +
-                        //             JSON.stringify(triggerTravisJobRequest.data);
-                        //         console.error(
-                        //             `job ${job.id} error when requesting travis job:`,
-                        //             triggerTravisJobRequest.data
-                        //         );
-                        //         return scraperSupervisorReject(errorMessage);
-                        //     }
-
-                        //     await progressBarManager.increment();
-
-                        //     const travisJob = triggerTravisJobRequest.data;
-
-                        //     console.log(
-                        //         `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
-                        //     );
-                        // });
-
                         redisClientSubscription.on(
                             'message',
                             async (channel, message) => {
@@ -428,15 +406,53 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                if (
-                                    process.env.NODE_ENV ===
-                                    RuntimeEnvironment.DEVELOPMENT
-                                ) {
+                                const travisSemaphoreResourceString = await checkTravisHasVacancy(
+                                    redisPubsubChannelName
+                                );
+
+                                if (!travisSemaphoreResourceString) {
                                     console.log(
-                                        'in development environment, skipping travis request. Please run scraper locally if needed'
+                                        // 'In development environment, skipping travis request. Please run scraper locally if needed'
+                                        // 'In dev env, using k8 job'
+                                        'no travis vacancy available, try to use k8 job'
+                                    );
+
+                                    RedisCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
+
+                                    console.debug(
+                                        `job ${job.id} got k8 job semaphore ${RedisCleaner.singleton.lastK8JobSemaphoreResourceString}`
+                                    );
+
+                                    let k8Job;
+                                    try {
+                                        k8Job = await KubernetesService.singleton.asyncAddScraperJob(
+                                            job.data
+                                        );
+                                    } catch (error) {
+                                        const errorMessage = `job ${
+                                            job.id
+                                        } error when requesting k8 job: ${JSON.stringify(
+                                            error
+                                        )}`;
+                                        console.error(
+                                            `job ${job.id} error when requesting k8 job:`,
+                                            error
+                                        );
+                                        return scraperSupervisorReject(
+                                            errorMessage
+                                        );
+                                    }
+
+                                    await progressBarManager.increment();
+
+                                    console.log(
+                                        `job ${job.id} request k8 job successfully:`,
+                                        k8Job.body.metadata
                                     );
                                     return;
                                 }
+
+                                RedisCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
                                 const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
                                     job.data,
@@ -509,9 +525,6 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         })
         .finally(() => {
             return redisCleaner.asyncCleanup();
-        })
-        .finally(() => {
-            redisCleaner.reset();
         });
 };
 

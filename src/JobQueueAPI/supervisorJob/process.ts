@@ -101,9 +101,6 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         );
     }
 
-    const gdOrgReviewScraperJobQueueManagerQueue =
-        gdOrgReviewScraperJobQueueManager.queue;
-
     const orgInfoList = supervisorJob.data.orgInfo
         ? [supervisorJob.data.orgInfo]
         : supervisorJob.data.orgInfoList || [];

@@ -1,9 +1,55 @@
 import axios from 'axios';
 import { ScraperJobRequestData, ScraperProgressData } from './jobQueue/types';
-import { redisManager } from './redis';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
+import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
+import { ServerError } from '../utilities/serverExceptions';
+import { Semaphore } from 'redis-semaphore';
+import { asyncSendSlackMessage } from './slack';
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
+
+export class TravisManager {
+    private static _singleton: TravisManager;
+
+    public travisJobResourceSemaphore: Semaphore;
+
+    private constructor () {
+        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
+            throw new ServerError(
+                'KubernetesService:jobVacancySemaphore: Shared job queue redis client did not initialize'
+            );
+        }
+
+        // Current travis environment is suitable for running up to 6 jobs in parallel
+        this.travisJobResourceSemaphore = new Semaphore(
+            JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+            'travisJobResourceLock',
+            6,
+            {
+                // when travis has no vacancy, the full situation will be
+                // detected after 6 sec when someone call `.acquire()`
+                acquireTimeout: 6 * 1000,
+                retryInterval: 1000
+            }
+        );
+    }
+
+    public static get singleton () {
+        if (!TravisManager._singleton) {
+            TravisManager._singleton = new TravisManager();
+        }
+        return TravisManager._singleton;
+    }
+}
+
+const USERNAME = 'rivernews';
+const REPO = 'review-scraper-java-development-environment';
+const FULL_REPO_NAME = `${USERNAME}/${REPO}`;
+const URL_ENCODED_REPO_NAME = encodeURIComponent(FULL_REPO_NAME);
+const GITHUB_ID = '15918424';
+const TRAVIS_CONCURRENT_JOB_LIMIT = 6;
 
 export interface TravisJobOption {
     branch?: string;
@@ -33,86 +79,77 @@ export interface ScraperEnvironmentVariable {
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
 }
 
-const jobDataMapToScraperEnvVar = (jobData: ScraperJobRequestData) => {
-    let scraperJobEnvironmentVaribles = (Object.keys(
-        jobData
-    ) as (keyof ScraperJobRequestData)[]).reduce((acc, cur) => {
-        if (cur === 'orgInfo') {
-            return {
-                ...acc,
-                TEST_COMPANY_INFORMATION_STRING: jobData[cur]
-            };
-        } else if (cur === 'orgId') {
-            return {
-                ...acc,
-                TEST_COMPANY_ID: jobData[cur]
-            };
-        } else if (cur === 'orgName') {
-            return {
-                ...acc,
-                TEST_COMPANY_NAME: jobData[cur]
-            };
-        } else if (cur === 'lastProgress') {
-            const progressData = jobData[cur] as ScraperProgressData;
-            return {
-                ...acc,
-                TEST_COMPANY_LAST_PROGRESS_PROCESSED: progressData.processed,
-                TEST_COMPANY_LAST_PROGRESS_WENTTHROUGH:
-                    progressData.wentThrough,
-                TEST_COMPANY_LAST_PROGRESS_TOTAL: progressData.total,
-                TEST_COMPANY_LAST_PROGRESS_DURATION:
-                    progressData.durationInMilli,
-                TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page,
-                TEST_COMPANY_LAST_PROGRESS_SESSION:
-                    progressData.processedSession
-            };
-        } else if (cur === 'lastReviewPage') {
-            return {
-                ...acc,
-                TEST_COMPANY_LAST_REVIEW_PAGE_URL: jobData[cur]
-            };
-        } else {
-            return {
-                ...acc,
-                SCRAPER_MODE: jobData[cur]
-            };
-        }
-    }, {}) as ScraperEnvironmentVariable;
-
-    // adding additional variables
-    scraperJobEnvironmentVaribles = {
-        ...scraperJobEnvironmentVaribles,
-
-        TEST_COMPANY_INFORMATION_STRING:
-            scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
-
-        SUPERVISOR_PUBSUB_REDIS_DB: redisManager.config.db.toString()
-    };
-
-    return scraperJobEnvironmentVaribles;
+const requestTravisApi = async (
+    method: 'post' | 'get' = 'get',
+    endpoint: string,
+    data?: any
+) => {
+    const url = `https://api.travis-ci.com${endpoint}`;
+    if (method == 'post') {
+        return axios.post(url, data, {
+            headers: getTravisCiRequestHeaders()
+        });
+    } else {
+        return axios.get(url, {
+            headers: getTravisCiRequestHeaders()
+        });
+    }
 };
 
 export const asyncTriggerQualitativeReviewRepoBuild = async (
     scraperJobData: ScraperJobRequestData,
     travisJobOption: TravisJobOption = {}
 ) => {
-    const username = 'rivernews';
-    const repo = 'review-scraper-java-development-environment';
-    const fullRepoName = `${username}/${repo}`;
-    const urlEncodedRepoName = encodeURIComponent(fullRepoName);
-
-    return axios.post(
-        `https://api.travis-ci.com/repo/${urlEncodedRepoName}/requests`,
-        {
-            config: {
-                env: {
-                    ...jobDataMapToScraperEnvVar(scraperJobData)
-                }
-            },
-            ...travisJobOption
+    return requestTravisApi('post', `/repo/${URL_ENCODED_REPO_NAME}/requests`, {
+        config: {
+            env: {
+                ...mapJobDataToScraperEnvVar(scraperJobData)
+            }
         },
-        {
-            headers: getTravisCiRequestHeaders()
-        }
+        ...travisJobOption
+    });
+};
+
+export const checkTravisHasVacancy = async (
+    currentProcessIdentifier: string
+) => {
+    // try semaphore first
+    let travisJobResourceSemaphoreString: string;
+    try {
+        travisJobResourceSemaphoreString = await TravisManager.singleton.travisJobResourceSemaphore.acquire();
+    } catch (error) {
+        console.debug('travis semaphore acquire failed', error);
+        return;
+    }
+
+    // double check vacancy with travis api
+
+    const res = await requestTravisApi(
+        'get',
+        // active endpoint
+        // https://developer.travis-ci.com/resource/active#Active
+        `/owner/github_id/${GITHUB_ID}/active`
     );
+
+    if (!Array.isArray(res.data.builds)) {
+        throw new ServerError(
+            `During ${currentProcessIdentifier}: Invalid travis api response while checking active job: ${JSON.stringify(
+                res.data
+            )}`
+        );
+    }
+
+    const activeBuildCount = res.data.builds.length;
+
+    console.debug(
+        `During ${currentProcessIdentifier}: travis active job count is ${activeBuildCount}`
+    );
+
+    if (activeBuildCount >= TRAVIS_CONCURRENT_JOB_LIMIT) {
+        await asyncSendSlackMessage(
+            `🟠 During ${currentProcessIdentifier}: got travis semaphore, but travis still has too many active jobs ${activeBuildCount}; will proceed anyway, but please be aware if this is a mistake, the travis job will not carry out before active job decreases, possibly causing supervisor to time out`
+        );
+    }
+
+    return travisJobResourceSemaphoreString;
 };

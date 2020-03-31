@@ -14,3 +14,7 @@ This server act as a middleware to communicate with Slack API. It enables using 
 - `npm test` - that's all, other things (like spinning up / off test server) are all handled for you.
 
 Also will force test upon git push.
+
+### Howo to use
+
+- To trigger S3 job, run `curl -X POST http://localhost:8080/queues/s3-orgs-job?token=`

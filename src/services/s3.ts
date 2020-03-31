@@ -15,23 +15,44 @@ import { Readable } from 'stream';
 // aws sdk error handling
 // https://www.npmjs.com/package/@aws-sdk/client-s3-node#troubleshooting
 
-const bucketRegion = 'us-west-2';
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-if (!(bucketRegion && accessKeyId && secretAccessKey)) {
-    throw 'AWS credentials not provided';
-}
-
 class S3ArchiveManager {
-    private s3Client: S3Client;
-    private bucketName: string =
-        process.env.AWS_S3_ARCHIVE_BUCKET_NAME ||
-        'iriversland-qualitative-org-review-v3';
+    private static _singleton = new S3ArchiveManager();
 
-    constructor (s3Configuration: S3Configuration) {
+    public accessKeyId: string;
+    public secretAccessKey: string;
+    public bucketRegion = 'us-west-2';
+    public bucketName: string;
+
+    private s3Client: S3Client;
+
+    private constructor () {
+        if (
+            !(
+                this.bucketRegion &&
+                process.env.AWS_ACCESS_KEY_ID &&
+                process.env.AWS_SECRET_ACCESS_KEY &&
+                process.env.AWS_S3_ARCHIVE_BUCKET_NAME
+            )
+        ) {
+            throw new Error('AWS credentials not provided');
+        }
+
+        this.bucketName = process.env.AWS_S3_ARCHIVE_BUCKET_NAME;
+        this.accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+        this.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
         // intiaite s3 client
-        this.s3Client = new S3Client(s3Configuration);
+        this.s3Client = new S3Client({
+            region: this.bucketRegion,
+            credentials: {
+                accessKeyId: this.accessKeyId,
+                secretAccessKey: this.secretAccessKey
+            }
+        });
+    }
+
+    public static get singleton () {
+        return S3ArchiveManager._singleton;
     }
 
     // reading string from stream
@@ -140,10 +161,4 @@ class S3ArchiveManager {
     }
 }
 
-export const s3ArchiveManager = new S3ArchiveManager({
-    region: bucketRegion,
-    credentials: {
-        accessKeyId,
-        secretAccessKey
-    }
-});
+export const s3ArchiveManager = S3ArchiveManager.singleton;
