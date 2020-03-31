@@ -13,10 +13,19 @@ export enum RedisPubSubChannelName {
 // creating a singleton
 // https://stackoverflow.com/a/54351936/9814131
 
+class RedisConfig implements RedisOptions {
+    public constructor (
+        public host: string,
+        public port: number,
+        public db: number,
+        public password: string
+    ) {}
+}
+
 class RedisManagerSingleton {
     private static _singleton = new RedisManagerSingleton();
 
-    public config: RedisOptions;
+    public config: RedisConfig;
 
     private constructor () {
         if (
