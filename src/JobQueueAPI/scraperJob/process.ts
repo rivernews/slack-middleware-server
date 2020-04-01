@@ -1,10 +1,6 @@
 import Bull from 'bull';
 import { redisManager, RedisPubSubChannelName } from '../../services/redis';
-import {
-    asyncTriggerQualitativeReviewRepoBuild,
-    checkTravisHasVacancy,
-    TravisManager
-} from '../../services/travis';
+import { checkTravisHasVacancy, TravisManager } from '../../services/travis';
 import { asyncSendSlackMessage } from '../../services/slack';
 import {
     ScraperJobRequestData,
@@ -62,8 +58,8 @@ const cleanupRedisSubscriptionConnection = async (
     await redisClientPublish.quit();
 };
 
-class RedisCleaner {
-    private static _singleton = new RedisCleaner();
+class ScraperJobProcessResourcesCleaner {
+    private static _singleton = new ScraperJobProcessResourcesCleaner();
 
     private pid: number;
 
@@ -82,7 +78,7 @@ class RedisCleaner {
     }
 
     public static get singleton () {
-        return RedisCleaner._singleton;
+        return ScraperJobProcessResourcesCleaner._singleton;
     }
 
     public async asyncCleanup () {
@@ -129,6 +125,16 @@ class RedisCleaner {
             // travis semaphore, even if this process uses k8 job semaphore
             this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
 
+            // cancel any travis jobs
+            const cancelResult = await TravisManager.singleton.cancelAllJobs();
+            console.debug(
+                `In ${this.processName} process pid ${
+                    this.pid
+                }, resource cleaner canceling travis jobs result: ${JSON.stringify(
+                    cancelResult
+                )}`
+            );
+
             return;
         }
 
@@ -138,7 +144,7 @@ class RedisCleaner {
     }
 }
 
-const redisCleaner = RedisCleaner.singleton;
+const redisCleaner = ScraperJobProcessResourcesCleaner.singleton;
 
 const abortSubscription = (
     message: string,
@@ -224,6 +230,8 @@ const onReceiveScraperJobMessage = async (
         return;
     } else if (type === ScraperJobMessageType.FINISH) {
         clearTimeout(timeoutTimer);
+        TravisManager.singleton.resetTrackingJobs();
+
         if (payloadAsString === 'OK!') {
             return scraperSupervisorResolve(
                 `job ${jobId} scraper job reported finish: ` + payload
@@ -239,6 +247,8 @@ const onReceiveScraperJobMessage = async (
             return scraperSupervisorResolve(crossData);
         }
     } else if (type === ScraperJobMessageType.ERROR) {
+        TravisManager.singleton.resetTrackingJobs();
+
         return abortSubscription(
             `job ${jobId} scraper job reported error`,
             payloadAsString,
@@ -417,10 +427,10 @@ const superviseScraper = (
                                         'no travis vacancy available, try to use k8 job'
                                     );
 
-                                    RedisCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
+                                    ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
 
                                     console.debug(
-                                        `job ${job.id} got k8 job semaphore ${RedisCleaner.singleton.lastK8JobSemaphoreResourceString}`
+                                        `job ${job.id} got k8 job semaphore ${ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString}`
                                     );
 
                                     let k8Job;
@@ -452,9 +462,9 @@ const superviseScraper = (
                                     return;
                                 }
 
-                                RedisCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
+                                ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
-                                const triggerTravisJobRequest = await asyncTriggerQualitativeReviewRepoBuild(
+                                const triggerTravisJobRequest = await TravisManager.singleton.asyncTriggerQualitativeReviewRepoBuild(
                                     job.data,
                                     {
                                         branch: 'master'

@@ -51,11 +51,11 @@ export class KubernetesService {
             );
         }
 
-        // Currently our k8 cluster is suitable for running up to 4 scraper job at most
+        // Currently our k8 cluster is suitable for running up to 3 scraper job at most
         this.jobVacancySemaphore = new Semaphore(
             JobQueueSharedRedisClientsSingleton.singleton.genericClient,
             'k8JobResourceLock',
-            4,
+            3,
             {
                 // when k8 has no vacancy, this situation will be
                 // detected after 6 sec when someone call `.acquire()`

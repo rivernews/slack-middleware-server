@@ -12,6 +12,8 @@ import { asyncSendSlackMessage } from './slack';
 export class TravisManager {
     private static _singleton: TravisManager;
 
+    private requestedJobIds: string[] = [];
+
     public travisJobResourceSemaphore: Semaphore;
 
     private constructor () {
@@ -41,6 +43,79 @@ export class TravisManager {
             TravisManager._singleton = new TravisManager();
         }
         return TravisManager._singleton;
+    }
+
+    public static async requestTravisApi (
+        method: 'post' | 'get' = 'get',
+        endpoint: string,
+        data?: any
+    ) {
+        const url = `https://api.travis-ci.com${endpoint}`;
+        if (method == 'post') {
+            return axios.post(url, data, {
+                headers: getTravisCiRequestHeaders()
+            });
+        } else {
+            return axios.get(url, {
+                headers: getTravisCiRequestHeaders()
+            });
+        }
+    }
+
+    public async asyncTriggerQualitativeReviewRepoBuild (
+        scraperJobData: ScraperJobRequestData,
+        travisJobOption: TravisJobOption = {}
+    ) {
+        return TravisManager.requestTravisApi(
+            'post',
+            `/repo/${URL_ENCODED_REPO_NAME}/requests`,
+            {
+                config: {
+                    env: {
+                        ...mapJobDataToScraperEnvVar(scraperJobData)
+                    }
+                },
+                ...travisJobOption
+            }
+        ).then(requestResult => {
+            if (requestResult.data.request && requestResult.data.request.id) {
+                this.requestedJobIds.push(requestResult.data.request.id);
+            } else {
+                throw new Error(`Cannot locate job id in travis response`);
+            }
+
+            return requestResult;
+        });
+    }
+
+    /**
+     * Call this function when receive finalized signal from travis job,
+     * such as FINISH or ERROR, because this means that travis job will end soon
+     * so no need to track them anymore.
+     * Otherwise, we should always keep track of job ids, so that they are cleaned up
+     * by `cancelAllJobs`
+     */
+    public resetTrackingJobs () {
+        this.requestedJobIds = [];
+    }
+
+    public async cancelAllJobs () {
+        return Promise.all(
+            this.requestedJobIds.map(jobId =>
+                TravisManager.requestTravisApi('post', `/job/${jobId}/cancel`)
+                    .catch(error =>
+                        Promise.resolve(
+                            `Ignoring job ${jobId} cancel failure: ${JSON.stringify(
+                                error
+                            )}`
+                        )
+                    )
+                    .then(result => {
+                        this.resetTrackingJobs();
+                        return result;
+                    })
+            )
+        );
     }
 }
 
@@ -79,37 +154,6 @@ export interface ScraperEnvironmentVariable {
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
 }
 
-const requestTravisApi = async (
-    method: 'post' | 'get' = 'get',
-    endpoint: string,
-    data?: any
-) => {
-    const url = `https://api.travis-ci.com${endpoint}`;
-    if (method == 'post') {
-        return axios.post(url, data, {
-            headers: getTravisCiRequestHeaders()
-        });
-    } else {
-        return axios.get(url, {
-            headers: getTravisCiRequestHeaders()
-        });
-    }
-};
-
-export const asyncTriggerQualitativeReviewRepoBuild = async (
-    scraperJobData: ScraperJobRequestData,
-    travisJobOption: TravisJobOption = {}
-) => {
-    return requestTravisApi('post', `/repo/${URL_ENCODED_REPO_NAME}/requests`, {
-        config: {
-            env: {
-                ...mapJobDataToScraperEnvVar(scraperJobData)
-            }
-        },
-        ...travisJobOption
-    });
-};
-
 export const checkTravisHasVacancy = async (
     currentProcessIdentifier: string
 ) => {
@@ -124,7 +168,7 @@ export const checkTravisHasVacancy = async (
 
     // double check vacancy with travis api
 
-    const res = await requestTravisApi(
+    const res = await TravisManager.requestTravisApi(
         'get',
         // active endpoint
         // https://developer.travis-ci.com/resource/active#Active
