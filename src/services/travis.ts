@@ -102,10 +102,10 @@ export class TravisManager {
     public async cancelAllJobs () {
         return Promise.all(
             this.requestedJobIds.map(jobId =>
-                TravisManager.requestTravisApi('post', `/job/${jobId}/cancel`)
+                TravisManager.requestTravisApi('post', `/build/${jobId}/cancel`)
                     .catch(error =>
                         Promise.resolve(
-                            `Ignoring job ${jobId} cancel failure: ${JSON.stringify(
+                            `Ignoring travis job ${jobId} cancel failure: ${JSON.stringify(
                                 error
                             )}`
                         )
