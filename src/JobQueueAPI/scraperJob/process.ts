@@ -462,6 +462,13 @@ const superviseScraper = (
                                         `job ${job.id} request k8 job successfully:`,
                                         k8Job.body.metadata
                                     );
+
+                                    job.data.platform = 'k8s';
+                                    job.data.jobIdentifierOnPlatform = k8Job
+                                        .body.metadata
+                                        ? k8Job.body.metadata.selfLink
+                                        : '';
+
                                     return;
                                 }
 
@@ -480,6 +487,11 @@ const superviseScraper = (
                                 );
 
                                 await progressBarManager.increment();
+
+                                job.data.platform = 'travis';
+                                job.data.jobIdentifierOnPlatform = confirmedTravisJobRequest.builds
+                                    .map(build => build.id)
+                                    .join(',');
 
                                 return;
                             });
@@ -523,6 +535,11 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
     )
         .then(resultMessage => Promise.resolve(resultMessage))
         .catch(error => {
+            if (typeof error === 'string') {
+                throw new Error(
+                    `${error}\nJob params ${JSON.stringify(job.data)}`
+                );
+            }
             throw error;
         })
         .finally(() => {
