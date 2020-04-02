@@ -1,5 +1,8 @@
 import { ServerError } from '../utilities/serverExceptions';
-import { RuntimeEnvironment } from '../utilities/runtime';
+import {
+    RuntimeEnvironment,
+    RUNTIME_CI_ENVIRONMENT
+} from '../utilities/runtime';
 import IORedis, { RedisOptions } from 'ioredis';
 
 // node-redis pubsub doc
@@ -36,6 +39,7 @@ class RedisManagerSingleton {
                 process.env.REDIS_PASSWORD
             ) ||
             (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
+                RUNTIME_CI_ENVIRONMENT !== RuntimeEnvironment.TESTING &&
                 !process.env.PUBLIC_REDIS_PORT)
         ) {
             throw new ServerError(
