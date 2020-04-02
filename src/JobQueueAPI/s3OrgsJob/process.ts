@@ -70,7 +70,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 return Promise.all(
                                     orgInfoList.map((orgInfo, index) =>
                                         new Promise(res =>
-                                            setTimeout(res, 3 * 1000 * index)
+                                            setTimeout(res, 1 * 1000 * index)
                                         ).then(() =>
                                             supervisorJobQueueManager.asyncAdd({
                                                 orgInfo
