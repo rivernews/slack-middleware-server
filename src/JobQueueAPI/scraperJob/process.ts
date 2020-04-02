@@ -72,7 +72,8 @@ class ScraperJobProcessResourcesCleaner {
         public lastOrg?: string,
         public lastJobIdString?: string,
         public lastK8JobSemaphoreResourceString?: string,
-        public lastTravisJobSemaphoreResourceString?: string
+        public lastTravisJobSemaphoreResourceString?: string,
+        public runtimePlatformDescriptor?: string
     ) {
         this.pid = process.pid;
     }
@@ -123,7 +124,7 @@ class ScraperJobProcessResourcesCleaner {
             // already cleaned resources don't get clean up again,
             // which will cause issues like accidentally releasing other process's
             // travis semaphore, even if this process uses k8 job semaphore
-            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
+            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.runtimePlatformDescriptor = undefined;
 
             // cancel any travis jobs
             const cancelResults = await TravisManager.singleton.cancelAllJobs();
@@ -147,7 +148,7 @@ class ScraperJobProcessResourcesCleaner {
     }
 }
 
-const redisCleaner = ScraperJobProcessResourcesCleaner.singleton;
+const processResourceCleaner = ScraperJobProcessResourcesCleaner.singleton;
 
 const abortSubscription = (
     message: string,
@@ -424,6 +425,11 @@ const superviseScraper = (
                                 );
 
                                 if (!travisSemaphoreResourceString) {
+                                    // run on k8s
+
+                                    processResourceCleaner.runtimePlatformDescriptor =
+                                        'k8s';
+
                                     console.log(
                                         // 'In development environment, skipping travis request. Please run scraper locally if needed'
                                         // 'In dev env, using k8 job'
@@ -463,14 +469,19 @@ const superviseScraper = (
                                         k8Job.body.metadata
                                     );
 
-                                    job.data.platform = 'k8s';
-                                    job.data.jobIdentifierOnPlatform = k8Job
-                                        .body.metadata
-                                        ? k8Job.body.metadata.selfLink
-                                        : '';
+                                    processResourceCleaner.runtimePlatformDescriptor = `k8s/${
+                                        k8Job.body.metadata
+                                            ? k8Job.body.metadata.selfLink
+                                            : ''
+                                    }`;
 
                                     return;
                                 }
+
+                                // run on travis
+
+                                processResourceCleaner.runtimePlatformDescriptor =
+                                    'travis';
 
                                 ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
@@ -488,10 +499,9 @@ const superviseScraper = (
 
                                 await progressBarManager.increment();
 
-                                job.data.platform = 'travis';
-                                job.data.jobIdentifierOnPlatform = confirmedTravisJobRequest.builds
+                                processResourceCleaner.runtimePlatformDescriptor = `travis/${confirmedTravisJobRequest.builds
                                     .map(build => build.id)
-                                    .join(',');
+                                    .join(',')}`;
 
                                 return;
                             });
@@ -505,21 +515,21 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         `scraper job ${job.id} started processing, with params`,
         job.data
     );
-    redisCleaner.lastJobIdString = job.id.toString();
-    redisCleaner.processName = 'scraperJob sandbox';
+    processResourceCleaner.lastJobIdString = job.id.toString();
+    processResourceCleaner.processName = 'scraperJob sandbox';
 
     const patchedJob: Bull.Job<ScraperJobRequestData> = {
         ...job,
         data: patchOrgNameOnScraperJobRequestData(job.data)
     };
-    redisCleaner.lastOrg =
+    processResourceCleaner.lastOrg =
         patchedJob.data.orgInfo || patchedJob.data.orgName || 'null';
 
     console.log(`scraper job ${patchedJob.id} patched params`, patchedJob.data);
 
-    const redisClientSubscription = (redisCleaner.lastRedisClientSubscription = redisManager.newClient());
-    const redisClientPublish = (redisCleaner.lastRedisClientPublish = redisManager.newClient());
-    const redisPubsubChannelName = (redisCleaner.lastRedisPubsubChannelName = `${
+    const redisClientSubscription = (processResourceCleaner.lastRedisClientSubscription = redisManager.newClient());
+    const redisClientPublish = (processResourceCleaner.lastRedisClientPublish = redisManager.newClient());
+    const redisPubsubChannelName = (processResourceCleaner.lastRedisPubsubChannelName = `${
         RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
     }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${
         patchedJob.data.lastProgress
@@ -537,13 +547,13 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         .catch(error => {
             if (typeof error === 'string') {
                 throw new Error(
-                    `${error}\nJob params ${JSON.stringify(job.data)}`
+                    `platform: ${processResourceCleaner.runtimePlatformDescriptor}\n${error}`
                 );
             }
             throw error;
         })
         .finally(() => {
-            return redisCleaner.asyncCleanup();
+            return processResourceCleaner.asyncCleanup();
         });
 };
 
@@ -553,7 +563,7 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
             console.log(
                 `In process pid ${process.pid} received termination signal ${terminateEventName}`
             );
-            return redisCleaner
+            return processResourceCleaner
                 .asyncCleanup()
                 .then(() => {
                     console.log(

@@ -32,12 +32,7 @@ export interface SupervisorJobRequestData {
 
 export type ScraperJobReturnData = string | ScraperCrossRequestData;
 
-type ScraperJobRuntimePlatformType = 'travis' | 'k8s';
-
 export interface ScraperJobRequestData {
-    platform?: ScraperJobRuntimePlatformType;
-    jobIdentifierOnPlatform?: string;
-
     // for regular scraper job
     orgInfo?: string;
 
@@ -58,8 +53,6 @@ export type ScraperCrossRequestData = ScraperJobRequestData & {
 };
 
 export class ScraperCrossRequest implements ScraperCrossRequestData {
-    public platform?: ScraperJobRuntimePlatformType;
-    public jobIdentifierOnPlatform?: string;
     public orgId: string;
     public orgName: string;
     public lastProgress: ScraperProgressData;
@@ -69,8 +62,6 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
     constructor (props: ScraperCrossRequestData) {
         ScraperCrossRequest.isScraperCrossRequestData(props, true);
 
-        this.platform = props.platform;
-        this.jobIdentifierOnPlatform = props.jobIdentifierOnPlatform;
         this.orgId = props.orgId;
         this.orgName = props.orgName;
         this.lastProgress = props.lastProgress;
