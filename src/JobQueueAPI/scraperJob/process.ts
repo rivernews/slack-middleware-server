@@ -126,14 +126,17 @@ class ScraperJobProcessResourcesCleaner {
             this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = undefined;
 
             // cancel any travis jobs
-            const cancelResult = await TravisManager.singleton.cancelAllJobs();
+            const cancelResults = await TravisManager.singleton.cancelAllJobs();
             console.debug(
                 `In ${this.processName} process pid ${
                     this.pid
                 }, resource cleaner canceling travis jobs result: ${JSON.stringify(
-                    cancelResult
+                    cancelResults
                 )}`
             );
+
+            // cancel any travis manager schedulers
+            TravisManager.singleton.clearAllSchedulers();
 
             return;
         }

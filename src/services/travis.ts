@@ -36,6 +36,7 @@ export class TravisManager {
     private static SCRAPER_REPO_TRAVIS_ID = '12381608';
 
     private trackingTravisJobs: TravisJob[] = [];
+    private trackingSchedulers: NodeJS.Timeout[] = [];
 
     public travisJobResourceSemaphore: Semaphore;
 
@@ -149,12 +150,12 @@ export class TravisManager {
                             travisJob.buildIds.push(build.id);
                         }
                         console.debug(`Got build id!`, travisJob.buildIds);
-                        clearInterval(buildProvisionedPolling);
+                        this.clearAllSchedulers();
                         return resolve(requestInfo);
                     }
 
                     if (pollingCount >= MAX_POLLING_COUNT) {
-                        clearInterval(buildProvisionedPolling);
+                        this.clearAllSchedulers();
                         return reject(
                             new Error(
                                 `Travis manager retried ${pollingCount} times to get build id of request ${
@@ -166,8 +167,16 @@ export class TravisManager {
                         );
                     }
                 }, 10 * 1000);
+                this.trackingSchedulers.push(buildProvisionedPolling);
             }
         );
+    }
+
+    public clearAllSchedulers () {
+        for (const scheduler of this.trackingSchedulers) {
+            clearInterval(scheduler);
+        }
+        this.trackingSchedulers = [];
     }
 
     /**
@@ -194,13 +203,15 @@ export class TravisManager {
                         'post',
                         `/build/${buildId}/cancel`
                     )
-                        .catch(error =>
-                            Promise.resolve(
+                        .then(res => res.data)
+                        .catch(error => {
+                            console.log(
                                 `Ignoring travis build ${buildId} cancel failure: ${JSON.stringify(
                                     error
                                 )}`
-                            )
-                        )
+                            );
+                            return Promise.resolve(error);
+                        })
                         .then(result => {
                             this.resetTrackingJobs();
                             return result;
