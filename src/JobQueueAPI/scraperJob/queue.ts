@@ -10,6 +10,11 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
     relativePathWithoutExtension: './process',
     queueName: JobQueueName.GD_ORG_REVIEW_SCRAPER_JOB,
     defaultJobOptions: {
+        // K8 api server may throw the error below when too busy:
+        // IOException while requesting POST - java.io.IOException: /10.244.0.57:41546: GOAWAY received
+        // so we retry again - best effort to complete the job
+        attempts: 2
+
         // TODO: enable repeat opt when in prod
         // repeat: {
         //     // cron expression descriptor
