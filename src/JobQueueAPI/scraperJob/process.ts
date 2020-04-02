@@ -11,7 +11,7 @@ import {
 } from '../../services/jobQueue/types';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/jobQueue';
+import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/travis';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes';
@@ -464,32 +464,21 @@ const superviseScraper = (
 
                                 ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
-                                const triggerTravisJobRequest = await TravisManager.singleton.asyncTriggerQualitativeReviewRepoBuild(
+                                const confirmedTravisJobRequest = await TravisManager.singleton.asyncTriggerJob(
                                     job.data,
                                     {
                                         branch: 'master'
                                     }
                                 );
-                                if (triggerTravisJobRequest.status >= 400) {
-                                    const errorMessage =
-                                        `job ${job.id} error when requesting travis job: ` +
-                                        JSON.stringify(
-                                            triggerTravisJobRequest.data
-                                        );
-                                    console.error(
-                                        `job ${job.id} error when requesting travis job:`,
-                                        triggerTravisJobRequest.data
-                                    );
-                                    return scraperSupervisorReject(
-                                        errorMessage
-                                    );
-                                }
-                                await progressBarManager.increment();
-                                const travisJob = triggerTravisJobRequest.data;
 
-                                console.log(
-                                    `job ${job.id} request travis job successfully: ${travisJob.request.id}/${travisJob['@type']}, remaining_requests=${travisJob['remaining_requests']}`
+                                console.debug(
+                                    `job ${job.id} travis build created successfully: `,
+                                    confirmedTravisJobRequest.builds
                                 );
+
+                                await progressBarManager.increment();
+
+                                return;
                             });
                     }
                 )

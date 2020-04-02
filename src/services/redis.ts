@@ -34,16 +34,21 @@ class RedisManagerSingleton {
                 process.env.REDIS_PORT &&
                 process.env.SUPERVISOR_PUBSUB_REDIS_DB &&
                 process.env.REDIS_PASSWORD
-            )
+            ) ||
+            (process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
+                !process.env.PUBLIC_REDIS_PORT)
         ) {
             throw new ServerError(
-                'Redis misconfigured. Make sure you have these env vars: REDIS_HOST, REDIS_PORT, SUPERVISOR_PUBSUB_REDIS_DB, REDIS_PASSWORD'
+                'Redis misconfigured. Make sure you have these env vars: REDIS_HOST, REDIS_PORT, SUPERVISOR_PUBSUB_REDIS_DB, REDIS_PASSWORD. If in dev, these are also required: PUBLIC_REDIS_PORT'
             );
         }
 
         this.config = {
             host: process.env.REDIS_HOST,
-            port: parseInt(process.env.REDIS_PORT),
+            port:
+                process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT
+                    ? parseInt(process.env.PUBLIC_REDIS_PORT || '')
+                    : parseInt(process.env.REDIS_PORT),
             db: parseInt(process.env.SUPERVISOR_PUBSUB_REDIS_DB),
             password: process.env.REDIS_PASSWORD
         };

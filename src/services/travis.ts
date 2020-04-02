@@ -5,14 +5,37 @@ import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar'
 import { ServerError } from '../utilities/serverExceptions';
 import { Semaphore } from 'redis-semaphore';
 import { asyncSendSlackMessage } from './slack';
+import { RuntimeEnvironment } from '../utilities/runtime';
+
+// Constants
+
+// Depends on travis job setup time. Usually, till scraper launched & publish request ack is around 1 min 15 sec after travis build scheduled.
+// However, there's a record this took longer than 4 minutes: https://travis-ci.com/rivernews/review-scraper-java-development-environment/builds/152118738
+// hence we are raising the timeout even more, see defaults below.
+// you can also set this via environment variable
+export const TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS = process.env
+    .TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS
+    ? parseInt(process.env.TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS)
+    : process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
+    ? // default to 10 minutes in production
+      10 * 60 * 1000
+    : // default to 3 minutes in development so in case of memory leak the job can be timed out faster
+      4 * 60 * 1000;
 
 // Travis API
 // https://docs.travis-ci.com/user/triggering-builds/
 
+class TravisJob {
+    constructor (public requestId: string, public buildIds: string[] = []) {}
+}
+
 export class TravisManager {
     private static _singleton: TravisManager;
 
-    private requestedJobIds: string[] = [];
+    // travis api usage: `/repo/12573286`
+    private static SCRAPER_REPO_TRAVIS_ID = '12381608';
+
+    private trackingTravisJobs: TravisJob[] = [];
 
     public travisJobResourceSemaphore: Semaphore;
 
@@ -62,7 +85,7 @@ export class TravisManager {
         }
     }
 
-    public async asyncTriggerQualitativeReviewRepoBuild (
+    public async asyncTriggerJob (
         scraperJobData: ScraperJobRequestData,
         travisJobOption: TravisJobOption = {}
     ) {
@@ -78,14 +101,73 @@ export class TravisManager {
                 ...travisJobOption
             }
         ).then(requestResult => {
-            if (requestResult.data.request && requestResult.data.request.id) {
-                this.requestedJobIds.push(requestResult.data.request.id);
-            } else {
+            if (!requestResult.data.request || !requestResult.data.request.id) {
                 throw new Error(`Cannot locate job id in travis response`);
             }
 
-            return requestResult;
+            console.log(
+                `job for \`${scraperJobData.orgName ||
+                    scraperJobData.orgInfo}\` requested travis job successfully: ${
+                    requestResult.data.request.id
+                }/${requestResult.data['@type']}, remaining_requests=${
+                    requestResult.data['remaining_requests']
+                }`
+            );
+
+            const travisJob = new TravisJob(requestResult.data.request.id);
+            this.trackingTravisJobs.push(travisJob);
+
+            return this.pollingBuildProvisioning(travisJob);
         });
+    }
+
+    private pollingBuildProvisioning (travisJob: TravisJob) {
+        return new Promise<{ builds: Array<{ id: number }> }>(
+            (resolve, reject) => {
+                // Wait till the build started and a build id provisioned
+                // then we can store this build id for later-on cancellation
+                // Only waiting for 3 minutes
+                const MAX_POLLING_COUNT =
+                    (TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS / 60 / 1000 -
+                        1) *
+                    6;
+                let pollingCount = 0;
+                const buildProvisionedPolling = setInterval(async () => {
+                    console.debug(
+                        `Travis checking build status for request ${travisJob.requestId}...`
+                    );
+                    const requestInfo = (
+                        await TravisManager.requestTravisApi(
+                            'get',
+                            `/repo/${TravisManager.SCRAPER_REPO_TRAVIS_ID}/request/${travisJob.requestId}`
+                        )
+                    ).data;
+                    pollingCount++;
+
+                    if (requestInfo.builds && requestInfo.builds.length) {
+                        for (const build of requestInfo.builds) {
+                            travisJob.buildIds.push(build.id);
+                        }
+                        console.debug(`Got build id!`, travisJob.buildIds);
+                        clearInterval(buildProvisionedPolling);
+                        return resolve(requestInfo);
+                    }
+
+                    if (pollingCount >= MAX_POLLING_COUNT) {
+                        clearInterval(buildProvisionedPolling);
+                        return reject(
+                            new Error(
+                                `Travis manager retried ${pollingCount} times to get build id of request ${
+                                    travisJob.requestId
+                                } but still failed. Request info: ${JSON.stringify(
+                                    requestInfo
+                                )}`
+                            )
+                        );
+                    }
+                }, 10 * 1000);
+            }
+        );
     }
 
     /**
@@ -96,31 +178,42 @@ export class TravisManager {
      * by `cancelAllJobs`
      */
     public resetTrackingJobs () {
-        this.requestedJobIds = [];
+        this.trackingTravisJobs = [];
     }
 
     public async cancelAllJobs () {
         return Promise.all(
-            this.requestedJobIds.map(jobId =>
-                TravisManager.requestTravisApi('post', `/build/${jobId}/cancel`)
-                    .catch(error =>
-                        Promise.resolve(
-                            `Ignoring travis job ${jobId} cancel failure: ${JSON.stringify(
-                                error
-                            )}`
-                        )
+            this.trackingTravisJobs
+                .map(travisJob => travisJob.buildIds)
+                // flatten all build ids into a single array
+                .reduce((acc, cur) => {
+                    return [...acc, ...cur];
+                }, [])
+                .map(buildId =>
+                    TravisManager.requestTravisApi(
+                        'post',
+                        `/build/${buildId}/cancel`
                     )
-                    .then(result => {
-                        this.resetTrackingJobs();
-                        return result;
-                    })
-            )
+                        .catch(error =>
+                            Promise.resolve(
+                                `Ignoring travis build ${buildId} cancel failure: ${JSON.stringify(
+                                    error
+                                )}`
+                            )
+                        )
+                        .then(result => {
+                            this.resetTrackingJobs();
+                            return result;
+                        })
+                )
         );
     }
 }
 
 const USERNAME = 'rivernews';
 const REPO = 'review-scraper-java-development-environment';
+const GITHUB_REPO_ID = '234665976';
+
 const FULL_REPO_NAME = `${USERNAME}/${REPO}`;
 const URL_ENCODED_REPO_NAME = encodeURIComponent(FULL_REPO_NAME);
 const GITHUB_ID = '15918424';
