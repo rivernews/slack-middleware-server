@@ -82,11 +82,6 @@ export const singleOrgJobController = async (
         console.log(`Company info string is ${companyInformationString}`);
 
         console.log('Ready to dispatch supervisorJob');
-        if (!supervisorJobQueueManager.queue) {
-            throw new ServerError(
-                `supervisorJobQueueManager queue not yet initialized`
-            );
-        }
         const supervisorJob = await supervisorJobQueueManager.asyncAdd({
             orgInfo: companyInformationString
         });
@@ -186,6 +181,11 @@ export const terminateAllJobsController = async (
     );
     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
         return next(new ServerError(`Shared redis client did not initialize`));
+    }
+
+    // best efforts to clear waiting job as well
+    if (supervisorJobQueueManager.queue) {
+        await supervisorJobQueueManager.queue.empty();
     }
 
     const publishedResult = await JobQueueSharedRedisClientsSingleton.singleton.genericClient.publish(
