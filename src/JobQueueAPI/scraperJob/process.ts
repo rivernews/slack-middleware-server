@@ -197,17 +197,17 @@ const onReceiveScraperJobMessage = async (
     if (type === ScraperJobMessageType.PREFLIGHT) {
         console.log(`job ${jobId}`, 'preflight received', payload);
         if (
-            !redisClientPublish.publish(
+            !(await redisClientPublish.publish(
                 channel,
                 composePubsubMessage(
                     ScraperJobMessageType.PREFLIGHT,
                     ScraperJobMessageTo.SCRAPER,
                     'acknowledged'
                 )
-            )
+            ))
         ) {
             return abortSubscription(
-                `job ${jobId} fail to respond to preflight message`,
+                `job ${jobId} respond to preflight message but no client is listening / receives it`,
                 payloadAsString,
                 timeoutTimer,
                 scraperSupervisorReject
