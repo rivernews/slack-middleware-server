@@ -23,7 +23,10 @@ import { ServerError } from '../utilities/serverExceptions';
 
 export class KubernetesService {
     private static _singleton: KubernetesService;
-    private static CROSS_SESSION_TIME_LIMIT_MINUTES = 90;
+
+    // smaller chunk of task is better especially when random network-related error occurr.
+    // when bull retry the scraper job, we can have less overhead
+    private static CROSS_SESSION_TIME_LIMIT_MINUTES = 60;
 
     private static DIGITALOCEAN_KUBERNETES_CLUSTER_NAME =
         'project-shaungc-digitalocean-cluster';
