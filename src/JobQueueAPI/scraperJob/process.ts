@@ -290,11 +290,11 @@ const getMessageTimeoutTimer = (
         );
 
         await asyncSendSlackMessage(
-            `Supervisor job ${jobId} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}; pubsub channel is \`${redisPubsubChannelName}\``
+            `Supervisor job ${jobId} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}; pubsub channel is \`${redisPubsubChannelName}\``
         );
 
         return scraperSupervisorReject(
-            `job ${jobId} for org ${org} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising travis scraper job; pubsub channel is \`${redisPubsubChannelName}\``
+            `job ${jobId} for org ${org} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job; pubsub channel is \`${redisPubsubChannelName}\``
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
@@ -428,7 +428,7 @@ const superviseScraper = (
                                     // run on k8s
 
                                     processResourceCleaner.runtimePlatformDescriptor =
-                                        'k8s';
+                                        'k8s/waitingForSemaphore';
 
                                     console.log(
                                         // 'In development environment, skipping travis request. Please run scraper locally if needed'
@@ -464,16 +464,16 @@ const superviseScraper = (
 
                                     await progressBarManager.increment();
 
-                                    console.log(
-                                        `job ${job.id} request k8 job successfully:`,
-                                        k8Job.body.metadata
-                                    );
-
                                     processResourceCleaner.runtimePlatformDescriptor = `k8s/${
                                         k8Job.body.metadata
                                             ? k8Job.body.metadata.selfLink
                                             : ''
                                     }`;
+
+                                    console.log(
+                                        `job ${job.id} request k8 job successfully:`,
+                                        k8Job.body.metadata
+                                    );
 
                                     return;
                                 }
@@ -481,7 +481,7 @@ const superviseScraper = (
                                 // run on travis
 
                                 processResourceCleaner.runtimePlatformDescriptor =
-                                    'travis';
+                                    'travis/waitingForSemaphore';
 
                                 ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 

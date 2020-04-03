@@ -62,8 +62,11 @@ export class KubernetesService {
             {
                 // when k8 has no vacancy, this situation will be
                 // detected after 6 sec when someone call `.acquire()`
-                acquireTimeout: 6 * 1000,
-                retryInterval: 1000
+                acquireTimeout: 20 * 1000,
+                retryInterval: 5 * 1000,
+
+                lockTimeout: 40 * 1000,
+                refreshInterval: 20 * 1000
             }
         );
     }
