@@ -13,7 +13,10 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         // K8 api server may throw the error below when too busy:
         // IOException while requesting POST - java.io.IOException: /10.244.0.57:41546: GOAWAY received
         // so we retry again - best effort to complete the job
-        attempts: 2
+        //
+        // TODO: increasing attempts will conflict with our "terminate" feature
+        // unless we resolve terminated jobs instead of reject
+        attempts: 1
 
         // TODO: enable repeat opt when in prod
         // repeat: {
