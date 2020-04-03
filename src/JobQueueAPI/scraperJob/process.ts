@@ -234,6 +234,8 @@ const onReceiveScraperJobMessage = async (
         return;
     } else if (type === ScraperJobMessageType.FINISH) {
         clearTimeout(timeoutTimer);
+
+        // travis job should end soon so don't bother cleaning up travis job
         TravisManager.singleton.resetTrackingJobs();
 
         if (payloadAsString === 'OK!') {
@@ -251,6 +253,7 @@ const onReceiveScraperJobMessage = async (
             return scraperSupervisorResolve(crossData);
         }
     } else if (type === ScraperJobMessageType.ERROR) {
+        // travis job should end soon so don't bother cleaning up travis job
         TravisManager.singleton.resetTrackingJobs();
 
         return abortSubscription(
@@ -260,12 +263,12 @@ const onReceiveScraperJobMessage = async (
             scraperSupervisorReject
         );
     } else if (type === ScraperJobMessageType.TERMINATE) {
-        return abortSubscription(
-            `job ${jobId} manually terminated`,
-            payloadAsString,
-            timeoutTimer,
-            scraperSupervisorReject
-        );
+        // treat manual termination as success job so that
+        // the job won't be re-attempted by attempts setting of queue
+
+        clearTimeout(timeoutTimer);
+
+        return scraperSupervisorResolve(`job ${jobId} manually terminated`);
     } else {
         return abortSubscription(
             `job ${jobId} Received unknown type '${type}'`,

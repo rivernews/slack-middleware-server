@@ -16,7 +16,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         //
         // TODO: increasing attempts will conflict with our "terminate" feature
         // unless we resolve terminated jobs instead of reject
-        attempts: 1
+        attempts: 2
 
         // TODO: enable repeat opt when in prod
         // repeat: {
