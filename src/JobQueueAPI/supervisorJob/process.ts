@@ -16,6 +16,15 @@ import {
 } from '../../services/jobQueue/jobQueueName';
 import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 
+const handleManualTerminationForSupervisorJob = (jobResult: string) => {
+    // treat manual termianation as failure at the supervisorJob level
+    // (but treat as success at scraper level)
+    const tokens = jobResult.split(':');
+    if (tokens.length > 1 && tokens[1] === 'manuallyTerminated') {
+        throw new Error(jobResult);
+    }
+};
+
 const processRenewalJob = async (
     scraperJobResult: ScraperJobReturnData,
     orgFirstJob?: Bull.Job<ScraperJobRequestData>
@@ -34,11 +43,13 @@ const processRenewalJob = async (
         ? `supervisorJob: org job ${orgFirstJob.id}:`
         : 'supervisorJob:';
 
-    let jobResult = new ScraperCrossRequest(scraperJobResult);
+    let jobResult: ScraperJobReturnData = new ScraperCrossRequest(
+        scraperJobResult
+    );
 
     do {
         console.log(`${logPrefix} dispatching renewal job`);
-        const renewalJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
+        const renewalJob: Bull.Job<ScraperJobRequestData> = await gdOrgReviewScraperJobQueueManager.asyncAdd(
             jobResult
         );
 
@@ -56,6 +67,8 @@ const processRenewalJob = async (
                     jobResult
                 )}`
             );
+        } else if (typeof jobResult === 'string') {
+            handleManualTerminationForSupervisorJob(jobResult);
         }
 
         console.log(`${logPrefix} renewal job ${renewalJob.id} finished`);
@@ -193,6 +206,10 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                             } returned illegal result data: ${JSON.stringify(
                                 orgFirstJobReturnData
                             )}`
+                        );
+                    } else if (typeof orgFirstJobReturnData === 'string') {
+                        handleManualTerminationForSupervisorJob(
+                            orgFirstJobReturnData
                         );
                     }
 

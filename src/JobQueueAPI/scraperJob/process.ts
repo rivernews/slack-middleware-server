@@ -268,7 +268,7 @@ const onReceiveScraperJobMessage = async (
 
         clearTimeout(timeoutTimer);
 
-        return scraperSupervisorResolve(`job ${jobId} manually terminated`);
+        return scraperSupervisorResolve(`job${jobId}:manuallyTerminated`);
     } else {
         return abortSubscription(
             `job ${jobId} Received unknown type '${type}'`,
