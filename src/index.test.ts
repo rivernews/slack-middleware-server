@@ -8,6 +8,7 @@ import { expect } from 'chai';
 import axios from 'axios';
 
 import { baseUrl } from './utilities/serverExceptions';
+import { asyncDump } from './asyncDump';
 
 describe('App integration test', () => {
     it('Index page', async () => {
@@ -24,9 +25,14 @@ after(() => {
     console.log('mocha:after');
     return cleanUpExpressServer()
         .then(() => {
-            console.log('mocha: cleanup fin, closing...');
+            console.log(
+                'mocha: express server clean up finished, still waiting...'
+            );
+
+            asyncDump();
+
             gracefulExpressServer.close(() => {
-                console.log('mocha done() - safely terminated');
+                console.log('mocha done() - safely terminated all processes');
                 return Promise.resolve('OK');
             });
         })
