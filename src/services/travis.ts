@@ -94,11 +94,14 @@ export class TravisManager {
             'post',
             `/repo/${URL_ENCODED_REPO_NAME}/requests`,
             {
+                // override commit message shown in travis job if necessary
+                // message: `${scraperJobData.orgInfo || scraperJobData.orgName}:${scraperJobData.lastProgress ? scraperJobData.lastProgress.processedSession : '0'} triggered scraper job (override commit message)`,
                 config: {
                     env: {
                         ...mapJobDataToScraperEnvVar(scraperJobData)
                     }
                 },
+                branch: 'master',
                 ...travisJobOption
             }
         ).then(requestResult => {

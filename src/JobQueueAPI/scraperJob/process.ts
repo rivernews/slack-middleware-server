@@ -489,10 +489,7 @@ const superviseScraper = (
                                 ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
 
                                 const confirmedTravisJobRequest = await TravisManager.singleton.asyncTriggerJob(
-                                    job.data,
-                                    {
-                                        branch: 'master'
-                                    }
+                                    job.data
                                 );
 
                                 console.debug(

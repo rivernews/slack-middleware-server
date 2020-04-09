@@ -2,6 +2,7 @@ import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ScraperJobRequestData } from '../../services/jobQueue/types';
 import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
 import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
     ScraperJobRequestData
@@ -16,7 +17,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         //
         // TODO: increasing attempts will conflict with our "terminate" feature
         // unless we resolve terminated jobs instead of reject
-        attempts: 2
+        attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 2 : 1
 
         // TODO: enable repeat opt when in prod
         // repeat: {
