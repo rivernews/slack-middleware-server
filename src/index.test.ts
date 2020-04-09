@@ -8,7 +8,7 @@ import { expect } from 'chai';
 import axios from 'axios';
 
 import { baseUrl } from './utilities/serverExceptions';
-import { asyncDump } from './asyncDump';
+import { asyncDump } from './asyncDump.test';
 
 describe('App integration test', () => {
     it('Index page', async () => {
