@@ -1,4 +1,8 @@
-import { ScraperJobRequestData, ScraperProgressData } from './types';
+import {
+    ScraperJobRequestData,
+    ScraperProgressData,
+    ScraperMode
+} from './types';
 
 import { ScraperEnvironmentVariable } from '../travis';
 
@@ -45,11 +49,20 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                 ...acc,
                 TEST_COMPANY_NEXT_REVIEW_PAGE_URL: jobData[cur]
             };
-        } else {
+        } else if (cur === 'scrapeMode') {
             return {
                 ...acc,
                 SCRAPER_MODE: jobData[cur]
             };
+        } else if (cur === 'stopPage') {
+            return {
+                ...acc,
+                TEST_COMPANY_STOP_AT_PAGE: jobData[cur]
+            };
+        } else {
+            throw new Error(
+                `MapJobDataToEnvVar: unknown job data key=${cur}, value=${jobData[cur]}`
+            );
         }
     }, {}) as ScraperEnvironmentVariable;
 

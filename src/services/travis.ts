@@ -259,6 +259,7 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_SESSION?: string;
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
     TEST_COMPANY_NEXT_REVIEW_PAGE_URL?: string;
+    TEST_COMPANY_STOP_AT_PAGE?: string;
     SCRAPER_MODE?: string;
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
     SUPERVISOR_PUBSUB_CHANNEL_NAME?: string;
