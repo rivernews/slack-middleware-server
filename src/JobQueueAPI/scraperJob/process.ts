@@ -529,13 +529,8 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
 
     const redisClientSubscription = (processResourceCleaner.lastRedisClientSubscription = redisManager.newClient());
     const redisClientPublish = (processResourceCleaner.lastRedisClientPublish = redisManager.newClient());
-    const redisPubsubChannelName = (processResourceCleaner.lastRedisPubsubChannelName = `${
-        RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
-    }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${
-        patchedJob.data.lastProgress
-            ? patchedJob.data.lastProgress.processedSession
-            : 0
-    }`);
+    const redisPubsubChannelName = (processResourceCleaner.lastRedisPubsubChannelName =
+        patchedJob.data.pubsubChannelName);
 
     return superviseScraper(
         patchedJob,

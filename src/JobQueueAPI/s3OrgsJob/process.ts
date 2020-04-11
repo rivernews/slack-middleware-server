@@ -1,11 +1,17 @@
 import Bull from 'bull';
-import { s3ArchiveManager } from '../../services/s3';
+import { s3ArchiveManager } from '../../services/s3/s3';
 import { supervisorJobQueueManager } from '../supervisorJob/queue';
 import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import {
+    ScraperJobRequestData,
+    ScraperMode
+} from '../../services/jobQueue/types';
+import { Configuration } from '../../utilities/configuration';
+import { getPubsubChannelName } from '../../services/jobQueue/message';
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
@@ -45,37 +51,134 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
 
             return (
                 s3ArchiveManager
-                    .asyncGetOverviewPageUrls()
+                    .asyncGetAllOrgsForS3Job()
                     // increment progress after s3 org list fetched
-                    .then(orgInfoList =>
+                    .then(orgList =>
                         progressBarManager
                             .increment()
-                            // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
-                                // report progress after bucket distributed
-                                if (!orgInfoList.length) {
+                                // TODO: planning job dispatching including splitted jobs
+                                const scraperJobRequests: ScraperJobRequestData[] = [];
+
+                                for (const org of orgList) {
+                                    if (
+                                        org.reviewPageUrl &&
+                                        org.localReviewCount &&
+                                        org.localReviewCount >
+                                            Configuration.singleton
+                                                .scraperJobSplittingSize
+                                    ) {
+                                        const incrementalPageAmount = Math.ceil(
+                                            Configuration.singleton
+                                                .scraperJobSplittingSize /
+                                                Configuration.singleton
+                                                    .gdReviewCountPerPage
+                                        );
+                                        let pageNumberPointer = 0;
+
+                                        // dispatch 1st job
+                                        scraperJobRequests.push({
+                                            pubsubChannelName: getPubsubChannelName(
+                                                { orgName: org.orgName }
+                                            ),
+                                            orgInfo: org.companyOverviewPageUrl,
+                                            stopPage:
+                                                pageNumberPointer +
+                                                incrementalPageAmount
+                                        });
+                                        pageNumberPointer += incrementalPageAmount;
+
+                                        // dispatch rest of the parts
+                                        const estimatedPageCountTotal = Math.ceil(
+                                            org.localReviewCount /
+                                                Configuration.singleton
+                                                    .gdReviewCountPerPage
+                                        );
+
+                                        while (
+                                            pageNumberPointer <
+                                            estimatedPageCountTotal
+                                        ) {
+                                            scraperJobRequests.push({
+                                                // job splitting params
+                                                nextReviewPageUrl: `${
+                                                    org.reviewPageUrl
+                                                }_P${pageNumberPointer +
+                                                    1}.htm`,
+                                                stopPage:
+                                                    pageNumberPointer +
+                                                    incrementalPageAmount,
+
+                                                // other essential params
+                                                pubsubChannelName: getPubsubChannelName(
+                                                    {
+                                                        orgName: org.orgName,
+                                                        page:
+                                                            pageNumberPointer +
+                                                            1
+                                                    }
+                                                ),
+                                                orgId: org.orgId,
+                                                orgName: org.orgName,
+                                                scrapeMode: ScraperMode.RENEWAL,
+
+                                                // for log and monitor
+                                                lastProgress: {
+                                                    processed: 0,
+                                                    wentThrough: 0,
+                                                    total: org.localReviewCount,
+                                                    durationInMilli: '1',
+                                                    page: pageNumberPointer,
+                                                    processedSession: 0
+                                                }
+                                            });
+                                            pageNumberPointer += incrementalPageAmount;
+                                        }
+
+                                        // last splitted job does not need stop page, just scrape till the end
+                                        delete scraperJobRequests[
+                                            scraperJobRequests.length - 1
+                                        ].stopPage;
+
+                                        continue;
+                                    }
+
+                                    scraperJobRequests.push({
+                                        pubsubChannelName: getPubsubChannelName(
+                                            { orgName: org.orgName }
+                                        ),
+                                        orgInfo: org.companyOverviewPageUrl
+                                    });
+                                }
+
+                                // report progress after job planning complete
+                                if (!scraperJobRequests.length) {
                                     progressBarManager.syncSetAbsolutePercentage(
                                         100
                                     );
                                 } else {
                                     progressBarManager.syncSetRelativePercentage(
                                         0,
-                                        orgInfoList.length
+                                        scraperJobRequests.length
                                     );
                                 }
 
-                                return;
+                                return scraperJobRequests;
                             })
-                            .then(() => {
+                            .then(scraperJobRequests => {
                                 return Promise.all(
-                                    orgInfoList.map((orgInfo, index) =>
-                                        new Promise(res =>
-                                            setTimeout(res, index * 3 * 1000)
-                                        ).then(() =>
-                                            supervisorJobQueueManager.asyncAdd({
-                                                orgInfo
+                                    scraperJobRequests.map(
+                                        (scraperJobRequest, index) =>
+                                            new Promise(res =>
+                                                setTimeout(
+                                                    res,
+                                                    index * 3 * 1000
+                                                )
+                                            ).then(() => {
+                                                return supervisorJobQueueManager.asyncAdd(
+                                                    scraperJobRequest
+                                                );
                                             })
-                                        )
                                     )
                                 );
                             })

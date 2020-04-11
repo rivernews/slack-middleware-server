@@ -8,7 +8,12 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     let scraperJobEnvironmentVaribles = (Object.keys(
         jobData
     ) as (keyof ScraperJobRequestData)[]).reduce((acc, cur) => {
-        if (cur === 'orgInfo') {
+        if (cur === 'pubsubChannelName') {
+            return {
+                ...acc,
+                SUPERVISOR_PUBSUB_CHANNEL_NAME: jobData[cur]
+            };
+        } else if (cur === 'orgInfo') {
             return {
                 ...acc,
                 TEST_COMPANY_INFORMATION_STRING: jobData[cur]
@@ -35,10 +40,10 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                 TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page.toString(),
                 TEST_COMPANY_LAST_PROGRESS_SESSION: progressData.processedSession.toString()
             };
-        } else if (cur === 'lastReviewPage') {
+        } else if (cur === 'nextReviewPageUrl') {
             return {
                 ...acc,
-                TEST_COMPANY_LAST_REVIEW_PAGE_URL: jobData[cur]
+                TEST_COMPANY_NEXT_REVIEW_PAGE_URL: jobData[cur]
             };
         } else {
             return {
@@ -52,6 +57,7 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     scraperJobEnvironmentVaribles = {
         ...scraperJobEnvironmentVaribles,
 
+        // make sure org info env var always passed in
         TEST_COMPANY_INFORMATION_STRING:
             scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
 

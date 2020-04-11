@@ -6,6 +6,11 @@ import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { asyncSendSlackMessage } from '../slack';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
+import {
+    ScraperJobRequestData,
+    SupervisorJobRequestData,
+    S3JobRequestData
+} from './types';
 
 export const SCRAPER_JOB_POOL_MAX_CONCURRENCY = process.env
     .SCRAPER_JOB_POOL_MAX_CONCURRENCY
@@ -282,7 +287,9 @@ export class JobQueueManager<JobRequestData> {
     public checkConcurrency (
         concurrency: number,
         concurrencyCheckQueue?: Bull.Queue,
-        currentActiveJobToBeCheck?: Bull.Job<JobRequestData>,
+        currentActiveJobToBeCheck?: Bull.Job<
+            ScraperJobRequestData | SupervisorJobRequestData | S3JobRequestData
+        >,
         currentActiveJobQueueName?: string,
         countCurrentActiveJobIntoConcurrency: boolean = false
     ) {

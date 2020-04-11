@@ -9,10 +9,7 @@ import {
     ParameterRequirementNotMet,
     ServerError
 } from '../utilities/serverExceptions';
-import {
-    JobQueueName,
-    getProssesorName
-} from '../services/jobQueue/jobQueueName';
+import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,

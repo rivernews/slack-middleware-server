@@ -9,9 +9,8 @@ import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
 import { IKubernetesCluster } from 'dots-wrapper/dist/modules/kubernetes/types/kubernetes-cluster';
 import { ScraperJobRequestData } from './jobQueue/types';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
-import { ScraperEnvironmentVariable } from './travis';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
-import { s3ArchiveManager } from './s3';
+import { s3ArchiveManager } from './s3/s3';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import { ServerError } from '../utilities/serverExceptions';
 
@@ -101,7 +100,6 @@ export class KubernetesService {
                     page: 1,
                     per_page: 999
                 });
-                console.log('kubernetes_clusters', kubernetes_clusters);
 
                 kubernetesClusters = kubernetes_clusters;
             } catch (error) {
@@ -134,7 +132,6 @@ export class KubernetesService {
                         kubernetes_cluster_id: kubernetesCluster.id
                     }
                 );
-                console.log('kubeconfig', kubeconfig);
 
                 kubeconfigString = kubeconfig;
             } catch (error) {

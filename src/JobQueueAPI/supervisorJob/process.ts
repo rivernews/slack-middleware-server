@@ -7,14 +7,11 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
-import {
-    JobQueueName,
-    getProssesorName
-} from '../../services/jobQueue/jobQueueName';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import { getPubsubChannelName } from '../../services/jobQueue/message';
 
 const handleManualTerminationForSupervisorJob = (jobResult: string) => {
     // treat manual termianation as failure at the supervisorJob level
@@ -175,7 +172,8 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     const orgInfo = orgInfoList[processed];
                     const orgFirstJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
                         {
-                            orgInfo
+                            orgInfo,
+                            pubsubChannelName: getPubsubChannelName({ orgInfo })
                         }
                     );
                     console.log(

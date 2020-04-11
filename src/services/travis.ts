@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { ScraperJobRequestData, ScraperProgressData } from './jobQueue/types';
-import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
+import { ScraperJobRequestData } from './jobQueue/types';
+import { JobQueueSharedRedisClientsSingleton } from './redis';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
 import { ServerError } from '../utilities/serverExceptions';
 import { Semaphore } from 'redis-semaphore';
@@ -101,7 +101,9 @@ export class TravisManager {
                         ...mapJobDataToScraperEnvVar(scraperJobData)
                     }
                 },
-                branch: 'master',
+                // TODO: undo
+                branch: 'SLK_066_job_splitting',
+                // branch: 'master',
                 ...travisJobOption
             }
         ).then(requestResult => {
@@ -256,9 +258,10 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_DURATION?: string;
     TEST_COMPANY_LAST_PROGRESS_SESSION?: string;
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
-    TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
+    TEST_COMPANY_NEXT_REVIEW_PAGE_URL?: string;
     SCRAPER_MODE?: string;
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
+    SUPERVISOR_PUBSUB_CHANNEL_NAME?: string;
 }
 
 export const checkTravisHasVacancy = async (
