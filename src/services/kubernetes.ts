@@ -10,7 +10,7 @@ import { IKubernetesCluster } from 'dots-wrapper/dist/modules/kubernetes/types/k
 import { ScraperJobRequestData } from './jobQueue/types';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
-import { s3ArchiveManager } from './s3/s3';
+import { s3ArchiveManager } from './s3';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import { ServerError } from '../utilities/serverExceptions';
 

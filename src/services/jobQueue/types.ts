@@ -25,9 +25,8 @@ export enum ScraperMode {
 export type S3JobRequestData = null;
 
 export interface SupervisorJobRequestData {
-    orgInfo?: string;
-    orgInfoList?: string[];
-
+    scraperJobRequestData?: ScraperJobRequestData;
+    splittedScraperJobRequestData?: ScraperJobRequestData;
     crossRequestData?: ScraperCrossRequestData;
 }
 

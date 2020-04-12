@@ -12,6 +12,8 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     let scraperJobEnvironmentVaribles = (Object.keys(
         jobData
     ) as (keyof ScraperJobRequestData)[]).reduce((acc, cur) => {
+        // Only use string value; otherwise k8s job will complain
+
         if (cur === 'pubsubChannelName') {
             return {
                 ...acc,
@@ -57,7 +59,7 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
         } else if (cur === 'stopPage') {
             return {
                 ...acc,
-                TEST_COMPANY_STOP_AT_PAGE: jobData[cur]
+                TEST_COMPANY_STOP_AT_PAGE: (jobData[cur] as number).toString()
             };
         } else {
             throw new Error(

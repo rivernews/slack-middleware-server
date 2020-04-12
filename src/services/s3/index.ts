@@ -198,6 +198,9 @@ class S3ArchiveManager {
             /-\d+\/$/.test(key)
         );
 
+        // TODO: remove
+        console.log('orgDirectories', orgDirectories);
+
         const s3Orgs: Array<S3Organization> = [];
         for (const orgDirectory of orgDirectories) {
             const orgMetaObjectKey = `${orgDirectory}meta/latest.json`;
