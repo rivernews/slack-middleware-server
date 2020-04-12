@@ -12,7 +12,7 @@ export class Configuration {
 
         this.scraperJobSplittingSize = this._getNumberFromEnvVar(
             'SCRAPER_JOB_SPLITTING_SIZE',
-            '1800'
+            '1500'
         );
     }
 
