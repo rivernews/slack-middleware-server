@@ -12,6 +12,7 @@ export class Configuration {
 
         this.scraperJobSplittingSize = this._getNumberFromEnvVar(
             'SCRAPER_JOB_SPLITTING_SIZE',
+            // lower job splitted size can avoid session renewal
             '1500'
         );
     }
