@@ -46,6 +46,7 @@ export interface ScraperJobRequestData {
 
     // for job splitting
     stopPage?: number;
+    shardIndex?: number;
 }
 
 export type ScraperCrossRequestData = ScraperJobRequestData & {
@@ -65,6 +66,7 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
     public scrapeMode: ScraperMode;
 
     public stopPage?: number;
+    public shardIndex?: number;
 
     constructor (props: ScraperCrossRequestData) {
         ScraperCrossRequest.isScraperCrossRequestData(props, true);
@@ -77,6 +79,7 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
         this.scrapeMode = props.scrapeMode;
 
         this.stopPage = props.stopPage;
+        this.shardIndex = props.shardIndex;
     }
 
     // type guard in Typescript
@@ -87,11 +90,14 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
     ): props is ScraperCrossRequestData {
         if (
             !(
-                props.orgId &&
-                props.orgName &&
-                props.lastProgress &&
-                props.nextReviewPageUrl &&
-                props.scrapeMode
+                // only check fields required by cross session job
+                (
+                    props.orgId &&
+                    props.orgName &&
+                    props.lastProgress &&
+                    props.nextReviewPageUrl &&
+                    props.scrapeMode
+                )
             )
         ) {
             if (throwError) {

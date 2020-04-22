@@ -52,7 +52,7 @@ export class TravisManager {
         this.travisJobResourceSemaphore = new Semaphore(
             JobQueueSharedRedisClientsSingleton.singleton.genericClient,
             'travisJobResourceLock',
-            6,
+            parseInt(process.env.PLATFORM_CONCURRENCY_TRAVIS || '6'),
             {
                 // when travis has no vacancy, the full situation will be
                 // detected after 6 sec when someone call `.acquire()`
@@ -260,9 +260,14 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
     TEST_COMPANY_NEXT_REVIEW_PAGE_URL?: string;
     TEST_COMPANY_STOP_AT_PAGE?: string;
+    TEST_COMPANY_SHARD_INDEX?: string;
     SCRAPER_MODE?: string;
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
     SUPERVISOR_PUBSUB_CHANNEL_NAME?: string;
+
+    // additional parameters
+    LOGGER_LEVEL?: string;
+    CROSS_SESSION_TIME_LIMIT_MINUTES?: string;
 }
 
 export const checkTravisHasVacancy = async (

@@ -11,7 +11,9 @@ export const getPubsubChannelName = ({
     processedSession = 0,
     page = 0
 }) => {
-    return `${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL}:${orgName ||
+    const patchedOrgName = orgName.replace(/[^0-9a-zA-Z]/g, '-');
+
+    return `${RedisPubSubChannelName.SCRAPER_JOB_CHANNEL}:${patchedOrgName ||
         orgInfo}:${processedSession}:startAtPage${page}`;
 };
 

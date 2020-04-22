@@ -23,10 +23,6 @@ import { ServerError } from '../utilities/serverExceptions';
 export class KubernetesService {
     private static _singleton: KubernetesService;
 
-    // smaller chunk of task is better especially when random network-related error occurr.
-    // when bull retry the scraper job, we can have less overhead
-    private static CROSS_SESSION_TIME_LIMIT_MINUTES = 60;
-
     private static DIGITALOCEAN_KUBERNETES_CLUSTER_NAME =
         'project-shaungc-digitalocean-cluster';
 
@@ -57,7 +53,7 @@ export class KubernetesService {
         this.jobVacancySemaphore = new Semaphore(
             JobQueueSharedRedisClientsSingleton.singleton.genericClient,
             'k8JobResourceLock',
-            3,
+            parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3'),
             {
                 // when k8 has no vacancy, this situation will be
                 // detected after 6 sec when someone call `.acquire()`
@@ -234,10 +230,7 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    CROSS_SESSION_TIME_LIMIT_MINUTES: KubernetesService.CROSS_SESSION_TIME_LIMIT_MINUTES.toString(),
-
                                     DEBUG: 'false',
-                                    LOGGER_LEVEL: '3',
 
                                     // use our selenium server container in this job
                                     WEBDRIVER_MODE: 'serverFromCustomHost',

@@ -7,6 +7,7 @@ import {
 import { ScraperEnvironmentVariable } from '../travis';
 
 import { redisManager } from '../redis';
+import { Configuration } from '../../utilities/configuration';
 
 export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     let scraperJobEnvironmentVaribles = (Object.keys(
@@ -61,6 +62,11 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                 ...acc,
                 TEST_COMPANY_STOP_AT_PAGE: (jobData[cur] as number).toString()
             };
+        } else if (cur === 'shardIndex') {
+            return {
+                ...acc,
+                TEST_COMPANY_SHARD_INDEX: jobData[cur]?.toString()
+            };
         } else {
             throw new Error(
                 `MapJobDataToEnvVar: unknown job data key=${cur}, value=${jobData[cur]}`
@@ -83,7 +89,13 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                   AWS_S3_ARCHIVE_BUCKET_NAME:
                       process.env.AWS_S3_ARCHIVE_BUCKET_NAME
               }
-            : {})
+            : {}),
+
+        LOGGER_LEVEL: '2',
+
+        // smaller chunk of task is better especially when random network-related error occurr.
+        // when bull retry the scraper job, we can have less overhead
+        CROSS_SESSION_TIME_LIMIT_MINUTES: Configuration.singleton.crossSessionTimeLimitMinutes.toString()
     };
 
     return scraperJobEnvironmentVaribles;

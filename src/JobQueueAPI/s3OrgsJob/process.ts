@@ -15,6 +15,45 @@ import {
 import { Configuration } from '../../utilities/configuration';
 import { getPubsubChannelName } from '../../services/jobQueue/message';
 import { getMiddleReviewPageUrl } from '../../services/gd';
+import { S3Organization } from '../../services/s3/types';
+
+const getSplittedJobRequestData = (
+    org: S3Organization,
+    pageNumberPointer: number,
+    incrementalPageAmount: number,
+    shardIndex: number
+) => {
+    return {
+        // job splitting params
+        nextReviewPageUrl: getMiddleReviewPageUrl(
+            org.reviewPageUrl,
+            pageNumberPointer + 1
+        ),
+        stopPage: pageNumberPointer + incrementalPageAmount,
+
+        // other essential params
+        pubsubChannelName: getPubsubChannelName({
+            orgName: org.orgName,
+            page: pageNumberPointer + 1
+        }),
+        orgId: org.orgId,
+        orgName: org.orgName,
+        scrapeMode: ScraperMode.RENEWAL,
+
+        // for log and monitor
+        shardIndex,
+        lastProgress: {
+            processed: 0,
+            wentThrough: 0,
+            total:
+                incrementalPageAmount *
+                Configuration.singleton.gdReviewCountPerPage,
+            durationInMilli: '1',
+            page: pageNumberPointer,
+            processedSession: 0
+        }
+    };
+};
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
@@ -78,21 +117,20 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                     .gdReviewCountPerPage
                                         );
                                         let pageNumberPointer = 0;
+                                        let shardIndex = 0;
 
                                         // dispatch 1st job
                                         supervisorJobRequests.push({
-                                            splittedScraperJobRequestData: {
-                                                pubsubChannelName: getPubsubChannelName(
-                                                    { orgName: org.orgName }
-                                                ),
-                                                orgInfo:
-                                                    org.companyOverviewPageUrl,
-                                                stopPage:
-                                                    pageNumberPointer +
-                                                    incrementalPageAmount
-                                            }
+                                            splittedScraperJobRequestData: getSplittedJobRequestData(
+                                                org,
+                                                pageNumberPointer,
+                                                incrementalPageAmount,
+                                                shardIndex
+                                            )
                                         });
+
                                         pageNumberPointer += incrementalPageAmount;
+                                        shardIndex += 1;
 
                                         // dispatch rest of the parts
                                         const estimatedPageCountTotal = Math.ceil(
@@ -113,47 +151,16 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                 )
                                             );
                                             supervisorJobRequests.push({
-                                                splittedScraperJobRequestData: {
-                                                    // job splitting params
-                                                    nextReviewPageUrl: getMiddleReviewPageUrl(
-                                                        org.reviewPageUrl,
-                                                        pageNumberPointer + 1
-                                                    ),
-                                                    stopPage:
-                                                        pageNumberPointer +
-                                                        incrementalPageAmount,
-
-                                                    // other essential params
-                                                    pubsubChannelName: getPubsubChannelName(
-                                                        {
-                                                            orgName:
-                                                                org.orgName,
-                                                            page:
-                                                                pageNumberPointer +
-                                                                1
-                                                        }
-                                                    ),
-                                                    orgId: org.orgId,
-                                                    orgName: org.orgName,
-                                                    scrapeMode:
-                                                        ScraperMode.RENEWAL,
-
-                                                    // for log and monitor
-                                                    lastProgress: {
-                                                        processed: 0,
-                                                        wentThrough: 0,
-                                                        total:
-                                                            incrementalPageAmount *
-                                                            Configuration
-                                                                .singleton
-                                                                .gdReviewCountPerPage,
-                                                        durationInMilli: '1',
-                                                        page: pageNumberPointer,
-                                                        processedSession: 0
-                                                    }
-                                                }
+                                                splittedScraperJobRequestData: getSplittedJobRequestData(
+                                                    org,
+                                                    pageNumberPointer,
+                                                    incrementalPageAmount,
+                                                    shardIndex
+                                                )
                                             });
+
                                             pageNumberPointer += incrementalPageAmount;
+                                            shardIndex += 1;
                                         }
 
                                         // last splitted job does not need stop page, just scrape till the end
