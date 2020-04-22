@@ -51,6 +51,13 @@ module "slack_middleware_service" {
     "/service/selenium-service/SELENIUM_SERVER_HOST"
   ]
 
+  environment_variables = {
+    SCRAPER_JOB_SPLITTING_SIZE = "200"
+    CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
+    PLATFORM_CONCURRENCY_K8S = "3"
+    PLATFORM_CONCURRENCY_TRAVIS = "6"
+  }
+
   use_recreate_deployment_strategy = true
 }
 
