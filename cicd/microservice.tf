@@ -52,10 +52,13 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
-    SCRAPER_JOB_SPLITTING_SIZE = "200"
+    SCRAPER_JOB_SPLITTING_SIZE = "300"
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
-    PLATFORM_CONCURRENCY_K8S = "3"
+    PLATFORM_CONCURRENCY_K8S = "4"
     PLATFORM_CONCURRENCY_TRAVIS = "6"
+
+    SUPERVISOR_JOB_CONCURRENCY = "10"
+    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "10"
   }
 
   use_recreate_deployment_strategy = true
