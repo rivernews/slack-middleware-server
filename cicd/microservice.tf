@@ -43,9 +43,7 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
     "/app/slack-middleware-service/FLUSHDB_ON_START",
 
-    "/app/slack-middleware-service/SUPERVISOR_JOB_CONCURRENCY",
     "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS",
-    "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY",
 
     # for scraper in k8 jobs
     "/service/selenium-service/SELENIUM_SERVER_HOST"
