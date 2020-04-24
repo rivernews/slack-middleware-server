@@ -98,16 +98,17 @@ class ScraperJobProcessResourcesCleaner {
             // release semaphores
 
             if (this.lastK8JobSemaphoreResourceString) {
-                console.debug(
+                console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
                 await KubernetesService.singleton.jobVacancySemaphore.release();
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
-                console.debug(
+                console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
-                await TravisManager.singleton.travisJobResourceSemaphore.release();
+                TravisManager.singleton.travisJobResourceSemaphore &&
+                    (await TravisManager.singleton.travisJobResourceSemaphore.release());
                 this.lastTravisJobSemaphoreResourceString = undefined;
             }
 
@@ -143,7 +144,7 @@ class ScraperJobProcessResourcesCleaner {
             return;
         }
 
-        console.debug(
+        console.log(
             `In ${this.processName} process pid ${this.pid}, redis cleaner has insufficient arguments so skipping clean up`
         );
     }
@@ -426,7 +427,11 @@ const superviseScraper = (
 
                                 const travisSemaphoreResourceString =
                                     process.env.NODE_ENV !==
-                                    RuntimeEnvironment.DEVELOPMENT
+                                        RuntimeEnvironment.DEVELOPMENT &&
+                                    parseInt(
+                                        process.env
+                                            .PLATFORM_CONCURRENCY_TRAVIS || '6'
+                                    ) > 0
                                         ? await checkTravisHasVacancy(
                                               redisPubsubChannelName
                                           )
