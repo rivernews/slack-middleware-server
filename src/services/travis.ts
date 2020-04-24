@@ -139,8 +139,8 @@ export class TravisManager {
                     6;
                 let pollingCount = 0;
                 const buildProvisionedPolling = setInterval(async () => {
-                    console.debug(
-                        `Travis checking build status for request ${travisJob.requestId}...`
+                    console.log(
+                        `Travis checking build status for request ${travisJob.requestId} (polled count ${pollingCount})...`
                     );
                     const requestInfo = (
                         await TravisManager.requestTravisApi(
@@ -154,10 +154,15 @@ export class TravisManager {
                         for (const build of requestInfo.builds) {
                             travisJob.buildIds.push(build.id);
                         }
-                        console.debug(`Got build id!`, travisJob.buildIds);
+                        console.log(`Got build id!`, travisJob.buildIds);
                         this.clearAllSchedulers();
                         return resolve(requestInfo);
                     }
+
+                    console.log(
+                        'No build info in travis request yet',
+                        requestInfo
+                    );
 
                     if (pollingCount >= MAX_POLLING_COUNT) {
                         this.clearAllSchedulers();

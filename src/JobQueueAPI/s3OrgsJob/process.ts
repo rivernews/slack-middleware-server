@@ -143,13 +143,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                             pageNumberPointer <
                                             estimatedPageCountTotal
                                         ) {
-                                            console.log(
-                                                'get middle review url',
-                                                getMiddleReviewPageUrl(
-                                                    org.reviewPageUrl,
-                                                    pageNumberPointer + 1
-                                                )
-                                            );
                                             supervisorJobRequests.push({
                                                 splittedScraperJobRequestData: getSplittedJobRequestData(
                                                     org,
