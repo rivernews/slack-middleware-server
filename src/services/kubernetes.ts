@@ -13,6 +13,7 @@ import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
 import { s3ArchiveManager } from './s3';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import { ServerError } from '../utilities/serverExceptions';
+import { ICreateNodePoolApiRequest } from 'dots-wrapper/dist/modules/kubernetes';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -20,18 +21,24 @@ import { ServerError } from '../utilities/serverExceptions';
 // kubernetes client
 // https://github.com/kubernetes-client/javascript
 
+const digitalOceanClientExample = createDigitalOceanClient({ token: '' });
+
 export class KubernetesService {
     private static _singleton: KubernetesService;
 
     private static DIGITALOCEAN_KUBERNETES_CLUSTER_NAME =
         'project-shaungc-digitalocean-cluster';
 
+    private static SCRAPER_WORKER_NODE_LABEL = 'scraper-worker-node';
+
     private static JOB_NAMESPACE = 'slack-middleware-service';
 
-    private kubernetesConfig?: KubeConfig;
-    private kubernetesBatchClient?: BatchV1Api;
-
     private digitalOceanToken: string;
+    private digitalOceanClient: typeof digitalOceanClientExample;
+
+    private kubernetesConfig?: KubeConfig;
+    private kubernetesCluster?: IKubernetesCluster;
+    private kubernetesBatchClient?: BatchV1Api;
 
     public jobVacancySemaphore: Semaphore;
 
@@ -41,6 +48,9 @@ export class KubernetesService {
         }
 
         this.digitalOceanToken = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+        this.digitalOceanClient = createDigitalOceanClient({
+            token: this.digitalOceanToken
+        });
 
         JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
@@ -75,6 +85,8 @@ export class KubernetesService {
     }
 
     public async asyncInitialize () {
+        console.log('asyncInitialize()');
+
         try {
             if (this.kubernetesBatchClient) {
                 return;
@@ -84,22 +96,31 @@ export class KubernetesService {
             // similar to:
             // doctl kubernetes cluster kubeconfig show project-shaungc-digitalocean-cluster > kubeconfig.yaml
 
-            const digitalOceanClient = createDigitalOceanClient({
-                token: this.digitalOceanToken
-            });
-
             let kubernetesClusters: IKubernetesCluster[] = [];
-            try {
-                let {
-                    data: { kubernetes_clusters }
-                } = await digitalOceanClient.kubernetes.listKubernetesClusters({
-                    page: 1,
-                    per_page: 999
-                });
 
-                kubernetesClusters = kubernetes_clusters;
-            } catch (error) {
-                console.error(error);
+            const K8S_CHECK_CLUSTER_RETRY = 3;
+            let k8sCheckClusterCounter = 0;
+            while (k8sCheckClusterCounter < K8S_CHECK_CLUSTER_RETRY) {
+                try {
+                    let {
+                        data: { kubernetes_clusters }
+                    } = await this.digitalOceanClient.kubernetes.listKubernetesClusters(
+                        {
+                            page: 1,
+                            per_page: 999
+                        }
+                    );
+
+                    kubernetesClusters = kubernetes_clusters;
+                    break;
+                } catch (error) {
+                    console.error(
+                        error,
+                        `\nRetried checking k8s cluster for times ${k8sCheckClusterCounter +
+                            1}/${K8S_CHECK_CLUSTER_RETRY}`
+                    );
+                }
+                k8sCheckClusterCounter++;
             }
 
             if (!kubernetesClusters.length) {
@@ -112,6 +133,7 @@ export class KubernetesService {
                     KubernetesService.DIGITALOCEAN_KUBERNETES_CLUSTER_NAME
                 );
             });
+            this.kubernetesCluster = kubernetesCluster;
 
             if (!kubernetesCluster) {
                 throw new Error(
@@ -123,7 +145,7 @@ export class KubernetesService {
             try {
                 const {
                     data: kubeconfig
-                } = await digitalOceanClient.kubernetes.getKubernetesClusterKubeconfig(
+                } = await this.digitalOceanClient.kubernetes.getKubernetesClusterKubeconfig(
                     {
                         kubernetes_cluster_id: kubernetesCluster.id
                     }
@@ -276,7 +298,7 @@ export class KubernetesService {
             return k8Job;
         } catch (error) {
             // maybe digitalocean rotated (updated) kubernetes credentials, so we need to re-initialize kubernetes client
-            if (error.response.statusCode === 401) {
+            if (error && error.response && error.response.statusCode === 401) {
                 this.kubernetesBatchClient = undefined;
                 await this.asyncInitialize();
                 if (!this.kubernetesBatchClient) {
@@ -295,6 +317,78 @@ export class KubernetesService {
             }
 
             throw error;
+        }
+    }
+
+    public async _createScraperWorkerNodePool () {
+        console.log('create node pool()');
+
+        await this.asyncInitialize();
+        if (!this.kubernetesCluster?.id) {
+            throw new Error('Kubernetes cluster not initialized yet');
+        }
+
+        const nodeRequest: ICreateNodePoolApiRequest = {
+            kubernetes_cluster_id: this.kubernetesCluster.id,
+            name: 'scraper-worker-node-' + Date.now(),
+
+            count: 1,
+            auto_scale: false,
+
+            // see all droplet size slugs at
+            // https://developers.digitalocean.com/documentation/changelog/api-v2/new-size-slugs-for-droplet-plan-changes/
+            size: 's-4vcpu-8gb',
+            tags: [KubernetesService.SCRAPER_WORKER_NODE_LABEL]
+        };
+
+        const {
+            data: { node_pool }
+        } = await this.digitalOceanClient.kubernetes.createNodePool(
+            nodeRequest
+        );
+
+        return node_pool;
+    }
+
+    public async _listScraperWorkerNodePool () {
+        console.log('list node pools()');
+
+        await this.asyncInitialize();
+        if (!this.kubernetesCluster?.id) {
+            throw new Error('Kubernetes cluster not initialized yet');
+        }
+
+        const {
+            data: { node_pools }
+        } = await this.digitalOceanClient.kubernetes.listNodePools({
+            kubernetes_cluster_id: this.kubernetesCluster.id,
+            page: 9999,
+            per_page: 25
+        });
+
+        return node_pools.filter(nodePool =>
+            nodePool.tags.includes(KubernetesService.SCRAPER_WORKER_NODE_LABEL)
+        );
+    }
+
+    public async _cleanScraperWorkerNodePools () {
+        console.log('clean node pools()');
+
+        await this.asyncInitialize();
+        if (!this.kubernetesCluster?.id) {
+            throw new Error('Kubernetes cluster not initialized yet');
+        }
+
+        const allScraperWorkerNodePools = await this._listScraperWorkerNodePool();
+        for (let nodePool of allScraperWorkerNodePools) {
+            const result = await this.digitalOceanClient.kubernetes.deleteNodePool(
+                {
+                    kubernetes_cluster_id: this.kubernetesCluster.id,
+                    node_pool_id: nodePool.id
+                }
+            );
+
+            console.log('delete status for node pool', nodePool.name, result);
         }
     }
 }

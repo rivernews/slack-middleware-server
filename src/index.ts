@@ -26,6 +26,10 @@ import {
 } from './JobQueueAPI/routes';
 import { UI } from 'bull-board';
 import { redisManager } from './services/redis';
+import {
+    kubernetesApiBaseUrl,
+    kubernetesApiRouter
+} from './KubernetesAPI/routes';
 
 // Constants
 if (!process.env.PORT) {
@@ -59,12 +63,15 @@ app.use(
     slackAuthenticateMiddleware,
     qualitativeOrgReviewRouter
 );
-// test single job: curl -v -X POST http://localhost:8080/queues/single-org-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
-// test s3 orgs job: curl -v -X POST http://localhost:8080/queues/s3-orgs-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
 app.use(
     gdOrgReviewRenewalBaseUrl,
     jobQueueAuthenticateMiddleware,
     gdOrgReviewRenewalRouter
+);
+app.use(
+    kubernetesApiBaseUrl,
+    jobQueueAuthenticateMiddleware,
+    kubernetesApiRouter
 );
 app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, UI);
 

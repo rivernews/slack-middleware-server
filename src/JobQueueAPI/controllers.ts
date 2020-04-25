@@ -248,7 +248,7 @@ export const pauseAllQueuesController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.debug('pause all queues controller');
+    console.log('pause all queues controller');
 
     for (const queue of [
         s3OrgsJobQueueManager.queue,
