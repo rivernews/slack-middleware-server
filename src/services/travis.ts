@@ -104,9 +104,7 @@ export class TravisManager {
                         ...mapJobDataToScraperEnvVar(scraperJobData)
                     }
                 },
-                // TODO: undo
-                branch: 'SLK_066_job_splitting',
-                // branch: 'master',
+                branch: 'master',
                 ...travisJobOption
             }
         ).then(requestResult => {
