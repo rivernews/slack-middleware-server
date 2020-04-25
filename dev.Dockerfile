@@ -33,6 +33,19 @@ RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/ap
 COPY src/package*.json ${WORKSPACE}/
 RUN npm install
 
+
+
+# https://github.com/microsoft/vscode-dev-containers/tree/master/containers/docker-in-docker
+RUN echo "Installing docker CE CLI..." \ 
+  && apt-get update \
+  && apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common lsb-release \
+  && curl -fsSL https://download.docker.com/linux/$(lsb_release -is | tr '[:upper:]' '[:lower:]')/gpg | apt-key add - 2>/dev/null \
+  && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is | tr '[:upper:]' '[:lower:]') $(lsb_release -cs) stable" \
+  && apt-get update \
+  && apt-get install -y docker-ce-cli
+
+
+
 # do not copy any source file while using vscode remote container
 # since vscode will automatically mount source file into container
 # if you copy over the source code, editing on them will not

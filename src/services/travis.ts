@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { ScraperJobRequestData, ScraperProgressData } from './jobQueue/types';
-import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
+import { ScraperJobRequestData } from './jobQueue/types';
+import { JobQueueSharedRedisClientsSingleton } from './redis';
 import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
 import { ServerError } from '../utilities/serverExceptions';
 import { Semaphore } from 'redis-semaphore';
@@ -38,7 +38,7 @@ export class TravisManager {
     private trackingTravisJobs: TravisJob[] = [];
     private trackingSchedulers: NodeJS.Timeout[] = [];
 
-    public travisJobResourceSemaphore: Semaphore;
+    public travisJobResourceSemaphore?: Semaphore;
 
     private constructor () {
         JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
@@ -49,17 +49,20 @@ export class TravisManager {
         }
 
         // Current travis environment is suitable for running up to 6 jobs in parallel
-        this.travisJobResourceSemaphore = new Semaphore(
-            JobQueueSharedRedisClientsSingleton.singleton.genericClient,
-            'travisJobResourceLock',
-            6,
-            {
-                // when travis has no vacancy, the full situation will be
-                // detected after 6 sec when someone call `.acquire()`
-                acquireTimeout: 20 * 1000,
-                retryInterval: 5 * 1000
-            }
-        );
+        this.travisJobResourceSemaphore =
+            parseInt(process.env.PLATFORM_CONCURRENCY_TRAVIS || '6') > 0
+                ? new Semaphore(
+                      JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+                      'travisJobResourceLock',
+                      parseInt(process.env.PLATFORM_CONCURRENCY_TRAVIS || '6'),
+                      {
+                          // when travis has no vacancy, the full situation will be
+                          // detected after 6 sec when someone call `.acquire()`
+                          acquireTimeout: 20 * 1000,
+                          retryInterval: 5 * 1000
+                      }
+                  )
+                : undefined;
     }
 
     public static get singleton () {
@@ -115,7 +118,8 @@ export class TravisManager {
                     requestResult.data.request.id
                 }/${requestResult.data['@type']}, remaining_requests=${
                     requestResult.data['remaining_requests']
-                }`
+                }`,
+                requestResult
             );
 
             const travisJob = new TravisJob(requestResult.data.request.id);
@@ -137,8 +141,8 @@ export class TravisManager {
                     6;
                 let pollingCount = 0;
                 const buildProvisionedPolling = setInterval(async () => {
-                    console.debug(
-                        `Travis checking build status for request ${travisJob.requestId}...`
+                    console.log(
+                        `Travis checking build status for request ${travisJob.requestId} (polled count ${pollingCount})...`
                     );
                     const requestInfo = (
                         await TravisManager.requestTravisApi(
@@ -152,10 +156,15 @@ export class TravisManager {
                         for (const build of requestInfo.builds) {
                             travisJob.buildIds.push(build.id);
                         }
-                        console.debug(`Got build id!`, travisJob.buildIds);
+                        console.log(`Got build id!`, travisJob.buildIds);
                         this.clearAllSchedulers();
                         return resolve(requestInfo);
                     }
+
+                    console.log(
+                        'No build info in travis request yet',
+                        JSON.stringify(requestInfo)
+                    );
 
                     if (pollingCount >= MAX_POLLING_COUNT) {
                         this.clearAllSchedulers();
@@ -256,20 +265,31 @@ export interface ScraperEnvironmentVariable {
     TEST_COMPANY_LAST_PROGRESS_DURATION?: string;
     TEST_COMPANY_LAST_PROGRESS_SESSION?: string;
     TEST_COMPANY_LAST_PROGRESS_PAGE?: string;
-    TEST_COMPANY_LAST_REVIEW_PAGE_URL?: string;
+    TEST_COMPANY_NEXT_REVIEW_PAGE_URL?: string;
+    TEST_COMPANY_STOP_AT_PAGE?: string;
+    TEST_COMPANY_SHARD_INDEX?: string;
     SCRAPER_MODE?: string;
     SUPERVISOR_PUBSUB_REDIS_DB?: string;
+    SUPERVISOR_PUBSUB_CHANNEL_NAME?: string;
+
+    // additional parameters
+    LOGGER_LEVEL?: string;
+    CROSS_SESSION_TIME_LIMIT_MINUTES?: string;
 }
 
 export const checkTravisHasVacancy = async (
     currentProcessIdentifier: string
 ) => {
+    if (!TravisManager.singleton.travisJobResourceSemaphore) {
+        return;
+    }
+
     // try semaphore first
     let travisJobResourceSemaphoreString: string;
     try {
         travisJobResourceSemaphoreString = await TravisManager.singleton.travisJobResourceSemaphore.acquire();
     } catch (error) {
-        console.debug('travis semaphore acquire failed', error);
+        console.log('travis semaphore acquire failed', error);
         return;
     }
 

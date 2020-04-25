@@ -7,14 +7,11 @@ import {
     ScraperJobRequestData
 } from '../../services/jobQueue/types';
 import { ServerError } from '../../utilities/serverExceptions';
-import { asyncCleanupJobQueuesAndRedisClients } from '../../services/jobQueue';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
-import {
-    JobQueueName,
-    getProssesorName
-} from '../../services/jobQueue/jobQueueName';
+import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import { getPubsubChannelName } from '../../services/jobQueue/message';
 
 const handleManualTerminationForSupervisorJob = (jobResult: string) => {
     // treat manual termianation as failure at the supervisorJob level
@@ -114,15 +111,10 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
         );
     }
 
-    const orgInfoList = supervisorJob.data.orgInfo
-        ? [supervisorJob.data.orgInfo]
-        : supervisorJob.data.orgInfoList || [];
-    let processed = 0;
-
     const progressBarManager = ProgressBarManager.newProgressBarManager(
         JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB,
         supervisorJob,
-        supervisorJob.data.crossRequestData ? 1 : orgInfoList.length
+        1
     );
 
     return (
@@ -133,15 +125,6 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                 supervisorJob,
                 JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB
             )
-            // supervisorJobQueueManager
-            //     .checkConcurrency(
-            //         SUPERVISOR_JOB_CONCURRENCY,
-            //         undefined,
-            //         supervisorJob
-            //     )
-            //     .then(() => {
-            //         return progressBar.setAbsolutePercentage(1);
-            //     })
             .then(async () => {
                 // start dispatching job - resume scraping
                 if (supervisorJob.data.crossRequestData) {
@@ -161,65 +144,62 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     );
                 }
 
-                // start dispatching job - scrape from beginning
-                if (!orgInfoList.length) {
-                    console.log('org list empty, will do nothing');
-                    return Promise.resolve('empty orgList');
-                }
-                console.log('supervisorJob will dispatch scraper jobs');
-                for (
-                    processed = 0;
-                    processed < orgInfoList.length;
-                    processed++
-                ) {
-                    const orgInfo = orgInfoList[processed];
-                    const orgFirstJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
-                        {
-                            orgInfo
-                        }
-                    );
-                    console.log(
-                        `supervisorJob added scraper job ${orgFirstJob.id}`
-                    );
+                // start dispatching job - scrape from beginning for unsplitted/splitted single org job
 
-                    const orgFirstJobReturnData: ScraperJobReturnData = await orgFirstJob.finished();
-                    console.log(
-                        `supervisorJob: job ${orgFirstJob.id} finished`
+                const scraperJobRequestData: ScraperJobRequestData | undefined =
+                    supervisorJob.data.splittedScraperJobRequestData ||
+                    supervisorJob.data.scraperJobRequestData;
+                if (!scraperJobRequestData) {
+                    console.log('No org passed in');
+                    return Promise.resolve(
+                        `Empty org info, supervisor job ${supervisorJob.id} will do nothing`
                     );
-                    await asyncSendSlackMessage(
+                }
+
+                console.log('supervisorJob will dispatch scraper jobs');
+
+                const orgFirstJob = await gdOrgReviewScraperJobQueueManager.asyncAdd(
+                    scraperJobRequestData
+                );
+                console.log(
+                    `supervisorJob ${supervisorJob.id}: added scraper job ${orgFirstJob.id}`
+                );
+
+                const orgFirstJobReturnData: ScraperJobReturnData = await orgFirstJob.finished();
+                console.log(`supervisorJob: job ${orgFirstJob.id} finished`);
+                await asyncSendSlackMessage(
+                    `supervisorJob: job ${
+                        orgFirstJob.id
+                    } finished, return data:\n\`\`\`${JSON.stringify(
+                        orgFirstJobReturnData
+                    )}\`\`\``
+                );
+
+                if (
+                    typeof orgFirstJobReturnData !== 'string' &&
+                    !ScraperCrossRequest.isScraperCrossRequestData(
+                        orgFirstJobReturnData
+                    )
+                ) {
+                    throw new ServerError(
                         `supervisorJob: job ${
                             orgFirstJob.id
-                        } finished, return data:\n\`\`\`${JSON.stringify(
+                        } returned illegal result data: ${JSON.stringify(
                             orgFirstJobReturnData
-                        )}\`\`\``
+                        )}`
                     );
-
-                    if (
-                        typeof orgFirstJobReturnData !== 'string' &&
-                        !ScraperCrossRequest.isScraperCrossRequestData(
-                            orgFirstJobReturnData
-                        )
-                    ) {
-                        throw new ServerError(
-                            `supervisorJob: job ${
-                                orgFirstJob.id
-                            } returned illegal result data: ${JSON.stringify(
-                                orgFirstJobReturnData
-                            )}`
-                        );
-                    } else if (typeof orgFirstJobReturnData === 'string') {
-                        handleManualTerminationForSupervisorJob(
-                            orgFirstJobReturnData
-                        );
-                    }
-
-                    // process renewal jobs if necessary
-                    await processRenewalJob(orgFirstJobReturnData, orgFirstJob);
-
-                    console.log('supervisorJob: proceeding to next org');
-
-                    await progressBarManager.increment();
+                } else if (typeof orgFirstJobReturnData === 'string') {
+                    handleManualTerminationForSupervisorJob(
+                        orgFirstJobReturnData
+                    );
                 }
+
+                // process renewal jobs if necessary
+                await processRenewalJob(orgFirstJobReturnData, orgFirstJob);
+
+                console.log('supervisorJob: proceeding to next org');
+
+                await progressBarManager.increment();
 
                 console.log('supervisorJob: all scraper job finished');
 
@@ -232,9 +212,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
                     } interrupted due to error (job params: ${JSON.stringify(
                         supervisorJob.data
                     )})\n`,
-                    error,
-                    'remaining orgList not yet finished (including failed one):',
-                    orgInfoList.slice(processed, orgInfoList.length)
+                    error
                 );
 
                 throw error;

@@ -22,11 +22,11 @@ export enum ScraperMode {
     RENEWAL = 'renewal'
 }
 
-// export type SupervisorJobRequestData = string | string[];
-export interface SupervisorJobRequestData {
-    orgInfo?: string;
-    orgInfoList?: string[];
+export type S3JobRequestData = null;
 
+export interface SupervisorJobRequestData {
+    scraperJobRequestData?: ScraperJobRequestData;
+    splittedScraperJobRequestData?: ScraperJobRequestData;
     crossRequestData?: ScraperCrossRequestData;
 }
 
@@ -34,39 +34,52 @@ export type ScraperJobReturnData = string | ScraperCrossRequestData;
 
 export interface ScraperJobRequestData {
     // for regular scraper job
+    pubsubChannelName: string;
     orgInfo?: string;
 
     // for renewal job
     orgId?: string;
     orgName?: string;
     lastProgress?: ScraperProgressData;
-    lastReviewPage?: string;
+    nextReviewPageUrl?: string;
     scrapeMode?: ScraperMode;
+
+    // for job splitting
+    stopPage?: number;
+    shardIndex?: number;
 }
 
 export type ScraperCrossRequestData = ScraperJobRequestData & {
     orgId: string;
     orgName: string;
     lastProgress: ScraperProgressData;
-    lastReviewPage: string;
+    nextReviewPageUrl: string;
     scrapeMode: ScraperMode;
 };
 
 export class ScraperCrossRequest implements ScraperCrossRequestData {
+    public pubsubChannelName: string;
     public orgId: string;
     public orgName: string;
     public lastProgress: ScraperProgressData;
-    public lastReviewPage: string;
+    public nextReviewPageUrl: string;
     public scrapeMode: ScraperMode;
+
+    public stopPage?: number;
+    public shardIndex?: number;
 
     constructor (props: ScraperCrossRequestData) {
         ScraperCrossRequest.isScraperCrossRequestData(props, true);
 
+        this.pubsubChannelName = props.pubsubChannelName;
         this.orgId = props.orgId;
         this.orgName = props.orgName;
         this.lastProgress = props.lastProgress;
-        this.lastReviewPage = props.lastReviewPage;
+        this.nextReviewPageUrl = props.nextReviewPageUrl;
         this.scrapeMode = props.scrapeMode;
+
+        this.stopPage = props.stopPage;
+        this.shardIndex = props.shardIndex;
     }
 
     // type guard in Typescript
@@ -77,11 +90,14 @@ export class ScraperCrossRequest implements ScraperCrossRequestData {
     ): props is ScraperCrossRequestData {
         if (
             !(
-                props.orgId &&
-                props.orgName &&
-                props.lastProgress &&
-                props.lastReviewPage &&
-                props.scrapeMode
+                // only check fields required by cross session job
+                (
+                    props.orgId &&
+                    props.orgName &&
+                    props.lastProgress &&
+                    props.nextReviewPageUrl &&
+                    props.scrapeMode
+                )
             )
         ) {
             if (throwError) {

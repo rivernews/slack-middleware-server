@@ -9,10 +9,7 @@ import {
     ParameterRequirementNotMet,
     ServerError
 } from '../utilities/serverExceptions';
-import {
-    JobQueueName,
-    getProssesorName
-} from '../services/jobQueue/jobQueueName';
+import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,
@@ -23,7 +20,10 @@ import {
     JobQueueSharedRedisClientsSingleton,
     RedisPubSubChannelName
 } from '../services/redis';
-import { composePubsubMessage } from '../services/jobQueue/message';
+import {
+    composePubsubMessage,
+    getPubsubChannelName
+} from '../services/jobQueue/message';
 import { gdOrgReviewScraperJobQueueManager } from './scraperJob/queue';
 
 export const s3OrgsJobController = async (
@@ -83,7 +83,12 @@ export const singleOrgJobController = async (
 
         console.log('Ready to dispatch supervisorJob');
         const supervisorJob = await supervisorJobQueueManager.asyncAdd({
-            orgInfo: companyInformationString
+            scraperJobRequestData: {
+                pubsubChannelName: getPubsubChannelName({
+                    orgInfo: companyInformationString
+                }),
+                orgInfo: companyInformationString
+            }
         });
 
         console.log('dispatch result:\n', supervisorJob);
@@ -127,10 +132,16 @@ export const singleOrgRenewalJobController = async (
         typeof req.body.orgInfo === 'string' &&
         req.body.orgInfo.trim() !== ''
     ) {
+        const orgInfo = (req.body.orgInfo as string).trim();
+        // brand new 1st job
         supervisorJob = await supervisorJobQueueManager.asyncAdd({
-            orgInfo: (req.body.orgInfo as string).trim()
+            scraperJobRequestData: {
+                pubsubChannelName: getPubsubChannelName({ orgInfo }),
+                orgInfo
+            }
         });
     } else if (ScraperCrossRequest.isScraperCrossRequestData(req.body, true)) {
+        // renewal job
         supervisorJob = await supervisorJobQueueManager.asyncAdd({
             crossRequestData: req.body
         });

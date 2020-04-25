@@ -1,14 +1,26 @@
-import { ScraperJobRequestData, ScraperProgressData } from './types';
+import {
+    ScraperJobRequestData,
+    ScraperProgressData,
+    ScraperMode
+} from './types';
 
 import { ScraperEnvironmentVariable } from '../travis';
 
 import { redisManager } from '../redis';
+import { Configuration } from '../../utilities/configuration';
 
 export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     let scraperJobEnvironmentVaribles = (Object.keys(
         jobData
     ) as (keyof ScraperJobRequestData)[]).reduce((acc, cur) => {
-        if (cur === 'orgInfo') {
+        // Only use string value; otherwise k8s job will complain
+
+        if (cur === 'pubsubChannelName') {
+            return {
+                ...acc,
+                SUPERVISOR_PUBSUB_CHANNEL_NAME: jobData[cur]
+            };
+        } else if (cur === 'orgInfo') {
             return {
                 ...acc,
                 TEST_COMPANY_INFORMATION_STRING: jobData[cur]
@@ -35,16 +47,30 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                 TEST_COMPANY_LAST_PROGRESS_PAGE: progressData.page.toString(),
                 TEST_COMPANY_LAST_PROGRESS_SESSION: progressData.processedSession.toString()
             };
-        } else if (cur === 'lastReviewPage') {
+        } else if (cur === 'nextReviewPageUrl') {
             return {
                 ...acc,
-                TEST_COMPANY_LAST_REVIEW_PAGE_URL: jobData[cur]
+                TEST_COMPANY_NEXT_REVIEW_PAGE_URL: jobData[cur]
             };
-        } else {
+        } else if (cur === 'scrapeMode') {
             return {
                 ...acc,
                 SCRAPER_MODE: jobData[cur]
             };
+        } else if (cur === 'stopPage') {
+            return {
+                ...acc,
+                TEST_COMPANY_STOP_AT_PAGE: (jobData[cur] as number).toString()
+            };
+        } else if (cur === 'shardIndex') {
+            return {
+                ...acc,
+                TEST_COMPANY_SHARD_INDEX: jobData[cur]?.toString()
+            };
+        } else {
+            throw new Error(
+                `MapJobDataToEnvVar: unknown job data key=${cur}, value=${jobData[cur]}`
+            );
         }
     }, {}) as ScraperEnvironmentVariable;
 
@@ -52,6 +78,7 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
     scraperJobEnvironmentVaribles = {
         ...scraperJobEnvironmentVaribles,
 
+        // make sure org info env var always passed in
         TEST_COMPANY_INFORMATION_STRING:
             scraperJobEnvironmentVaribles.TEST_COMPANY_INFORMATION_STRING || '',
 
@@ -62,7 +89,13 @@ export const mapJobDataToScraperEnvVar = (jobData: ScraperJobRequestData) => {
                   AWS_S3_ARCHIVE_BUCKET_NAME:
                       process.env.AWS_S3_ARCHIVE_BUCKET_NAME
               }
-            : {})
+            : {}),
+
+        LOGGER_LEVEL: '2',
+
+        // smaller chunk of task is better especially when random network-related error occurr.
+        // when bull retry the scraper job, we can have less overhead
+        CROSS_SESSION_TIME_LIMIT_MINUTES: Configuration.singleton.crossSessionTimeLimitMinutes.toString()
     };
 
     return scraperJobEnvironmentVaribles;

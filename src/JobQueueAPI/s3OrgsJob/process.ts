@@ -6,6 +6,54 @@ import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ServerError } from '../../utilities/serverExceptions';
 import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import {
+    ScraperJobRequestData,
+    ScraperMode,
+    SupervisorJobRequestData,
+    ScraperProgressData
+} from '../../services/jobQueue/types';
+import { Configuration } from '../../utilities/configuration';
+import { getPubsubChannelName } from '../../services/jobQueue/message';
+import { getMiddleReviewPageUrl } from '../../services/gd';
+import { S3Organization } from '../../services/s3/types';
+
+const getSplittedJobRequestData = (
+    org: S3Organization,
+    pageNumberPointer: number,
+    incrementalPageAmount: number,
+    shardIndex: number
+) => {
+    return {
+        // job splitting params
+        nextReviewPageUrl: getMiddleReviewPageUrl(
+            org.reviewPageUrl,
+            pageNumberPointer + 1
+        ),
+        stopPage: pageNumberPointer + incrementalPageAmount,
+
+        // other essential params
+        pubsubChannelName: getPubsubChannelName({
+            orgName: org.orgName,
+            page: pageNumberPointer + 1
+        }),
+        orgId: org.orgId,
+        orgName: org.orgName,
+        scrapeMode: ScraperMode.RENEWAL,
+
+        // for log and monitor
+        shardIndex,
+        lastProgress: {
+            processed: 0,
+            wentThrough: 0,
+            total:
+                incrementalPageAmount *
+                Configuration.singleton.gdReviewCountPerPage,
+            durationInMilli: '1',
+            page: pageNumberPointer,
+            processedSession: 0
+        }
+    };
+};
 
 module.exports = function (s3OrgsJob: Bull.Job<null>) {
     console.log(`s3OrgsJob ${s3OrgsJob.id} started`, s3OrgsJob);
@@ -45,37 +93,127 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
 
             return (
                 s3ArchiveManager
-                    .asyncGetOverviewPageUrls()
+                    .asyncGetAllOrgsForS3Job()
                     // increment progress after s3 org list fetched
-                    .then(orgInfoList =>
+                    .then(orgList =>
                         progressBarManager
                             .increment()
-                            // we have to use `orgInfoList` so need to nest callbacks in then() instead of chaining them
                             .then(() => {
-                                // report progress after bucket distributed
-                                if (!orgInfoList.length) {
+                                const supervisorJobRequests: SupervisorJobRequestData[] = [];
+                                for (const org of orgList) {
+                                    // dispatch for large org (splitted job)
+
+                                    if (
+                                        org.reviewPageUrl &&
+                                        org.localReviewCount &&
+                                        org.localReviewCount >
+                                            Configuration.singleton
+                                                .scraperJobSplittingSize
+                                    ) {
+                                        const incrementalPageAmount = Math.ceil(
+                                            Configuration.singleton
+                                                .scraperJobSplittingSize /
+                                                Configuration.singleton
+                                                    .gdReviewCountPerPage
+                                        );
+                                        let pageNumberPointer = 0;
+                                        let shardIndex = 0;
+
+                                        // dispatch 1st job
+                                        supervisorJobRequests.push({
+                                            splittedScraperJobRequestData: getSplittedJobRequestData(
+                                                org,
+                                                pageNumberPointer,
+                                                incrementalPageAmount,
+                                                shardIndex
+                                            )
+                                        });
+
+                                        pageNumberPointer += incrementalPageAmount;
+                                        shardIndex += 1;
+
+                                        // dispatch rest of the parts
+                                        const estimatedPageCountTotal = Math.ceil(
+                                            org.localReviewCount /
+                                                Configuration.singleton
+                                                    .gdReviewCountPerPage
+                                        );
+
+                                        while (
+                                            pageNumberPointer <
+                                            estimatedPageCountTotal
+                                        ) {
+                                            supervisorJobRequests.push({
+                                                splittedScraperJobRequestData: getSplittedJobRequestData(
+                                                    org,
+                                                    pageNumberPointer,
+                                                    incrementalPageAmount,
+                                                    shardIndex
+                                                )
+                                            });
+
+                                            pageNumberPointer += incrementalPageAmount;
+                                            shardIndex += 1;
+                                        }
+
+                                        // last splitted job does not need stop page, just scrape till the end
+                                        delete (supervisorJobRequests[
+                                            supervisorJobRequests.length - 1
+                                        ]
+                                            .splittedScraperJobRequestData as ScraperJobRequestData)
+                                            .stopPage;
+                                        // let last splitted job just use local review count instead of incremental amount
+                                        // since it may vary
+                                        ((supervisorJobRequests[
+                                            supervisorJobRequests.length - 1
+                                        ]
+                                            .splittedScraperJobRequestData as ScraperJobRequestData)
+                                            .lastProgress as ScraperProgressData).total =
+                                            org.localReviewCount;
+
+                                        continue;
+                                    }
+
+                                    // dispatch for small org that does not need splitting
+
+                                    supervisorJobRequests.push({
+                                        scraperJobRequestData: {
+                                            pubsubChannelName: getPubsubChannelName(
+                                                { orgName: org.orgName }
+                                            ),
+                                            orgInfo: org.companyOverviewPageUrl
+                                        }
+                                    });
+                                }
+
+                                // report progress after job planning complete
+                                if (!supervisorJobRequests.length) {
                                     progressBarManager.syncSetAbsolutePercentage(
                                         100
                                     );
                                 } else {
                                     progressBarManager.syncSetRelativePercentage(
                                         0,
-                                        orgInfoList.length
+                                        supervisorJobRequests.length
                                     );
                                 }
 
-                                return;
+                                return supervisorJobRequests;
                             })
-                            .then(() => {
+                            .then(scraperJobRequests => {
                                 return Promise.all(
-                                    orgInfoList.map((orgInfo, index) =>
-                                        new Promise(res =>
-                                            setTimeout(res, index * 3 * 1000)
-                                        ).then(() =>
-                                            supervisorJobQueueManager.asyncAdd({
-                                                orgInfo
+                                    scraperJobRequests.map(
+                                        (scraperJobRequest, index) =>
+                                            new Promise(res =>
+                                                setTimeout(
+                                                    res,
+                                                    index * 3 * 1000
+                                                )
+                                            ).then(() => {
+                                                return supervisorJobQueueManager.asyncAdd(
+                                                    scraperJobRequest
+                                                );
                                             })
-                                        )
                                     )
                                 );
                             })

@@ -15,6 +15,7 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/tr
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -97,16 +98,17 @@ class ScraperJobProcessResourcesCleaner {
             // release semaphores
 
             if (this.lastK8JobSemaphoreResourceString) {
-                console.debug(
+                console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
                 await KubernetesService.singleton.jobVacancySemaphore.release();
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
-                console.debug(
+                console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
-                await TravisManager.singleton.travisJobResourceSemaphore.release();
+                TravisManager.singleton.travisJobResourceSemaphore &&
+                    (await TravisManager.singleton.travisJobResourceSemaphore.release());
                 this.lastTravisJobSemaphoreResourceString = undefined;
             }
 
@@ -142,7 +144,7 @@ class ScraperJobProcessResourcesCleaner {
             return;
         }
 
-        console.debug(
+        console.log(
             `In ${this.processName} process pid ${this.pid}, redis cleaner has insufficient arguments so skipping clean up`
         );
     }
@@ -280,24 +282,24 @@ const onReceiveScraperJobMessage = async (
 };
 
 const getMessageTimeoutTimer = (
-    jobId: string,
+    job: Bull.Job<ScraperJobRequestData>,
     org: string = 'null',
     redisPubsubChannelName: string,
     scraperSupervisorReject: (reason?: string) => void
 ) =>
     setTimeout(async () => {
         console.warn(
-            `job ${jobId} timed out after ` +
+            `job ${job.id} timed out after ` +
                 TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS +
                 ' ms'
         );
 
         await asyncSendSlackMessage(
-            `Supervisor job ${jobId} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}; pubsub channel is \`${redisPubsubChannelName}\``
+            `Supervisor job ${job.id} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job for org ${org}; pubsub channel is \`${redisPubsubChannelName}\``
         );
 
         return scraperSupervisorReject(
-            `job ${jobId} for org ${org} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job; pubsub channel is \`${redisPubsubChannelName}\``
+            `job ${job.id} for org ${org} on ${processResourceCleaner.runtimePlatformDescriptor} timed out ${TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS}ms while supervising scraper job; pubsub channel is \`${redisPubsubChannelName}\``
         );
     }, TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS);
 
@@ -373,7 +375,7 @@ const superviseScraper = (
                 new Promise<string | ScraperCrossRequest>(
                     (scraperSupervisorResolve, scraperSupervisorReject) => {
                         let timeoutTimer = getMessageTimeoutTimer(
-                            job.id.toString(),
+                            job,
                             job.data.orgName || job.data.orgInfo,
                             redisPubsubChannelName,
                             scraperSupervisorReject
@@ -384,7 +386,7 @@ const superviseScraper = (
                             async (channel, message) => {
                                 clearTimeout(timeoutTimer);
                                 timeoutTimer = getMessageTimeoutTimer(
-                                    job.id.toString(),
+                                    job,
                                     job.data.orgName || job.data.orgInfo,
                                     redisPubsubChannelName,
                                     scraperSupervisorReject
@@ -423,9 +425,17 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                const travisSemaphoreResourceString = await checkTravisHasVacancy(
-                                    redisPubsubChannelName
-                                );
+                                const travisSemaphoreResourceString =
+                                    process.env.NODE_ENV !==
+                                        RuntimeEnvironment.DEVELOPMENT &&
+                                    parseInt(
+                                        process.env
+                                            .PLATFORM_CONCURRENCY_TRAVIS || '6'
+                                    ) > 0
+                                        ? await checkTravisHasVacancy(
+                                              redisPubsubChannelName
+                                          )
+                                        : null;
 
                                 if (!travisSemaphoreResourceString) {
                                     // run on k8s
@@ -439,9 +449,13 @@ const superviseScraper = (
                                         'no travis vacancy available, try to use k8 job'
                                     );
 
-                                    ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
+                                    try {
+                                        ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString = await KubernetesService.singleton.jobVacancySemaphore.acquire();
+                                    } catch (error) {
+                                        return scraperSupervisorReject(error);
+                                    }
 
-                                    console.debug(
+                                    console.log(
                                         `job ${job.id} got k8 job semaphore ${ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString}`
                                     );
 
@@ -479,31 +493,31 @@ const superviseScraper = (
                                     );
 
                                     return;
+                                } else {
+                                    // run on travis
+
+                                    processResourceCleaner.runtimePlatformDescriptor =
+                                        'travis/waitingForSemaphore';
+
+                                    ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
+
+                                    const confirmedTravisJobRequest = await TravisManager.singleton.asyncTriggerJob(
+                                        job.data
+                                    );
+
+                                    console.debug(
+                                        `job ${job.id} travis build created successfully: `,
+                                        confirmedTravisJobRequest.builds
+                                    );
+
+                                    await progressBarManager.increment();
+
+                                    processResourceCleaner.runtimePlatformDescriptor = `travis/${confirmedTravisJobRequest.builds
+                                        .map(build => build.id)
+                                        .join(',')}`;
+
+                                    return;
                                 }
-
-                                // run on travis
-
-                                processResourceCleaner.runtimePlatformDescriptor =
-                                    'travis/waitingForSemaphore';
-
-                                ScraperJobProcessResourcesCleaner.singleton.lastTravisJobSemaphoreResourceString = travisSemaphoreResourceString;
-
-                                const confirmedTravisJobRequest = await TravisManager.singleton.asyncTriggerJob(
-                                    job.data
-                                );
-
-                                console.debug(
-                                    `job ${job.id} travis build created successfully: `,
-                                    confirmedTravisJobRequest.builds
-                                );
-
-                                await progressBarManager.increment();
-
-                                processResourceCleaner.runtimePlatformDescriptor = `travis/${confirmedTravisJobRequest.builds
-                                    .map(build => build.id)
-                                    .join(',')}`;
-
-                                return;
                             });
                     }
                 )
@@ -529,13 +543,8 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
 
     const redisClientSubscription = (processResourceCleaner.lastRedisClientSubscription = redisManager.newClient());
     const redisClientPublish = (processResourceCleaner.lastRedisClientPublish = redisManager.newClient());
-    const redisPubsubChannelName = (processResourceCleaner.lastRedisPubsubChannelName = `${
-        RedisPubSubChannelName.SCRAPER_JOB_CHANNEL
-    }:${patchedJob.data.orgInfo || patchedJob.data.orgName}:${
-        patchedJob.data.lastProgress
-            ? patchedJob.data.lastProgress.processedSession
-            : 0
-    }`);
+    const redisPubsubChannelName = (processResourceCleaner.lastRedisPubsubChannelName =
+        patchedJob.data.pubsubChannelName);
 
     return superviseScraper(
         patchedJob,
@@ -547,9 +556,15 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         .catch(error => {
             if (typeof error === 'string') {
                 throw new Error(
-                    `platform: ${processResourceCleaner.runtimePlatformDescriptor}\n${error}`
+                    `platform: ${
+                        processResourceCleaner.runtimePlatformDescriptor
+                    }\n${error}\nJob params: ${JSON.stringify(job.data)}`
                 );
+            } else if (error instanceof Error) {
+                error.message += `\nJob params: ${JSON.stringify(job.data)}`;
+                throw error;
             }
+
             throw error;
         })
         .finally(() => {

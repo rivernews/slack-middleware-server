@@ -43,13 +43,22 @@ module "slack_middleware_service" {
     "/app/slack-middleware-service/SUPERVISOR_PUBSUB_REDIS_DB",
     "/app/slack-middleware-service/FLUSHDB_ON_START",
 
-    "/app/slack-middleware-service/SUPERVISOR_JOB_CONCURRENCY",
     "/app/slack-middleware-service/TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS",
-    "/app/slack-middleware-service/SCRAPER_JOB_POOL_MAX_CONCURRENCY",
 
     # for scraper in k8 jobs
     "/service/selenium-service/SELENIUM_SERVER_HOST"
   ]
+
+  environment_variables = {
+    SCRAPER_JOB_SPLITTING_SIZE = "300"
+    CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
+    
+    PLATFORM_CONCURRENCY_K8S = "4"
+    PLATFORM_CONCURRENCY_TRAVIS = "0"
+
+    SUPERVISOR_JOB_CONCURRENCY = "4"
+    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "4"
+  }
 
   use_recreate_deployment_strategy = true
 }
