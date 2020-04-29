@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { KubernetesService } from '../services/kubernetes/kubernetes';
 import { ScraperNodeScaler } from '../services/kubernetes/kubernetesScaling';
-import { KubernetesClientResponse } from '../services/kubernetes/types';
+import {
+    KubernetesClientResponse,
+    DigitalOceanDropletSize
+} from '../services/kubernetes/types';
 import { V1Deployment, V1Service } from '@kubernetes/client-node';
 
 export const createNodeController = async (
@@ -9,8 +12,16 @@ export const createNodeController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.log('create node controller');
-    const scraperWorkerNodePool = await KubernetesService.singleton._createScraperWorkerNodePool();
+    console.log('create node controller, size =', req.body.size);
+
+    const nodeInstanceSize = (typeof req.body.size === 'string' &&
+    (req.body.size as string).toUpperCase() in DigitalOceanDropletSize
+        ? (req.body.size as string).toUpperCase()
+        : 'MEDIUM') as keyof typeof DigitalOceanDropletSize;
+
+    const scraperWorkerNodePool = await KubernetesService.singleton._createScraperWorkerNodePool(
+        DigitalOceanDropletSize[nodeInstanceSize]
+    );
 
     console.log('scraper worker node pools', scraperWorkerNodePool);
 

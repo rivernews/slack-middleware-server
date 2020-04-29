@@ -6,12 +6,13 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = ">= v0.1.14"
+  version = ">= v0.1.16"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
   aws_secret_key = var.aws_secret_key
   cluster_name   = "project-shaungc-digitalocean-cluster"
+  node_pool_name = "project-shaungc-digitalocean-node-pool"
 
   app_label               = "slack-middleware-service"
   app_exposed_port        = 8002
@@ -50,14 +51,15 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
-    SCRAPER_JOB_SPLITTING_SIZE = "300"
+    # smaller job to prevent memory leak / RAM consumption going too high
+    SCRAPER_JOB_SPLITTING_SIZE = "120"
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
-    PLATFORM_CONCURRENCY_K8S = "4"
+    PLATFORM_CONCURRENCY_K8S = "2"
     PLATFORM_CONCURRENCY_TRAVIS = "0"
 
-    SUPERVISOR_JOB_CONCURRENCY = "4"
-    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "4"
+    SUPERVISOR_JOB_CONCURRENCY = "2"
+    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "2"
   }
 
   use_recreate_deployment_strategy = true

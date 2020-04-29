@@ -25,7 +25,6 @@ import {
     gdOrgReviewRenewalRouter
 } from './JobQueueAPI/routes';
 import { UI } from 'bull-board';
-import { redisManager } from './services/redis';
 import {
     kubernetesApiBaseUrl,
     kubernetesApiRouter

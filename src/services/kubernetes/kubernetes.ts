@@ -4,9 +4,7 @@ import {
     V1Job,
     V1EnvVar,
     CoreV1Api,
-    AppsV1Api,
-    AppsApi,
-    NetworkingV1Api
+    AppsV1Api
 } from '@kubernetes/client-node';
 import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
@@ -22,6 +20,7 @@ import {
     IKubernetesClusterNodePool,
     DeleteNodePoolResponse
 } from 'dots-wrapper/dist/modules/kubernetes';
+import { DigitalOceanDropletSize } from './types';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -362,7 +361,9 @@ export class KubernetesService {
     // Nodejs client doc:
     // https://github.com/pjpimentel/dots/blob/master/src/modules/kubernetes/README.md#create-node-pool
 
-    public async _createScraperWorkerNodePool () {
+    public async _createScraperWorkerNodePool (
+        digitaloceanDropletSize: DigitalOceanDropletSize
+    ) {
         console.log('create node pool()');
 
         await this.asyncInitialize();
@@ -379,7 +380,7 @@ export class KubernetesService {
 
             // see all droplet size slugs at
             // https://developers.digitalocean.com/documentation/changelog/api-v2/new-size-slugs-for-droplet-plan-changes/
-            size: 's-2vcpu-4gb',
+            size: digitaloceanDropletSize,
             tags: [KubernetesService.SCRAPER_WORKER_NODE_LABEL]
         };
 
