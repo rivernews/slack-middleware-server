@@ -40,10 +40,11 @@ export const cleanNodeController = async (
 ) => {
     console.log('clean node controller ');
 
-    await KubernetesService.singleton._cleanScraperWorkerNodePools();
+    const deleteResponses = await KubernetesService.singleton._cleanScraperWorkerNodePools();
 
     return res.json({
-        status: 'OK'
+        status: 'OK',
+        deleteResponses
     });
 };
 

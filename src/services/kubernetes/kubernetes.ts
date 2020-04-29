@@ -19,7 +19,8 @@ import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 import {
     ICreateNodePoolApiRequest,
-    IKubernetesClusterNodePool
+    IKubernetesClusterNodePool,
+    DeleteNodePoolResponse
 } from 'dots-wrapper/dist/modules/kubernetes';
 
 // digitalocean client
@@ -435,6 +436,7 @@ export class KubernetesService {
         }
 
         const allScraperWorkerNodePools = await this._listScraperWorkerNodePool();
+        const results: Readonly<DeleteNodePoolResponse>[] = [];
         for (let nodePool of allScraperWorkerNodePools.scraperWorkerNodePools) {
             const result = await this.digitalOceanClient.kubernetes.deleteNodePool(
                 {
@@ -442,9 +444,12 @@ export class KubernetesService {
                     node_pool_id: nodePool.id
                 }
             );
+            results.push(result);
 
             console.log('delete status for node pool', nodePool.name, result);
         }
+
+        return results;
     }
 
     public getReadyNodePool = async (
