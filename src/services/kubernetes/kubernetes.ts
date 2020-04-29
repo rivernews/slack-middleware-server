@@ -315,7 +315,7 @@ export class KubernetesService {
             throw new Error('kubernetesBatchClient not initialized yet');
         }
 
-        const readyNodePool = await this.getReadyNodePool('scraperWorker');
+        const readyNodePool = await this.getReadyNodePool('primary');
         if (!readyNodePool) {
             throw new Error(`No ready node while adding k8s job`);
         }
