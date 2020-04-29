@@ -11,7 +11,7 @@
         "build-ts-production": "tsc -p tsconfig.production.json",
         "dev-ts-fast": "ts-node-dev --respawn --transpileOnly index.ts",
         "dev-reload": "nodemon --exec ts-node index.ts",
-        "start": "npm run dev",
+        "start": "nodemon --ignore dist --ignore node_modules --ext ts,css --exec 'tsc && node --max_old_space_size=4096 ./dist/index.js'",
         "dev": "tsc && node --max_old_space_size=4096 ./dist/index.js",
         "prod": "tsc && node ./dist/index.js",
         "test": "rm -rf dist && tsc && env CI=testing mocha dist/index.test.js --timeout 60000",

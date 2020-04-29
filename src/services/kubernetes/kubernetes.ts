@@ -2,18 +2,25 @@ import {
     KubeConfig,
     BatchV1Api,
     V1Job,
-    V1EnvVar
+    V1EnvVar,
+    CoreV1Api,
+    AppsV1Api,
+    AppsApi,
+    NetworkingV1Api
 } from '@kubernetes/client-node';
 import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
 import { IKubernetesCluster } from 'dots-wrapper/dist/modules/kubernetes/types/kubernetes-cluster';
-import { ScraperJobRequestData } from './jobQueue/types';
-import { mapJobDataToScraperEnvVar } from './jobQueue/mapJobDataToScraperEnvVar';
-import { redisManager, JobQueueSharedRedisClientsSingleton } from './redis';
-import { s3ArchiveManager } from './s3';
-import { RuntimeEnvironment } from '../utilities/runtime';
-import { ServerError } from '../utilities/serverExceptions';
-import { ICreateNodePoolApiRequest } from 'dots-wrapper/dist/modules/kubernetes';
+import { ScraperJobRequestData } from '../jobQueue/types';
+import { mapJobDataToScraperEnvVar } from '../jobQueue/mapJobDataToScraperEnvVar';
+import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
+import { s3ArchiveManager } from '../s3';
+import { RuntimeEnvironment } from '../../utilities/runtime';
+import { ServerError } from '../../utilities/serverExceptions';
+import {
+    ICreateNodePoolApiRequest,
+    IKubernetesClusterNodePool
+} from 'dots-wrapper/dist/modules/kubernetes';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -38,7 +45,10 @@ export class KubernetesService {
 
     private kubernetesConfig?: KubeConfig;
     private kubernetesCluster?: IKubernetesCluster;
+
     private kubernetesBatchClient?: BatchV1Api;
+    public kubernetesCoreClient?: CoreV1Api;
+    public kubernetesAppClient?: AppsV1Api;
 
     public jobVacancySemaphore: Semaphore;
 
@@ -85,10 +95,12 @@ export class KubernetesService {
     }
 
     public async asyncInitialize () {
-        console.log('asyncInitialize()');
-
         try {
-            if (this.kubernetesBatchClient) {
+            if (
+                this.kubernetesBatchClient &&
+                this.kubernetesCoreClient &&
+                this.kubernetesAppClient
+            ) {
                 return;
             }
 
@@ -166,6 +178,12 @@ export class KubernetesService {
             this.kubernetesBatchClient = this.kubernetesConfig.makeApiClient(
                 BatchV1Api
             );
+            this.kubernetesCoreClient = this.kubernetesConfig.makeApiClient(
+                CoreV1Api
+            );
+            this.kubernetesAppClient = this.kubernetesConfig.makeApiClient(
+                AppsV1Api
+            );
         } catch (error) {
             console.error('error while initializing kubernetes client');
             throw error;
@@ -184,7 +202,10 @@ export class KubernetesService {
         }) as V1EnvVar[];
     }
 
-    private createK8JobTemplate (jobData: ScraperJobRequestData) {
+    private createK8JobTemplate (
+        jobData: ScraperJobRequestData,
+        nodePoolName: string
+    ) {
         if (
             !(
                 process.env.GLASSDOOR_PASSWORD &&
@@ -221,6 +242,11 @@ export class KubernetesService {
 
             template: {
                 spec: {
+                    nodeSelector: {
+                        // use node selector to assign job to node
+                        // https://www.digitalocean.com/community/questions/do-kubernetes-node-pool-tags-not-added-to-nodes-in-cluster
+                        'doks.digitalocean.com/node-pool': nodePoolName
+                    },
                     containers: [
                         {
                             name: 'scraper-job-container',
@@ -282,13 +308,23 @@ export class KubernetesService {
     }
 
     public async asyncAddScraperJob (jobData: ScraperJobRequestData) {
+        // check required resource
+
         await this.asyncInitialize();
         if (!this.kubernetesBatchClient) {
             throw new Error('kubernetesBatchClient not initialized yet');
         }
 
+        const readyNodePool = await this.getReadyNodePool('primary');
+        if (!readyNodePool) {
+            throw new Error(`No ready node while adding k8s job`);
+        }
+
         // create k8 job
-        const k8JobTemplate = this.createK8JobTemplate(jobData);
+        const k8JobTemplate = this.createK8JobTemplate(
+            jobData,
+            readyNodePool.name
+        );
 
         try {
             const k8Job = await this.kubernetesBatchClient.createNamespacedJob(
@@ -320,6 +356,11 @@ export class KubernetesService {
         }
     }
 
+    // CRUD Node Operation - Digitalocean API
+    // https://developers.digitalocean.com/documentation/v2/#add-a-node-pool-to-a-kubernetes-cluster
+    // Nodejs client doc:
+    // https://github.com/pjpimentel/dots/blob/master/src/modules/kubernetes/README.md#create-node-pool
+
     public async _createScraperWorkerNodePool () {
         console.log('create node pool()');
 
@@ -330,14 +371,14 @@ export class KubernetesService {
 
         const nodeRequest: ICreateNodePoolApiRequest = {
             kubernetes_cluster_id: this.kubernetesCluster.id,
-            name: 'scraper-worker-node-' + Date.now(),
+            name: 'scraper-worker-node-pool-' + Date.now(),
 
             count: 1,
             auto_scale: false,
 
             // see all droplet size slugs at
             // https://developers.digitalocean.com/documentation/changelog/api-v2/new-size-slugs-for-droplet-plan-changes/
-            size: 's-4vcpu-8gb',
+            size: 's-2vcpu-4gb',
             tags: [KubernetesService.SCRAPER_WORKER_NODE_LABEL]
         };
 
@@ -351,8 +392,6 @@ export class KubernetesService {
     }
 
     public async _listScraperWorkerNodePool () {
-        console.log('list node pools()');
-
         await this.asyncInitialize();
         if (!this.kubernetesCluster?.id) {
             throw new Error('Kubernetes cluster not initialized yet');
@@ -366,9 +405,25 @@ export class KubernetesService {
             per_page: 25
         });
 
-        return node_pools.filter(nodePool =>
-            nodePool.tags.includes(KubernetesService.SCRAPER_WORKER_NODE_LABEL)
-        );
+        const primaryNodePools: IKubernetesClusterNodePool[] = [];
+        const scraperWorkerNodePools: IKubernetesClusterNodePool[] = [];
+
+        for (const nodePool of node_pools) {
+            if (
+                nodePool.tags.includes(
+                    KubernetesService.SCRAPER_WORKER_NODE_LABEL
+                )
+            ) {
+                scraperWorkerNodePools.push(nodePool);
+            } else {
+                primaryNodePools.push(nodePool);
+            }
+        }
+
+        return {
+            primaryNodePools,
+            scraperWorkerNodePools
+        };
     }
 
     public async _cleanScraperWorkerNodePools () {
@@ -380,7 +435,7 @@ export class KubernetesService {
         }
 
         const allScraperWorkerNodePools = await this._listScraperWorkerNodePool();
-        for (let nodePool of allScraperWorkerNodePools) {
+        for (let nodePool of allScraperWorkerNodePools.scraperWorkerNodePools) {
             const result = await this.digitalOceanClient.kubernetes.deleteNodePool(
                 {
                     kubernetes_cluster_id: this.kubernetesCluster.id,
@@ -391,4 +446,29 @@ export class KubernetesService {
             console.log('delete status for node pool', nodePool.name, result);
         }
     }
+
+    public getReadyNodePool = async (
+        nodePoolGroup: 'primary' | 'scraperWorker'
+    ) => {
+        // check node pool is created, and at least one node is in ready state
+        // use the first node pool with node(s) ready
+        const nodePools = await this._listScraperWorkerNodePool();
+        let readyNodePool: IKubernetesClusterNodePool | undefined;
+
+        const nodePoolList =
+            nodePoolGroup === 'scraperWorker'
+                ? nodePools.scraperWorkerNodePools
+                : nodePools.primaryNodePools;
+        for (const nodepool of nodePoolList) {
+            const readyNodes = nodepool.nodes.filter(
+                node => node.status.state === 'running'
+            );
+            if (readyNodes.length) {
+                readyNodePool = nodepool;
+                break;
+            }
+        }
+
+        return readyNodePool;
+    };
 }

@@ -14,7 +14,7 @@ import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/travis';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
-import { KubernetesService } from '../../services/kubernetes';
+import { KubernetesService } from '../../services/kubernetes/kubernetes';
 import { RuntimeEnvironment } from '../../utilities/runtime';
 
 // Sandbox threaded job

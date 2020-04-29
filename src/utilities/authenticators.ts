@@ -45,7 +45,7 @@ export const jobQueueDashboardAuthenticateMiddleware = (
         if (relativePathToRouteBaseWithQuery === '/') {
             const requesterToken = req.query.token || req.body.token;
 
-            if (!process.env.TRAVIS_TOKEN) {
+            if (!process.env.SLACK_TOKEN_OUTGOING_LAUNCH) {
                 return next(new ServerError(`Misconfigured credential`));
             }
 
@@ -53,7 +53,7 @@ export const jobQueueDashboardAuthenticateMiddleware = (
                 return next(new NotAuthenticatedResponse());
             }
 
-            if (requesterToken !== process.env.TRAVIS_TOKEN) {
+            if (requesterToken !== process.env.SLACK_TOKEN_OUTGOING_LAUNCH) {
                 return next(new NotAuthenticatedResponse());
             }
         }

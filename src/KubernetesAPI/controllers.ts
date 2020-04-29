@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { KubernetesService } from '../services/kubernetes';
+import { KubernetesService } from '../services/kubernetes/kubernetes';
+import { ScraperNodeScaler } from '../services/kubernetes/kubernetesScaling';
+import { KubernetesClientResponse } from '../services/kubernetes/types';
+import { V1Deployment, V1Service } from '@kubernetes/client-node';
 
 export const createNodeController = async (
     req: Request,
@@ -21,17 +24,9 @@ export const listNodeController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.log('list node controller');
-    const scraperWorkerNodePools = await KubernetesService.singleton._listScraperWorkerNodePool();
-
-    console.log(
-        'scraper worker node pools',
-        scraperWorkerNodePools.map(np => np.name)
-    );
-    console.log(
-        'nodes',
-        scraperWorkerNodePools.map(np => np.nodes.map(node => node.status))
-    );
+    const scraperWorkerNodePools =
+        (await KubernetesService.singleton._listScraperWorkerNodePool())
+            .scraperWorkerNodePools || [];
 
     return res.json({
         scraperWorkerNodePools
@@ -43,11 +38,58 @@ export const cleanNodeController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.log('clean node controller');
+    console.log('clean node controller ');
 
     await KubernetesService.singleton._cleanScraperWorkerNodePools();
 
     return res.json({
         status: 'OK'
     });
+};
+
+export const getSeleniumMicroserviceController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    const errors: Error[] = [];
+
+    let deploymentResult: KubernetesClientResponse<V1Deployment> | undefined;
+    try {
+        deploymentResult = await ScraperNodeScaler.singleton.getSeleniumDeployment();
+    } catch (error) {
+        errors.push(error);
+    }
+
+    let serviceResult: KubernetesClientResponse<V1Service> | undefined;
+    try {
+        serviceResult = await ScraperNodeScaler.singleton.getSeleniumService();
+    } catch (error) {
+        errors.push(error);
+    }
+
+    return res.json({
+        deploymentResult,
+        serviceResult,
+        errors
+    });
+};
+
+export const provisionSeleniumMicroserviceController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    const result = await ScraperNodeScaler.singleton.orderSeleniumProvisioning();
+
+    res.json({ result });
+};
+
+export const removeSeleniumMicroserviceController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    const result = await ScraperNodeScaler.singleton.orderScaleDown();
+    res.json({ result });
 };

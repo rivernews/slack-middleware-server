@@ -63,32 +63,32 @@ module "slack_middleware_service" {
   use_recreate_deployment_strategy = true
 }
 
-module "selenium_service" {
-  source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = ">= v0.1.14"
+# module "selenium_service" {
+#   source  = "rivernews/kubernetes-microservice/digitalocean"
+#   version = ">= v0.1.14"
 
-  aws_region     = var.aws_region
-  aws_access_key = var.aws_access_key
-  aws_secret_key = var.aws_secret_key
-  cluster_name   = "project-shaungc-digitalocean-cluster"
+#   aws_region     = var.aws_region
+#   aws_access_key = var.aws_access_key
+#   aws_secret_key = var.aws_secret_key
+#   cluster_name   = "project-shaungc-digitalocean-cluster"
 
-  app_label                = "selenium-service"
-  app_exposed_port         = 4444
+#   app_label                = "selenium-service"
+#   app_exposed_port         = 4444
 
-  # Docker Selenium
-  # https://github.com/SeleniumHQ/docker-selenium
-  app_container_image     = "selenium/standalone-chrome"
-  app_container_image_tag = "3.141.59-zirconium"
+#   # Docker Selenium
+#   # https://github.com/SeleniumHQ/docker-selenium
+#   app_container_image     = "selenium/standalone-chrome"
+#   app_container_image_tag = "3.141.59-zirconium"
 
-  use_recreate_deployment_strategy = true
+#   use_recreate_deployment_strategy = true
   
-  share_host_memory = true
+#   share_host_memory = true
 
-  # specifying unit
-  # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
-  memory_guaranteed = "128Mi"
-  memory_max_allowed = "6.5G"
-}
+#   # specifying unit
+#   # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
+#   memory_guaranteed = "128Mi"
+#   memory_max_allowed = "6.5G"
+# }
 
 // See the logs of production server
 // logs
