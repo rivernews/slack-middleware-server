@@ -1,28 +1,19 @@
 import { KubernetesService } from './kubernetes';
-import {
-    V1Namespace,
-    V1Deployment,
-    V1DeploymentStrategy,
-    V1Service,
-    ApisApi
-} from '@kubernetes/client-node';
-import { IKubernetesClusterNodePool } from 'dots-wrapper/dist/modules/kubernetes/types';
+import { V1Namespace, V1Deployment, V1Service } from '@kubernetes/client-node';
 
 export class ScraperNodeScaler {
     private static _singleton: ScraperNodeScaler;
 
     private kubernetesService: KubernetesService;
 
-    private static SELENIUM_APP_LABEL = 'selenium-service';
-
     private static SELENIUM_SERVICE: V1Service = {
         metadata: {
-            name: `${ScraperNodeScaler.SELENIUM_APP_LABEL}-service`,
-            labels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
+            name: `${KubernetesService.SELENIUM_APP_LABEL}-service`,
+            labels: { app: KubernetesService.SELENIUM_APP_LABEL }
         },
         spec: {
             type: 'ClusterIP',
-            selector: { app: ScraperNodeScaler.SELENIUM_APP_LABEL },
+            selector: { app: KubernetesService.SELENIUM_APP_LABEL },
             ports: [
                 {
                     name: 'port-4444',
@@ -51,8 +42,8 @@ export class ScraperNodeScaler {
         nodePoolName: string
     ) => V1Deployment = nodePoolName => ({
         metadata: {
-            name: `${ScraperNodeScaler.SELENIUM_APP_LABEL}-deployment`,
-            labels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
+            name: `${KubernetesService.SELENIUM_APP_LABEL}-deployment`,
+            labels: { app: KubernetesService.SELENIUM_APP_LABEL }
         },
         spec: {
             replicas: 1,
@@ -61,17 +52,17 @@ export class ScraperNodeScaler {
             },
 
             selector: {
-                matchLabels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
+                matchLabels: { app: KubernetesService.SELENIUM_APP_LABEL }
             },
 
             template: {
                 metadata: {
-                    labels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
+                    labels: { app: KubernetesService.SELENIUM_APP_LABEL }
                 },
                 spec: {
                     containers: [
                         {
-                            name: ScraperNodeScaler.SELENIUM_APP_LABEL,
+                            name: KubernetesService.SELENIUM_APP_LABEL,
                             image:
                                 'selenium/standalone-chrome:3.141.59-zirconium',
                             imagePullPolicy: 'Always',
@@ -138,7 +129,7 @@ export class ScraperNodeScaler {
         // delete ns
 
         const delNs = await this.kubernetesService.kubernetesCoreClient.deleteNamespace(
-            ScraperNodeScaler.SELENIUM_APP_LABEL
+            KubernetesService.SELENIUM_APP_LABEL
         );
         console.log('Delete namespace', delNs);
 
@@ -183,17 +174,17 @@ export class ScraperNodeScaler {
         // create ns
         try {
             const getNsRes = await this.kubernetesService.kubernetesCoreClient.readNamespace(
-                ScraperNodeScaler.SELENIUM_APP_LABEL
+                KubernetesService.SELENIUM_APP_LABEL
             );
             console.log(
-                `Namespace ${ScraperNodeScaler.SELENIUM_APP_LABEL} already exist`,
+                `Namespace ${KubernetesService.SELENIUM_APP_LABEL} already exist`,
                 getNsRes.response
             );
         } catch (error) {
             const np: V1Namespace = {
                 metadata: {
-                    name: ScraperNodeScaler.SELENIUM_APP_LABEL,
-                    labels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
+                    name: KubernetesService.SELENIUM_APP_LABEL,
+                    labels: { app: KubernetesService.SELENIUM_APP_LABEL }
                 }
             };
             const nsRes = await this.kubernetesService.kubernetesCoreClient.createNamespace(
@@ -208,14 +199,14 @@ export class ScraperNodeScaler {
             readyNodePool.name
         );
         const deployRes = await this.kubernetesService.kubernetesAppClient.createNamespacedDeployment(
-            ScraperNodeScaler.SELENIUM_APP_LABEL,
+            KubernetesService.SELENIUM_APP_LABEL,
             ScraperNodeScaler.SELENIUM_DEPOYMENT
         );
         console.log('Create deployment', deployRes.response);
 
         // create svc
         const svcRes = await this.kubernetesService.kubernetesCoreClient.createNamespacedService(
-            ScraperNodeScaler.SELENIUM_APP_LABEL,
+            KubernetesService.SELENIUM_APP_LABEL,
             ScraperNodeScaler.SELENIUM_SERVICE
         );
         console.log('Create service', svcRes.response);
@@ -240,7 +231,7 @@ export class ScraperNodeScaler {
         }
         return await this.kubernetesService.kubernetesCoreClient.readNamespacedService(
             serviceName,
-            ScraperNodeScaler.SELENIUM_APP_LABEL
+            KubernetesService.SELENIUM_APP_LABEL
         );
     }
 
@@ -259,7 +250,7 @@ export class ScraperNodeScaler {
         }
         return await this.kubernetesService.kubernetesAppClient.readNamespacedDeployment(
             deploymentName,
-            ScraperNodeScaler.SELENIUM_APP_LABEL
+            KubernetesService.SELENIUM_APP_LABEL
         );
     };
 }

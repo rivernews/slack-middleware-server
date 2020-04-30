@@ -38,7 +38,8 @@ export class KubernetesService {
 
     private static SCRAPER_WORKER_NODE_LABEL = 'scraper-worker-node';
 
-    private static JOB_NAMESPACE = 'slack-middleware-service';
+    public static SELENIUM_APP_LABEL = 'selenium-service';
+    private static JOB_NAMESPACE = KubernetesService.SELENIUM_APP_LABEL;
 
     private digitalOceanToken: string;
     private digitalOceanClient: typeof digitalOceanClientExample;
