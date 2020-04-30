@@ -50,7 +50,7 @@ export class KubernetesService {
     public kubernetesCoreClient?: CoreV1Api;
     public kubernetesAppClient?: AppsV1Api;
 
-    public jobVacancySemaphore: Semaphore;
+    public jobVacancySemaphore?: Semaphore;
 
     private constructor () {
         if (!process.env.DIGITALOCEAN_ACCESS_TOKEN) {
@@ -70,20 +70,23 @@ export class KubernetesService {
         }
 
         // Currently our k8 cluster is suitable for running up to 3 scraper job at most
-        this.jobVacancySemaphore = new Semaphore(
-            JobQueueSharedRedisClientsSingleton.singleton.genericClient,
-            'k8JobResourceLock',
-            parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3'),
-            {
-                // when k8 has no vacancy, this situation will be
-                // detected after 6 sec when someone call `.acquire()`
-                acquireTimeout: 20 * 1000,
-                retryInterval: 5 * 1000,
+        this.jobVacancySemaphore =
+            parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3') > 0
+                ? new Semaphore(
+                      JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+                      'k8JobResourceLock',
+                      parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3'),
+                      {
+                          // when k8 has no vacancy, this situation will be
+                          // detected after 6 sec when someone call `.acquire()`
+                          acquireTimeout: 20 * 1000,
+                          retryInterval: 5 * 1000,
 
-                lockTimeout: 40 * 1000,
-                refreshInterval: 20 * 1000
-            }
-        );
+                          lockTimeout: 40 * 1000,
+                          refreshInterval: 20 * 1000
+                      }
+                  )
+                : undefined;
     }
 
     public static get singleton () {
@@ -315,7 +318,7 @@ export class KubernetesService {
             throw new Error('kubernetesBatchClient not initialized yet');
         }
 
-        const readyNodePool = await this.getReadyNodePool('primary');
+        const readyNodePool = await this.getReadyNodePool('scraperWorker');
         if (!readyNodePool) {
             throw new Error(`No ready node while adding k8s job`);
         }

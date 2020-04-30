@@ -72,7 +72,13 @@ class RedisManagerSingleton {
             //
             // retryStrategy
             // https://github.com/luin/ioredis#auto-reconnect
-            retryStrategy: times => null
+            retryStrategy: times => {
+                console.log(
+                    'redis connection failed, retrying redis in 5 seconds...'
+                );
+                return 5 * 1000;
+            },
+            connectTimeout: 30 * 1000
         });
         console.log('created redis client');
         return newRedisClient;

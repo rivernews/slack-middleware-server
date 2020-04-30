@@ -101,7 +101,8 @@ class ScraperJobProcessResourcesCleaner {
                 console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
-                await KubernetesService.singleton.jobVacancySemaphore.release();
+                KubernetesService.singleton.jobVacancySemaphore &&
+                    (await KubernetesService.singleton.jobVacancySemaphore.release());
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.log(
@@ -425,19 +426,15 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                const travisSemaphoreResourceString =
-                                    process.env.NODE_ENV !==
-                                        RuntimeEnvironment.DEVELOPMENT &&
-                                    parseInt(
-                                        process.env
-                                            .PLATFORM_CONCURRENCY_TRAVIS || '6'
-                                    ) > 0
-                                        ? await checkTravisHasVacancy(
-                                              redisPubsubChannelName
-                                          )
-                                        : null;
+                                const travisSemaphoreResourceString = await checkTravisHasVacancy(
+                                    redisPubsubChannelName
+                                );
 
-                                if (!travisSemaphoreResourceString) {
+                                if (
+                                    KubernetesService.singleton
+                                        .jobVacancySemaphore &&
+                                    !travisSemaphoreResourceString
+                                ) {
                                     // run on k8s
 
                                     processResourceCleaner.runtimePlatformDescriptor =
@@ -493,7 +490,11 @@ const superviseScraper = (
                                     );
 
                                     return;
-                                } else {
+                                } else if (
+                                    TravisManager.singleton
+                                        .travisJobResourceSemaphore &&
+                                    travisSemaphoreResourceString
+                                ) {
                                     // run on travis
 
                                     processResourceCleaner.runtimePlatformDescriptor =
@@ -517,6 +518,10 @@ const superviseScraper = (
                                         .join(',')}`;
 
                                     return;
+                                } else {
+                                    return scraperSupervisorReject(
+                                        `No platform available to run scraper, please check platform concurrency config`
+                                    );
                                 }
                             });
                     }
