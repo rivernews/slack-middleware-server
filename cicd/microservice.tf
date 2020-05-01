@@ -56,12 +56,12 @@ module "slack_middleware_service" {
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
     # capacity on each platform
-    PLATFORM_CONCURRENCY_K8S = "7"
+    PLATFORM_CONCURRENCY_K8S = "4"
     PLATFORM_CONCURRENCY_TRAVIS = "6"
 
     # total jobs
-    SUPERVISOR_JOB_CONCURRENCY = "13"
-    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "13"
+    SUPERVISOR_JOB_CONCURRENCY = "10"
+    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "10"
   }
 
   use_recreate_deployment_strategy = true

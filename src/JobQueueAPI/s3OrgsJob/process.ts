@@ -201,21 +201,24 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 return supervisorJobRequests;
                             })
                             .then(scraperJobRequests => {
-                                return Promise.all(
-                                    scraperJobRequests.map(
-                                        (scraperJobRequest, index) =>
-                                            new Promise(res =>
-                                                setTimeout(
-                                                    res,
-                                                    index * 5 * 1000
-                                                )
-                                            ).then(() => {
-                                                return supervisorJobQueueManager.asyncAdd(
-                                                    scraperJobRequest
-                                                );
-                                            })
-                                    )
+                                // return Promise.all(
+                                return scraperJobRequests.map(
+                                    (scraperJobRequest, index) =>
+                                        supervisorJobQueueManager.asyncAdd(
+                                            scraperJobRequest
+                                        )
+                                    // new Promise(res =>
+                                    //     setTimeout(
+                                    //         res,
+                                    //         index * 5 * 1000
+                                    //     )
+                                    // ).then(() => {
+                                    //     return supervisorJobQueueManager.asyncAdd(
+                                    //         scraperJobRequest
+                                    //     );
+                                    // })
                                 );
+                                // );
                             })
                     )
                     .then(supervisorJobList =>
