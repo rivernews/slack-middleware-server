@@ -52,16 +52,18 @@ module "slack_middleware_service" {
 
   environment_variables = {
     # smaller job to prevent memory leak / RAM consumption going too high
+    # when `1000`, resulting in around 399 jobs
     SCRAPER_JOB_SPLITTING_SIZE = "1000"
+
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
     # capacity on each platform
     PLATFORM_CONCURRENCY_K8S = "4"
-    PLATFORM_CONCURRENCY_TRAVIS = "0"
+    PLATFORM_CONCURRENCY_TRAVIS = "1"
 
     # total jobs
-    SUPERVISOR_JOB_CONCURRENCY = "4"
-    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "4"
+    SUPERVISOR_JOB_CONCURRENCY = "5"
+    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "5"
   }
 
   use_recreate_deployment_strategy = true

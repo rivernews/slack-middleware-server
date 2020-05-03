@@ -8,9 +8,12 @@ export interface KubernetesClientResponse<T> {
 export enum DigitalOceanDropletSize {
     MEDIUM = 's-2vcpu-4gb',
     LARGE = 's-4vcpu-8gb',
-    LARGE_16G = 's-6vcpu-16gb', // $80
+    LARGE_16G = 's-6vcpu-16gb', // $80, 1:4
 
-    MEMORY_2CPU = 'm-16gb' // $75
+    MEMORY_2CPU = 'm-16gb', // $75, 1:8
+
+    CPU_4CPU = 'c-4', // $80, 1:2
+    CPU_2CPU = 'c-2' // $40, 1:2
 
     // all available standard slugs
     // https://developers.digitalocean.com/documentation/changelog/api-v2/new-size-slugs-for-droplet-plan-changes/
