@@ -385,7 +385,13 @@ export class KubernetesService {
             // see all droplet size slugs at
             // https://developers.digitalocean.com/documentation/changelog/api-v2/new-size-slugs-for-droplet-plan-changes/
             size: digitaloceanDropletSize,
-            tags: [KubernetesService.SCRAPER_WORKER_NODE_LABEL]
+            tags: [
+                // for firewall auto-enrollment
+                'project-shaungc-digitalocean-digitalocean-kubernetes-cluster-tag',
+
+                // for scraper worker node selector
+                KubernetesService.SCRAPER_WORKER_NODE_LABEL
+            ]
         };
 
         const {
