@@ -8,7 +8,7 @@ export const corsConfig = cors({
     origin:
         process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
             ? // TODO: use env var to configure this
-              `https://slack.shaungc.com`
+              [`https://slack.shaungc.com`, `http://slack.shaungc.com`]
             : true
 });
 
