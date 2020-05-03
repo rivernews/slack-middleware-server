@@ -208,7 +208,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                             //     scraperJobRequest
                                             // )
                                             new Promise(res =>
-                                                setTimeout(res, index * 1 * 300)
+                                                setTimeout(res, index * 1 * 500)
                                             ).then(() => {
                                                 return supervisorJobQueueManager.asyncAdd(
                                                     scraperJobRequest
