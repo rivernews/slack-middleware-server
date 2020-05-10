@@ -6,6 +6,7 @@ import { ServerError } from '../utilities/serverExceptions';
 import { Semaphore } from 'redis-semaphore';
 import { asyncSendSlackMessage } from './slack';
 import { RuntimeEnvironment } from '../utilities/runtime';
+import { Configuration } from '../utilities/configuration';
 
 // Constants
 
@@ -50,11 +51,11 @@ export class TravisManager {
 
         // Current travis environment is suitable for running up to 6 jobs in parallel
         this.travisJobResourceSemaphore =
-            parseInt(process.env.PLATFORM_CONCURRENCY_TRAVIS || '6') > 0
+            Configuration.singleton.travisJobConcurrency > 0
                 ? new Semaphore(
                       JobQueueSharedRedisClientsSingleton.singleton.genericClient,
                       'travisJobResourceLock',
-                      parseInt(process.env.PLATFORM_CONCURRENCY_TRAVIS || '6'),
+                      Configuration.singleton.travisJobConcurrency,
                       {
                           // when travis has no vacancy, the full situation will be
                           // detected after 6 sec when someone call `.acquire()`

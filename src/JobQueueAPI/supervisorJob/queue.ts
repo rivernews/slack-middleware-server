@@ -1,7 +1,7 @@
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { SupervisorJobRequestData } from '../../services/jobQueue/types';
 import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
-import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
+import { Configuration } from '../../utilities/configuration';
 
 export const supervisorJobQueueManager = new JobQueueManager<
     SupervisorJobRequestData
@@ -20,5 +20,5 @@ export const supervisorJobQueueManager = new JobQueueManager<
         //     every: 60 * (60 * 1000)
         // }
     },
-    jobConcurrency: SUPERVISOR_JOB_CONCURRENCY
+    jobConcurrency: Configuration.singleton.scraperConcurrency
 });

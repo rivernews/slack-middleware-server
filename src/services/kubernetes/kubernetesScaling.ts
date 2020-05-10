@@ -19,6 +19,7 @@ import { AssertionError } from 'assert';
 import { ServerError } from '../../utilities/serverExceptions';
 import Axios from 'axios';
 import { IncomingMessage } from 'http';
+import { Configuration } from '../../utilities/configuration';
 
 export class ScraperNodeScaler {
     private static _singleton: ScraperNodeScaler;
@@ -257,7 +258,9 @@ export class ScraperNodeScaler {
         return ScraperNodeScaler.getSeleniumDefaultDefaultDeployment({
             identifier: SeleniumMicroserviceType['chrome-node'],
             nodePoolName,
-            replicas: 8,
+            replicas:
+                Configuration.singleton.scraperWorkerNodeCount *
+                Configuration.singleton.scraperCountPerWorkerNode,
             image: 'selenium/node-chrome:latest',
             ports: [5555, 5900],
             shareHostMemory: true,
@@ -266,7 +269,7 @@ export class ScraperNodeScaler {
                 HUB_PORT: '4444',
                 START_XVFB: 'false'
             },
-            cpuLimit: '.7'
+            cpuLimit: Configuration.singleton.scraperDriverNodeCpuLimit
         });
     };
 

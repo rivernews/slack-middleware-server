@@ -21,6 +21,7 @@ import {
     DeleteNodePoolResponse
 } from 'dots-wrapper/dist/modules/kubernetes';
 import { DigitalOceanDropletSize } from './types';
+import { Configuration } from '../../utilities/configuration';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -72,11 +73,11 @@ export class KubernetesService {
 
         // Currently our k8 cluster is suitable for running up to 3 scraper job at most
         this.jobVacancySemaphore =
-            parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3') > 0
+            Configuration.singleton.k8sJobConcurrency > 0
                 ? new Semaphore(
                       JobQueueSharedRedisClientsSingleton.singleton.genericClient,
                       'k8JobResourceLock',
-                      parseInt(process.env.PLATFORM_CONCURRENCY_K8S || '3'),
+                      Configuration.singleton.k8sJobConcurrency,
                       {
                           // when k8 has no vacancy, this situation will be
                           // detected after 6 sec when someone call `.acquire()`
@@ -379,7 +380,7 @@ export class KubernetesService {
             kubernetes_cluster_id: this.kubernetesCluster.id,
             name: 'scraper-worker-node-pool-' + Date.now(),
 
-            count: 2,
+            count: Configuration.singleton.scraperWorkerNodeCount,
             auto_scale: false,
 
             // see all droplet size slugs at

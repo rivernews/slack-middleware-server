@@ -5,7 +5,6 @@ import { s3OrgsJobQueueManager } from './queue';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ServerError } from '../../utilities/serverExceptions';
-import { SUPERVISOR_JOB_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
 import {
     ScraperJobRequestData,
     ScraperMode,
@@ -76,23 +75,16 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
 
     return s3OrgsJobQueueManager
         .checkConcurrency(
-            // check supervisor job is clean, no existing job
-            // since s3 org job could provision lots of supervisor jobs and scraper jobs
-            // it could be chaotic to mix s3 job with existing single org job
-            // better to limit s3 job to launch only if no supervisor job exists
+            // check no existing s3 job running
             1,
-            supervisorJobQueueManagerQueue,
+            undefined,
             s3OrgsJob,
-            JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
+            JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB,
+            true
         )
-        .then((supervisorJobsPresentCount: number) => {
+        .then(() => {
             // dispatch supervisors into parallel groups
-            const supervisorJobVacancy =
-                SUPERVISOR_JOB_CONCURRENCY - supervisorJobsPresentCount;
-
-            console.debug(
-                `s3OrgJob: we have ${supervisorJobVacancy} vacancies, will divide orgs into this amount of buckets`
-            );
+            // let Bull queue do the concurrency limiting
 
             return (
                 s3ArchiveManager
@@ -240,9 +232,16 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         .then((resultList: string[]) => Promise.resolve(resultList))
         .catch((error: Error) => Promise.reject(error))
         .finally(async () => {
+            console.log('cool down for 10 seconds');
+            await new Promise(res => setTimeout(res, 10 * 1000));
+
             let scaledownError;
             try {
                 await ScraperNodeScaler.singleton.orderScaleDown();
+
+                console.log('cool down for 10 seconds');
+                await new Promise(res => setTimeout(res, 10 * 1000));
+
                 await KubernetesService.singleton._cleanScraperWorkerNodePools();
             } catch (error) {
                 console.log(error);

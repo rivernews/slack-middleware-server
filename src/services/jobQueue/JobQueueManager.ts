@@ -12,14 +12,6 @@ import {
     S3JobRequestData
 } from './types';
 
-export const SCRAPER_JOB_POOL_MAX_CONCURRENCY = process.env
-    .SCRAPER_JOB_POOL_MAX_CONCURRENCY
-    ? parseInt(process.env.SCRAPER_JOB_POOL_MAX_CONCURRENCY)
-    : 4;
-export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
-    ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
-    : 4;
-
 interface JobQueueManagerProps {
     __processDirname: string;
     relativePathWithoutExtension: string;

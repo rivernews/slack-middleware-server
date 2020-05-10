@@ -1,8 +1,7 @@
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ScraperJobRequestData } from '../../services/jobQueue/types';
 import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
-import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
-import { RuntimeEnvironment } from '../../utilities/runtime';
+import { Configuration } from '../../utilities/configuration';
 
 export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
     ScraperJobRequestData
@@ -19,7 +18,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         // unless we resolve terminated jobs instead of reject
         // attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 2 : 1
         // we should already solve manual termination issue by succeed terminated scraper job (but fail supervisor job)
-        attempts: 2
+        attempts: 3
 
         // TODO: enable repeat opt when in prod
         // repeat: {
@@ -31,5 +30,5 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         //     every: 60 * (60 * 1000)
         // }
     },
-    jobConcurrency: SCRAPER_JOB_POOL_MAX_CONCURRENCY
+    jobConcurrency: Configuration.singleton.scraperConcurrency
 });

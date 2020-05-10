@@ -10,8 +10,7 @@ import { ServerError } from '../../utilities/serverExceptions';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
-import { SCRAPER_JOB_POOL_MAX_CONCURRENCY } from '../../services/jobQueue/JobQueueManager';
-import { getPubsubChannelName } from '../../services/jobQueue/message';
+import { Configuration } from '../../utilities/configuration';
 
 const handleManualTerminationForSupervisorJob = (jobResult: string) => {
     // treat manual termianation as failure at the supervisorJob level
@@ -120,7 +119,8 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     return (
         gdOrgReviewScraperJobQueueManager
             .checkConcurrency(
-                SCRAPER_JOB_POOL_MAX_CONCURRENCY,
+                // TODO: we shouldn't need to check concurrency ourselves anymore since we rely on Bull to limit concurrency
+                Configuration.singleton.scraperConcurrency,
                 undefined,
                 supervisorJob,
                 JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB

@@ -5,6 +5,15 @@ export class Configuration {
     public scraperJobSplittingSize: number;
     public crossSessionTimeLimitMinutes: number;
 
+    public scraperConcurrency: number;
+    public k8sJobConcurrency: number;
+    public travisJobConcurrency: number;
+
+    public scraperWorkerNodeCount: number;
+    public scraperCountPerWorkerNode: number;
+
+    public scraperDriverNodeCpuLimit: string;
+
     private constructor () {
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
             'GLASSDOOR_REVIEW_COUNT_PER_PAGE',
@@ -24,6 +33,43 @@ export class Configuration {
             // when bull retry the scraper job, we can have less overhead
             '45'
         );
+
+        // Resources
+
+        this.scraperWorkerNodeCount = this._getNumberFromEnvVar(
+            'SCRAPER_WORKER_NODE_COUNT',
+            '1'
+        );
+
+        this.scraperCountPerWorkerNode = this._getNumberFromEnvVar(
+            'SCRAPER_COUNT_PER_WORKER_NODE',
+            '1'
+        );
+
+        const maximumScraperCapacity =
+            this.scraperWorkerNodeCount * this.scraperCountPerWorkerNode;
+
+        this.scraperDriverNodeCpuLimit =
+            process.env.SCRAPER_DRIVER_NDOE_CPU_LIMIT || '.5';
+
+        // Concurrency
+
+        this.scraperConcurrency = this._getNumberFromEnvVar(
+            'SCRAPER_CONCURRENCY',
+            maximumScraperCapacity.toString()
+        );
+
+        this.k8sJobConcurrency = this._getNumberFromEnvVar(
+            'PLATFORM_CONCURRENCY_K8S',
+            this.scraperConcurrency.toString()
+        );
+
+        // this.travisJobConcurrency = this._getNumberFromEnvVar(
+        //     'PLATFORM_CONCURRENCY_TRAVIS',
+        //     '0'
+        // );
+        this.travisJobConcurrency =
+            this.scraperConcurrency - this.k8sJobConcurrency;
     }
 
     private _getNumberFromEnvVar (envVarName: string, defaultValue: string) {
