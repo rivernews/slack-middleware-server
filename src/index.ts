@@ -88,10 +88,14 @@ app.use(
     ) => {
         // if it is indeed an ErrorResponse object
         if (err.status && err.message) {
-            res.status(err.status).json({
-                message: err.message,
-                status: err.status
-            });
+            res.status(err.status)
+                .json({
+                    message: err.message,
+                    status: err.status
+                })
+                .header('Access-Control-Allow-Origin', '*')
+                .header('Access-Control-Allow-Headers', '*')
+                .header('Access-Control-Allow-Methods', '*');
         } else {
             next(err);
         }

@@ -16,6 +16,9 @@ import { Configuration } from '../../utilities/configuration';
 import { getPubsubChannelName } from '../../services/jobQueue/message';
 import { getMiddleReviewPageUrl } from '../../services/gd';
 import { S3Organization } from '../../services/s3/types';
+import { asyncSendSlackMessage } from '../../services/slack';
+import { ScraperNodeScaler } from '../../services/kubernetes/kubernetesScaling';
+import { KubernetesService } from '../../services/kubernetes/kubernetes';
 
 const getSplittedJobRequestData = (
     org: S3Organization,
@@ -236,7 +239,23 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         })
         .then((resultList: string[]) => Promise.resolve(resultList))
         .catch((error: Error) => Promise.reject(error))
-        .finally(() => {
-            return supervisorJobQueueManager.asyncCleanUp();
+        .finally(async () => {
+            let scaledownError;
+            try {
+                await ScraperNodeScaler.singleton.orderScaleDown();
+                await KubernetesService.singleton._cleanScraperWorkerNodePools();
+            } catch (error) {
+                console.log(error);
+                scaledownError = error;
+            }
+            const slackRes = await asyncSendSlackMessage(
+                `S3 work done, best effort scaled down selenium microservice:\n\n\n\`\`\`${
+                    scaledownError instanceof Error
+                        ? scaledownError.message
+                        : JSON.stringify(scaledownError)
+                }\`\`\``
+            );
+            console.log(slackRes.data, slackRes.statusText);
+            return await supervisorJobQueueManager.asyncCleanUp();
         });
 };

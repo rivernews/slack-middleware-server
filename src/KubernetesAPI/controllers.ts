@@ -6,6 +6,9 @@ import {
     DigitalOceanDropletSize
 } from '../services/kubernetes/types';
 import { V1Deployment, V1Service } from '@kubernetes/client-node';
+import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
+import { SeleniumMicroserviceType } from '../services/kubernetes/types';
+import { DeleteNodePoolResponse } from 'dots-wrapper/dist/modules/kubernetes';
 
 export const createNodeController = async (
     req: Request,
@@ -55,7 +58,12 @@ export const cleanNodeController = async (
 
     return res.json({
         status: 'OK',
-        deleteResponses
+        deleteResponses: deleteResponses.map((res: DeleteNodePoolResponse) => {
+            return {
+                data: res.data,
+                status: res.status
+            };
+        })
     });
 };
 
@@ -64,24 +72,47 @@ export const getSeleniumMicroserviceController = async (
     res: Response,
     next: NextFunction
 ) => {
+    console.log('get selenium controller');
     const errors: Error[] = [];
 
-    let deploymentResult: KubernetesClientResponse<V1Deployment> | undefined;
+    let hubDeploymentResult:
+        | KubernetesClientResponse<V1Deployment>[]
+        | undefined;
     try {
-        deploymentResult = await ScraperNodeScaler.singleton.getSeleniumDeployment();
+        hubDeploymentResult = await ScraperNodeScaler.singleton.getSeleniumMicroservicesDeployment(
+            SeleniumMicroserviceType.hub
+        );
+    } catch (error) {
+        errors.push(error);
+    }
+
+    let chromeNodeDeploymentResult:
+        | KubernetesClientResponse<V1Deployment>[]
+        | undefined;
+    try {
+        chromeNodeDeploymentResult = await ScraperNodeScaler.singleton.getSeleniumMicroservicesDeployment(
+            SeleniumMicroserviceType['chrome-node']
+        );
     } catch (error) {
         errors.push(error);
     }
 
     let serviceResult: KubernetesClientResponse<V1Service> | undefined;
     try {
-        serviceResult = await ScraperNodeScaler.singleton.getSeleniumService();
+        serviceResult = await ScraperNodeScaler.singleton.getSeleniumHubService();
     } catch (error) {
         errors.push(error);
     }
 
     return res.json({
-        deploymentResult,
+        hubDeploymentResult:
+            hubDeploymentResult?.length === 1
+                ? hubDeploymentResult[0]
+                : hubDeploymentResult,
+        chromeNodeDeploymentResult:
+            chromeNodeDeploymentResult?.length === 1
+                ? chromeNodeDeploymentResult[0]
+                : chromeNodeDeploymentResult,
         serviceResult,
         errors
     });
@@ -92,9 +123,27 @@ export const provisionSeleniumMicroserviceController = async (
     res: Response,
     next: NextFunction
 ) => {
-    const result = await ScraperNodeScaler.singleton.orderSeleniumProvisioning();
+    const { provisionType = SeleniumMicroserviceType.hub } = req.body;
 
-    res.json({ result });
+    if (
+        typeof provisionType !== 'string' ||
+        !(provisionType in SeleniumMicroserviceType)
+    ) {
+        return next(
+            new ParameterRequirementNotMet(
+                'invalid provisionType value: ' + provisionType
+            )
+        );
+    }
+
+    let result = {};
+    if (provisionType === 'hub') {
+        result = await ScraperNodeScaler.singleton.orderSeleniumHubProvisioning();
+    } else if (provisionType === 'chrome-node') {
+        result = await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
+    }
+
+    return res.json({ result });
 };
 
 export const removeSeleniumMicroserviceController = async (

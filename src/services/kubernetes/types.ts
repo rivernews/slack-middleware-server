@@ -24,3 +24,23 @@ export enum DigitalOceanDropletSize {
     // more pricing detail about each size & type
     // https://www.digitalocean.com/pricing/
 }
+
+export interface KubernetesDeploymentArguments {
+    identifier: SeleniumMicroserviceType;
+    nodePoolName: string;
+    replicas?: number;
+    image: string;
+    ports?: number[];
+    shareHostMemory?: boolean;
+    memoryLimit?: string;
+    cpuLimit?: string;
+    healthProbePath?: string;
+    healthProbePort?: number;
+    healthProbeCommand?: string[];
+    envs?: { [key: string]: string };
+}
+
+export enum SeleniumMicroserviceType {
+    'hub' = 'hub',
+    'chrome-node' = 'chrome-node'
+}
