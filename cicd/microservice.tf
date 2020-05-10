@@ -53,14 +53,14 @@ module "slack_middleware_service" {
   environment_variables = {
     # smaller job to prevent memory leak / RAM consumption going too high
     # when `1000`, resulting in around 399 jobs
-    SCRAPER_JOB_SPLITTING_SIZE = "900"
+    SCRAPER_JOB_SPLITTING_SIZE = "1200"
 
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
     # total jobs
-    SCRAPER_WORKER_NODE_COUNT = "4"
-    SCRAPER_COUNT_PER_WORKER_NODE = "5"
-    SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".6"
+    SCRAPER_WORKER_NODE_COUNT = "3"
+    SCRAPER_COUNT_PER_WORKER_NODE = "4"
+    SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".8"
   }
 
   use_recreate_deployment_strategy = true

@@ -44,3 +44,5 @@ export enum SeleniumMicroserviceType {
     'hub' = 'hub',
     'chrome-node' = 'chrome-node'
 }
+
+export type NodePoolGroupTypes = 'primary' | 'scraperWorker';

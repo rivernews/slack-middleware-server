@@ -224,7 +224,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     `S3 work done, best effort scaled down selenium microservice:\n\n\n\`\`\`${
                         scaledownError instanceof Error
                             ? scaledownError.message
-                            : JSON.stringify(scaledownError)
+                            : JSON.stringify(scaledownError || 'No error')
                     }\`\`\``
                 );
                 console.log(slackRes.data, slackRes.statusText);

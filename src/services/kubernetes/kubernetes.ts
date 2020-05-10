@@ -20,7 +20,7 @@ import {
     IKubernetesClusterNodePool,
     DeleteNodePoolResponse
 } from 'dots-wrapper/dist/modules/kubernetes';
-import { DigitalOceanDropletSize } from './types';
+import { DigitalOceanDropletSize, NodePoolGroupTypes } from './types';
 import { Configuration } from '../../utilities/configuration';
 
 // digitalocean client
@@ -464,9 +464,7 @@ export class KubernetesService {
         return results;
     }
 
-    public getReadyNodePool = async (
-        nodePoolGroup: 'primary' | 'scraperWorker'
-    ) => {
+    public getReadyNodePool = async (nodePoolGroup: NodePoolGroupTypes) => {
         // check node pool is created, and at least one node is in ready state
         // use the first node pool with node(s) ready
         const nodePools = await this._listScraperWorkerNodePool();

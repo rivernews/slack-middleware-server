@@ -336,7 +336,7 @@ export class ScraperNodeScaler {
         }
 
         const readyNodePool = await this.kubernetesService.getReadyNodePool(
-            'scraperWorker'
+            'primary'
         );
         if (!readyNodePool) {
             throw new ServerError(
