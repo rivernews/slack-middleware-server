@@ -60,10 +60,10 @@ module "slack_middleware_service" {
     # total jobs
     SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
-    SCRAPER_WORKER_NODE_COUNT = "3"
-    SCRAPER_COUNT_PER_WORKER_NODE = "4"
+    SCRAPER_WORKER_NODE_COUNT = "5"
+    SCRAPER_COUNT_PER_WORKER_NODE = "5"
 
-    SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".7"
+    SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".61"
   }
 
   use_recreate_deployment_strategy = true

@@ -213,6 +213,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             .then((resultList: string[]) => Promise.resolve(resultList))
             .catch((error: Error) => Promise.reject(error))
             .finally(async () => {
+                console.log('s3 job clean up supervisor job queue...');
                 await supervisorJobQueueManager.asyncCleanUp();
 
                 // best effort scale down selenium resources and nodes

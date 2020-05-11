@@ -6,7 +6,8 @@ import {
     CoreV1Api,
     AppsV1Api,
     V1Container,
-    V1Volume
+    V1Volume,
+    V1VolumeMount
 } from '@kubernetes/client-node';
 import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
@@ -231,8 +232,29 @@ export class KubernetesService {
 
         // prepare job specs
 
+        const additionalVolumes: V1Volume[] = [
+            // how to create temp share volume between containers
+            // https://www.alibabacloud.com/blog/kubernetes-volume-basics-emptydir-and-persistentvolume_594834
+            {
+                name: 'scraper-job-share',
+                emptyDir: {}
+            }
+        ];
+
+        const getAdditionalVolumeMounts: (
+            readOnly: boolean
+        ) => V1VolumeMount[] = readOnly => {
+            return [
+                {
+                    name: additionalVolumes[0].name,
+                    mountPath: '/tmp/scraper-job-share',
+                    readOnly
+                }
+            ];
+        };
+
         const additionalContainers: V1Container[] = [];
-        const volumes: V1Volume[] = [];
+
         console.log(
             'selenium archi type is',
             Configuration.singleton.seleniumArchitectureType
@@ -244,7 +266,9 @@ export class KubernetesService {
             console.log('adding standalone selenium ...');
             additionalContainers.push({
                 name: `selenium-container`,
-                image: 'selenium/standalone-chrome:latest',
+                // TODO: remove this
+                // image: 'selenium/standalone-chrome:latest',
+                image: 'shaungc/gd-selenium-standalone:latest',
                 imagePullPolicy: 'Always',
                 ports: [
                     {
@@ -256,7 +280,8 @@ export class KubernetesService {
                     {
                         name: 'share-host-memory',
                         mountPath: '/dev/shm'
-                    }
+                    },
+                    ...getAdditionalVolumeMounts(true)
                 ],
                 resources: {
                     limits: {
@@ -274,11 +299,12 @@ export class KubernetesService {
                         value: 'false'
                     }
                 ]
+                // TODO: wait if we want probe (it may kill container), else remove probe stuff
                 // readinessProbe: healthProbe,
                 // livenessProbe: healthProbe
             });
 
-            volumes.push({
+            additionalVolumes.push({
                 name: 'share-host-memory',
                 emptyDir: {
                     medium: 'Memory'
@@ -319,6 +345,7 @@ export class KubernetesService {
                         {
                             name: 'scraper-job-container',
                             image: 'shaungc/gd-scraper:latest',
+                            volumeMounts: [...getAdditionalVolumeMounts(false)],
                             env: KubernetesService.getKubernetesEnvVarsFromEnvVarPairs(
                                 {
                                     ...(mapJobDataToScraperEnvVar(jobData) as {
@@ -375,7 +402,7 @@ export class KubernetesService {
                         ...additionalContainers
                     ],
                     restartPolicy: 'Never',
-                    volumes
+                    volumes: [...additionalVolumes]
                 }
             }
         };
