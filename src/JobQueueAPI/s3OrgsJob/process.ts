@@ -17,6 +17,42 @@ import { asyncSendSlackMessage } from '../../services/slack';
 import { ScraperNodeScaler } from '../../services/kubernetes/kubernetesScaling';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
 
+const asyncCleanUpS3Job = async () => {
+    console.log('s3 job clean up supervisor job queue...');
+    await supervisorJobQueueManager.asyncCleanUp();
+
+    // best effort scale down selenium resources and nodes
+    await asyncSendSlackMessage(
+        `S3 work done, best effort scaled down selenium microservice`
+    );
+
+    console.log('about to scale down selenium, cool down for 10 seconds');
+    await new Promise(res => setTimeout(res, 10 * 1000));
+
+    let scaledownError: Error | undefined;
+    try {
+        await ScraperNodeScaler.singleton.orderScaleDown();
+
+        console.log('scaled down response', 'cool down for 10 seconds');
+        await new Promise(res => setTimeout(res, 10 * 1000));
+
+        await KubernetesService.singleton._cleanScraperWorkerNodePools();
+    } catch (error) {
+        console.log(error instanceof Error ? error.message : error);
+        scaledownError = error;
+    }
+
+    const slackRes = await asyncSendSlackMessage(
+        `:\n\n\n\`\`\`${
+            scaledownError instanceof Error
+                ? scaledownError.message
+                : JSON.stringify(scaledownError || 'No error')
+        }\`\`\`\n`
+    );
+    console.log('s3 slack request', slackRes.data, slackRes.statusText);
+    return;
+};
+
 const getSplittedJobRequestData = (
     org: S3Organization,
     pageNumberPointer: number,
@@ -190,58 +226,57 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             )
             .then(supervisorJobList =>
                 Promise.all(
-                    supervisorJobList.map(supervisorJob =>
-                        supervisorJob
-                            .finished()
+                    supervisorJobList.map(supervisorJob => {
+                        return new Promise<string>((res, rej) => {
+                            // note: if job is removed (like when in waiting state), .finish() won't resolve and s3 job will get stuck!
+                            // https://github.com/OptimalBits/bull/issues/1371
+                            supervisorJob
+                                .finished()
+                                .then(async result => {
+                                    console.log('fnish() -> then()');
+                                    await progressBarManager.increment();
+                                    return res(result);
+                                })
+                                .catch(async error => {
+                                    console.log('fnish() -> catch()');
 
-                            // don't let error of one job interrupt entire s3 job
-                            .catch(error =>
-                                error instanceof Error
-                                    ? error.message
-                                    : JSON.stringify(error)
-                            )
+                                    let errorMessage: string;
 
-                            // increment progress after job finished, then propogate back job result
-                            .then((result: string) =>
-                                progressBarManager
-                                    .increment()
-                                    .then(() => result)
-                            )
-                    )
+                                    if (error instanceof Error) {
+                                        errorMessage = error.message;
+                                    } else if (typeof error === 'string') {
+                                        errorMessage = error;
+                                    } else {
+                                        errorMessage = JSON.stringify(
+                                            error || { message: 'empty error' }
+                                        );
+                                    }
+
+                                    // if it's a manual termination request, withdraw this s3 job
+                                    // otherwise let us keep waiting other remaining job's .finished() to resolve
+                                    const normalizedText = errorMessage.toLowerCase();
+                                    if (
+                                        normalizedText.includes('manual') &&
+                                        normalizedText.includes('terminate')
+                                    ) {
+                                        return rej(new Error(errorMessage));
+                                    }
+
+                                    // s3 job move on anyway
+                                    await progressBarManager.increment();
+                                    return res(errorMessage);
+                                });
+                        });
+                    })
                 )
             )
-            .then((resultList: string[]) => Promise.resolve(resultList))
-            .catch((error: Error) => Promise.reject(error))
-            .finally(async () => {
-                console.log('s3 job clean up supervisor job queue...');
-                await supervisorJobQueueManager.asyncCleanUp();
-
-                // best effort scale down selenium resources and nodes
-
-                console.log('cool down for 10 seconds');
-                await new Promise(res => setTimeout(res, 10 * 1000));
-
-                let scaledownError;
-                try {
-                    await ScraperNodeScaler.singleton.orderScaleDown();
-
-                    console.log('cool down for 10 seconds');
-                    await new Promise(res => setTimeout(res, 10 * 1000));
-
-                    await KubernetesService.singleton._cleanScraperWorkerNodePools();
-                } catch (error) {
-                    console.log(error);
-                    scaledownError = error;
-                }
-                const slackRes = await asyncSendSlackMessage(
-                    `S3 work done, best effort scaled down selenium microservice:\n\n\n\`\`\`${
-                        scaledownError instanceof Error
-                            ? scaledownError.message
-                            : JSON.stringify(scaledownError || 'No error')
-                    }\`\`\``
-                );
-                console.log(slackRes.data, slackRes.statusText);
-                return;
+            .then(async (resultList: string[]) => {
+                await asyncCleanUpS3Job();
+                return resultList;
+            })
+            .catch(async (error: Error) => {
+                await asyncCleanUpS3Job();
+                throw error;
             })
     );
 };

@@ -535,11 +535,15 @@ const superviseScraper = (
                                         const errorMessage = `job ${
                                             job.id
                                         } error when requesting k8 job: ${JSON.stringify(
-                                            error
+                                            error instanceof Error
+                                                ? error.message
+                                                : JSON.stringify(error)
                                         )}`;
                                         console.error(
                                             `job ${job.id} error when requesting k8 job:`,
-                                            error
+                                            error instanceof Error
+                                                ? error.message
+                                                : JSON.stringify(error)
                                         );
                                         return scraperSupervisorReject(
                                             errorMessage

@@ -556,7 +556,11 @@ export class KubernetesService {
             );
             results.push(result);
 
-            console.log('delete status for node pool', nodePool.name, result);
+            console.log(
+                'delete status for node pool',
+                nodePool.name,
+                result.data
+            );
         }
 
         return results;

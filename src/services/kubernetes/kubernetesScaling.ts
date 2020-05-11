@@ -310,7 +310,7 @@ export class ScraperNodeScaler {
         const delNs = await this.kubernetesService.kubernetesCoreClient.deleteNamespace(
             ScraperNodeScaler.SELENIUM_NAMESPACE
         );
-        console.log('Delete namespace', delNs);
+        console.log('Delete namespace', delNs.body);
 
         // TODO: delete node / node pool as well
         // await this.kubernetesService._cleanScraperWorkerNodePools();
@@ -323,7 +323,7 @@ export class ScraperNodeScaler {
 
     // Scale up function
 
-    public async orderSeleniumHubProvisioning () {
+    public async orderSeleniumBaseProvisioning () {
         await this.kubernetesService.asyncInitialize();
         if (
             !(
@@ -368,7 +368,11 @@ export class ScraperNodeScaler {
                 np
             );
 
-            console.log('Created ns response', nsRes.response);
+            console.log(
+                'Created ns response',
+                nsRes.response.statusMessage,
+                nsRes.body.status
+            );
         }
 
         if (

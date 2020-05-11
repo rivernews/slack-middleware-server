@@ -137,7 +137,7 @@ export const provisionSeleniumMicroserviceController = async (
     }
 
     if (provisionType === 'hub') {
-        const result = await ScraperNodeScaler.singleton.orderSeleniumHubProvisioning();
+        const result = await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
         return res.json({ result });
     } else if (provisionType === 'chrome-node') {
         const result = await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
