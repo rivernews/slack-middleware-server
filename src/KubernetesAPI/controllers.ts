@@ -5,7 +5,7 @@ import {
     KubernetesClientResponse,
     DigitalOceanDropletSize
 } from '../services/kubernetes/types';
-import { V1Deployment, V1Service } from '@kubernetes/client-node';
+import { V1Deployment, V1Service, V1Namespace } from '@kubernetes/client-node';
 import { ParameterRequirementNotMet } from '../utilities/serverExceptions';
 import { SeleniumMicroserviceType } from '../services/kubernetes/types';
 import { DeleteNodePoolResponse } from 'dots-wrapper/dist/modules/kubernetes';
@@ -136,14 +136,17 @@ export const provisionSeleniumMicroserviceController = async (
         );
     }
 
-    let result = {};
     if (provisionType === 'hub') {
-        result = await ScraperNodeScaler.singleton.orderSeleniumHubProvisioning();
+        const result = await ScraperNodeScaler.singleton.orderSeleniumHubProvisioning();
+        return res.json({ result });
     } else if (provisionType === 'chrome-node') {
-        result = await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
+        const result = await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
+        return res.json({ result });
     }
 
-    return res.json({ result });
+    return res.json({
+        message: 'done nothing'
+    });
 };
 
 export const removeSeleniumMicroserviceController = async (

@@ -193,6 +193,14 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     supervisorJobList.map(supervisorJob =>
                         supervisorJob
                             .finished()
+
+                            // don't let error of one job interrupt entire s3 job
+                            .catch(error =>
+                                error instanceof Error
+                                    ? error.message
+                                    : JSON.stringify(error)
+                            )
+
                             // increment progress after job finished, then propogate back job result
                             .then((result: string) =>
                                 progressBarManager
@@ -205,15 +213,19 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             .then((resultList: string[]) => Promise.resolve(resultList))
             .catch((error: Error) => Promise.reject(error))
             .finally(async () => {
-                console.log('cool down for 30 seconds');
-                await new Promise(res => setTimeout(res, 30 * 1000));
+                await supervisorJobQueueManager.asyncCleanUp();
+
+                // best effort scale down selenium resources and nodes
+
+                console.log('cool down for 10 seconds');
+                await new Promise(res => setTimeout(res, 10 * 1000));
 
                 let scaledownError;
                 try {
                     await ScraperNodeScaler.singleton.orderScaleDown();
 
-                    console.log('cool down for 20 seconds');
-                    await new Promise(res => setTimeout(res, 20 * 1000));
+                    console.log('cool down for 10 seconds');
+                    await new Promise(res => setTimeout(res, 10 * 1000));
 
                     await KubernetesService.singleton._cleanScraperWorkerNodePools();
                 } catch (error) {
@@ -228,7 +240,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     }\`\`\``
                 );
                 console.log(slackRes.data, slackRes.statusText);
-                return await supervisorJobQueueManager.asyncCleanUp();
+                return;
             })
     );
 };

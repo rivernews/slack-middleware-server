@@ -1,3 +1,8 @@
+import {
+    SeleniumArchitectureType,
+    SeleniumMicroserviceType
+} from '../services/kubernetes/types';
+
 export class Configuration {
     private static _singleton: Configuration;
 
@@ -13,6 +18,8 @@ export class Configuration {
     public scraperCountPerWorkerNode: number;
 
     public scraperDriverNodeCpuLimit: string;
+
+    public seleniumArchitectureType: SeleniumArchitectureType;
 
     private constructor () {
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
@@ -70,6 +77,13 @@ export class Configuration {
         // );
         this.travisJobConcurrency =
             this.scraperConcurrency - this.k8sJobConcurrency;
+
+        this.seleniumArchitectureType =
+            process.env.SELENIUM_ARCHITECTURE_TYPE &&
+            process.env.SELENIUM_ARCHITECTURE_TYPE in SeleniumArchitectureType
+                ? ((process.env
+                      .SELENIUM_ARCHITECTURE_TYPE as unknown) as SeleniumArchitectureType)
+                : SeleniumArchitectureType['pod-standalone'];
     }
 
     private _getNumberFromEnvVar (envVarName: string, defaultValue: string) {

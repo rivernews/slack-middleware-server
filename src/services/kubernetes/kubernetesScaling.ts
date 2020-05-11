@@ -13,7 +13,8 @@ import {
 import {
     KubernetesDeploymentArguments,
     SeleniumMicroserviceType,
-    KubernetesClientResponse
+    KubernetesClientResponse,
+    SeleniumArchitectureType
 } from '../kubernetes/types';
 import { AssertionError } from 'assert';
 import { ServerError } from '../../utilities/serverExceptions';
@@ -347,13 +348,14 @@ export class ScraperNodeScaler {
         // Create selenium microservice on the node:
 
         // create ns
+        let nsRes: KubernetesClientResponse<V1Namespace>;
         try {
-            const getNsRes = await this.kubernetesService.kubernetesCoreClient.readNamespace(
+            nsRes = await this.kubernetesService.kubernetesCoreClient.readNamespace(
                 ScraperNodeScaler.SELENIUM_NAMESPACE
             );
             console.log(
                 `Namespace ${ScraperNodeScaler.SELENIUM_NAMESPACE} already exist`,
-                getNsRes.response
+                nsRes.response
             );
         } catch (error) {
             const np: V1Namespace = {
@@ -362,11 +364,20 @@ export class ScraperNodeScaler {
                     labels: { app: ScraperNodeScaler.SELENIUM_APP_LABEL }
                 }
             };
-            const nsRes = await this.kubernetesService.kubernetesCoreClient.createNamespace(
+            nsRes = await this.kubernetesService.kubernetesCoreClient.createNamespace(
                 np
             );
 
             console.log('Created ns response', nsRes.response);
+        }
+
+        if (
+            Configuration.singleton.seleniumArchitectureType !==
+            SeleniumArchitectureType['hub-node']
+        ) {
+            return {
+                nsRes
+            };
         }
 
         // create hub deploy
@@ -387,6 +398,7 @@ export class ScraperNodeScaler {
         console.log('Create service', svcRes.response);
 
         return {
+            nsRes,
             deployRes,
             svcRes
         };

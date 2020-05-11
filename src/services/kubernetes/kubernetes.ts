@@ -4,7 +4,9 @@ import {
     V1Job,
     V1EnvVar,
     CoreV1Api,
-    AppsV1Api
+    AppsV1Api,
+    V1Container,
+    V1Volume
 } from '@kubernetes/client-node';
 import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
@@ -20,7 +22,11 @@ import {
     IKubernetesClusterNodePool,
     DeleteNodePoolResponse
 } from 'dots-wrapper/dist/modules/kubernetes';
-import { DigitalOceanDropletSize, NodePoolGroupTypes } from './types';
+import {
+    DigitalOceanDropletSize,
+    NodePoolGroupTypes,
+    SeleniumArchitectureType
+} from './types';
 import { Configuration } from '../../utilities/configuration';
 
 // digitalocean client
@@ -40,7 +46,7 @@ export class KubernetesService {
     private static SCRAPER_WORKER_NODE_LABEL = 'scraper-worker-node';
 
     public static SCRAPER_WORK_NAMESPACE = 'selenium-service';
-    private static JOB_NAMESPACE = KubernetesService.SCRAPER_WORK_NAMESPACE;
+    public static JOB_NAMESPACE = KubernetesService.SCRAPER_WORK_NAMESPACE;
 
     private digitalOceanToken: string;
     private digitalOceanClient: typeof digitalOceanClientExample;
@@ -48,7 +54,7 @@ export class KubernetesService {
     private kubernetesConfig?: KubeConfig;
     private kubernetesCluster?: IKubernetesCluster;
 
-    private kubernetesBatchClient?: BatchV1Api;
+    public kubernetesBatchClient?: BatchV1Api;
     public kubernetesCoreClient?: CoreV1Api;
     public kubernetesAppClient?: AppsV1Api;
 
@@ -99,9 +105,10 @@ export class KubernetesService {
         return KubernetesService._singleton;
     }
 
-    public async asyncInitialize () {
+    public async asyncInitialize (forceInitialize: boolean = false) {
         try {
             if (
+                !forceInitialize &&
                 this.kubernetesBatchClient &&
                 this.kubernetesCoreClient &&
                 this.kubernetesAppClient
@@ -224,7 +231,63 @@ export class KubernetesService {
 
         // prepare job specs
 
+        const additionalContainers: V1Container[] = [];
+        const volumes: V1Volume[] = [];
+        console.log(
+            'selenium archi type is',
+            Configuration.singleton.seleniumArchitectureType
+        );
+        if (
+            Configuration.singleton.seleniumArchitectureType ===
+            SeleniumArchitectureType['pod-standalone']
+        ) {
+            console.log('adding standalone selenium ...');
+            additionalContainers.push({
+                name: `selenium-container`,
+                image: 'selenium/standalone-chrome:latest',
+                imagePullPolicy: 'Always',
+                ports: [
+                    {
+                        name: 'port-4444',
+                        containerPort: 4444
+                    }
+                ],
+                volumeMounts: [
+                    {
+                        name: 'share-host-memory',
+                        mountPath: '/dev/shm'
+                    }
+                ],
+                resources: {
+                    limits: {
+                        memory: '1200Mi',
+                        cpu: Configuration.singleton.scraperDriverNodeCpuLimit
+                    },
+                    requests: {
+                        memory: '200Mi',
+                        cpu: '.1'
+                    }
+                },
+                env: [
+                    {
+                        name: 'START_XVFB',
+                        value: 'false'
+                    }
+                ]
+                // readinessProbe: healthProbe,
+                // livenessProbe: healthProbe
+            });
+
+            volumes.push({
+                name: 'share-host-memory',
+                emptyDir: {
+                    medium: 'Memory'
+                }
+            });
+        }
+
         // create job request
+
         const job = new V1Job();
         job.metadata = {
             // must use lower case or hyphens
@@ -283,12 +346,18 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    DEBUG: 'false',
+                                    DEBUG: 'true',
 
                                     // use our selenium server container in this job
                                     WEBDRIVER_MODE: 'serverFromCustomHost',
                                     SELENIUM_SERVER_CUSTOM_HOST:
-                                        process.env.SELENIUM_SERVER_HOST,
+                                        Configuration.singleton
+                                            .seleniumArchitectureType ===
+                                        SeleniumArchitectureType['hub-node']
+                                            ? process.env.SELENIUM_SERVER_HOST
+                                            : // when accessing selenium in neighbor container of same job, use `localhost` to communicate
+                                              // https://kubernetes.io/docs/tasks/access-application-cluster/communicate-containers-same-pod-shared-volume/#discussion
+                                              'localhost',
 
                                     REDIS_MODE: 'serverFromCustomHost',
                                     REDIS_CUSTOM_HOST:
@@ -302,9 +371,11 @@ export class KubernetesService {
                                         process.env.REDIS_PASSWORD || ''
                                 }
                             )
-                        }
+                        },
+                        ...additionalContainers
                     ],
-                    restartPolicy: 'Never'
+                    restartPolicy: 'Never',
+                    volumes
                 }
             }
         };
