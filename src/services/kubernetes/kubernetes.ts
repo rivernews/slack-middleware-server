@@ -291,8 +291,8 @@ export class KubernetesService {
                         cpu: Configuration.singleton.scraperDriverNodeCpuLimit
                     },
                     requests: {
-                        memory: '200Mi',
-                        cpu: '.1'
+                        // memory: '500Mi',
+                        cpu: '.25'
                     }
                 },
                 env: [
