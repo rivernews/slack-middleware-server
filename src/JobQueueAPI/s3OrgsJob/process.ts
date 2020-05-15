@@ -219,7 +219,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                         clearInterval(scheduler);
                         throw error;
                     }
-                }, 5 * 1000);
+                }, 10 * 1000);
             });
         })
         .then(() =>
