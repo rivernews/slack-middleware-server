@@ -154,6 +154,6 @@ export const removeSeleniumMicroserviceController = async (
     res: Response,
     next: NextFunction
 ) => {
-    const result = await ScraperNodeScaler.singleton.orderScaleDown();
+    const result = await ScraperNodeScaler.singleton.orderSeleniumStackRemoval();
     res.json({ result });
 };

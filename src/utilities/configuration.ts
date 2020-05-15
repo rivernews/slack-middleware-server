@@ -25,6 +25,8 @@ export class Configuration {
 
     public autoDigitaloceanDropletSize: DigitalOceanDropletSize;
 
+    public s3DispatchJobIntervalMs: number;
+
     private constructor () {
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
             'GLASSDOOR_REVIEW_COUNT_PER_PAGE',
@@ -43,6 +45,11 @@ export class Configuration {
             // smaller chunk of task is better especially when random network-related error occurr.
             // when bull retry the scraper job, we can have less overhead
             '45'
+        );
+
+        this.s3DispatchJobIntervalMs = this._getNumberFromEnvVar(
+            'S3_DISPATCH_JOB_INTERVAL_MS',
+            '600'
         );
 
         // Resources

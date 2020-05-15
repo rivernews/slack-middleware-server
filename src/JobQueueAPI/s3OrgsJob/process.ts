@@ -24,8 +24,54 @@ import {
 import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 const asyncCleanUpS3Job = async () => {
-    console.log('s3 job clean up supervisor job queue...');
-    await supervisorJobQueueManager.asyncCleanUp();
+    console.log('s3 job enter finalizing stage...');
+
+    // TODO: remove this when we don't need s3 to wait till all supervisor job
+    // perhaps created by s3 job or created manually be re-try or other source to complete
+    //
+    // as long as there is still supervisor job, we should never scale down so keep waiting
+    await new Promise((res, rej) => {
+        const scheduler = setInterval(async () => {
+            try {
+                const vacancy = await supervisorJobQueueManager.checkConcurrency(
+                    1,
+                    undefined,
+                    undefined,
+                    undefined,
+                    false
+                );
+                if (vacancy === 1) {
+                    console.log('s3 job clean up supervisor job queue...');
+                    await supervisorJobQueueManager.asyncCleanUp();
+                    clearInterval(scheduler);
+                    return res();
+                }
+            } catch (error) {
+                // no vacancy, which means stil some supervisor job running
+                // so let's wait till them finish
+            }
+        }, 5 * 1000);
+
+        try {
+            JobQueueSharedRedisClientsSingleton.singleton.subscriberClient?.on(
+                'message',
+                async (channel: string, message: string) => {
+                    const [type] = message.split(':');
+
+                    if (type === ScraperJobMessageType.TERMINATE) {
+                        console.log(
+                            's3 job receives terminate signal while finalizing, will now force proceeding clean up'
+                        );
+                        await supervisorJobQueueManager.asyncCleanUp();
+                        clearInterval(scheduler);
+                        return res(`maunallyTerminated`);
+                    }
+                }
+            );
+        } catch (error) {
+            rej(error);
+        }
+    });
 
     // cool down
 
@@ -45,33 +91,7 @@ const asyncCleanUpS3Job = async () => {
 
     // best effort scale down selenium resources and nodes
 
-    let scaledownError: Error | undefined;
-    try {
-        await ScraperNodeScaler.singleton.orderScaleDown();
-
-        console.log('scaled down response', 'cool down for 10 seconds');
-        await new Promise(res => setTimeout(res, 10 * 1000));
-
-        await KubernetesService.singleton._cleanScraperWorkerNodePools();
-    } catch (error) {
-        console.log(error instanceof Error ? error.message : error);
-        scaledownError = error;
-    }
-
-    try {
-        await asyncSendSlackMessage(
-            `:\n\n\n\`\`\`${
-                scaledownError instanceof Error
-                    ? scaledownError.message
-                    : JSON.stringify(scaledownError || 'No error')
-            }\`\`\`\n`
-        );
-    } catch (error) {
-        console.log(
-            error instanceof Error ? error.message : error,
-            'slack request failed'
-        );
-    }
+    await ScraperNodeScaler.singleton.scaleDown();
 };
 
 const getSplittedJobRequestData = (

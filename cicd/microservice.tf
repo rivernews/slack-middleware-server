@@ -51,6 +51,8 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
+    S3_DISPATCH_JOB_INTERVAL_MS = "3000"
+
     # smaller job to prevent memory leak / RAM consumption going too high
     # when `1000`, resulting in around 399 jobs
     SCRAPER_JOB_SPLITTING_SIZE = "500"
@@ -60,10 +62,10 @@ module "slack_middleware_service" {
     # total jobs
     SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
-    SCRAPER_WORKER_NODE_COUNT = "8"
+    SCRAPER_WORKER_NODE_COUNT = "9"
     SCRAPER_COUNT_PER_WORKER_NODE = "3"
 
-    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1100Mi"
+    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1050Mi"
     SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".6"
   }
 

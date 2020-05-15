@@ -21,6 +21,7 @@ import { ServerError } from '../../utilities/serverExceptions';
 import Axios from 'axios';
 import { IncomingMessage } from 'http';
 import { Configuration } from '../../utilities/configuration';
+import { asyncSendSlackMessage } from '../slack';
 
 export class ScraperNodeScaler {
     private static _singleton: ScraperNodeScaler;
@@ -293,7 +294,7 @@ export class ScraperNodeScaler {
 
     // Scale down functions
 
-    public async orderScaleDown () {
+    public async orderSeleniumStackRemoval () {
         await this.kubernetesService.asyncInitialize();
         if (
             !(
@@ -302,7 +303,7 @@ export class ScraperNodeScaler {
             )
         ) {
             throw new Error(
-                `Kubernetes Core Api client not initialized when scaling down scraper worker node`
+                `Kubernetes Core Api client not initialized when removing selenium stack`
             );
         }
 
@@ -320,6 +321,34 @@ export class ScraperNodeScaler {
             status: 'OK',
             deleteNamespaceResponse: delNs
         };
+    }
+
+    public async scaleDown () {
+        let scaledownError: Error | undefined;
+        try {
+            await ScraperNodeScaler.singleton.orderSeleniumStackRemoval();
+
+            console.log('scaled down response', 'cool down for 10 seconds');
+            await new Promise(res => setTimeout(res, 10 * 1000));
+
+            await KubernetesService.singleton._cleanScraperWorkerNodePools();
+        } catch (error) {
+            console.log(error instanceof Error ? error.message : error);
+            scaledownError = error;
+        }
+
+        if (scaledownError) {
+            try {
+                await asyncSendSlackMessage(
+                    `Scale down error:\n\n\n\`\`\`${scaledownError.message}\`\`\`\n`
+                );
+            } catch (error) {
+                console.log(
+                    error instanceof Error ? error.message : error,
+                    'slack request failed'
+                );
+            }
+        }
     }
 
     // Scale up function
