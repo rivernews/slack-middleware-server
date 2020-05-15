@@ -1,6 +1,7 @@
 import {
     SeleniumArchitectureType,
-    SeleniumMicroserviceType
+    SeleniumMicroserviceType,
+    DigitalOceanDropletSize
 } from '../services/kubernetes/types';
 
 export class Configuration {
@@ -21,6 +22,8 @@ export class Configuration {
     public scraperDriverNodeMemoryLimit: string;
 
     public seleniumArchitectureType: SeleniumArchitectureType;
+
+    public autoDigitaloceanDropletSize: DigitalOceanDropletSize;
 
     private constructor () {
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
@@ -87,6 +90,15 @@ export class Configuration {
                 ? ((process.env
                       .SELENIUM_ARCHITECTURE_TYPE as unknown) as SeleniumArchitectureType)
                 : SeleniumArchitectureType['pod-standalone'];
+
+        if (this.scraperCountPerWorkerNode <= 3) {
+            this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.MEDIUM;
+        } else if (this.scraperCountPerWorkerNode <= 5) {
+            this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.LARGE;
+        } else {
+            // default
+            this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.MEDIUM;
+        }
     }
 
     private _getNumberFromEnvVar (envVarName: string, defaultValue: string) {

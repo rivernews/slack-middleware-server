@@ -356,7 +356,7 @@ export class ScraperNodeScaler {
             );
             console.log(
                 `Namespace ${ScraperNodeScaler.SELENIUM_NAMESPACE} already exist`,
-                nsRes.response
+                nsRes.response.statusMessage
             );
         } catch (error) {
             const np: V1Namespace = {

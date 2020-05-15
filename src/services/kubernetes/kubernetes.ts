@@ -568,7 +568,10 @@ export class KubernetesService {
         return results;
     }
 
-    public getReadyNodePool = async (nodePoolGroup: NodePoolGroupTypes) => {
+    public getReadyNodePool = async (
+        nodePoolGroup: NodePoolGroupTypes,
+        waitForAllReady: boolean = false
+    ) => {
         // check node pool is created, and at least one node is in ready state
         // use the first node pool with node(s) ready
         const nodePools = await this._listScraperWorkerNodePool();
@@ -583,8 +586,19 @@ export class KubernetesService {
                 node => node.status.state === 'running'
             );
             if (readyNodes.length) {
-                readyNodePool = nodepool;
-                break;
+                if (!waitForAllReady) {
+                    // if any node is ready then we can break
+                    readyNodePool = nodepool;
+                    break;
+                } else {
+                    // make sure all node is ready
+                    if (readyNodes.length === nodepool.nodes.length) {
+                        readyNodePool = nodepool;
+                        break;
+                    }
+
+                    // otherwise move on next node pool (if any) -> next loop round
+                }
             }
         }
 
