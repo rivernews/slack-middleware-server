@@ -158,12 +158,15 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             await new Promise(resolvePollingPromise => {
                 const scheduler = setInterval(async () => {
                     try {
-                        console.log('polling selenium stack readiness..');
                         const readyNodePool = await KubernetesService.singleton.getReadyNodePool(
                             'scraperWorker',
                             true
                         );
                         if (readyNodePool) {
+                            console.log(
+                                'nodes are ready, next is to create selenium base...'
+                            );
+
                             // create selenium base
                             const res = await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
 
@@ -175,7 +178,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             ) {
                                 // wait for 10 seconds to cool down
                                 console.log(
-                                    'nodes are ready and selenium base created, cooling down before starting s3...'
+                                    'selenium base created, cooling down before starting s3...'
                                 );
                                 await new Promise(res =>
                                     setTimeout(res, 10 * 1000)
@@ -208,6 +211,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             clearInterval(scheduler);
                             return resolvePollingPromise();
                         }
+
+                        console.log(
+                            'still polling node and selenium stack readiness..'
+                        );
                     } catch (error) {
                         clearInterval(scheduler);
                         throw error;
@@ -405,7 +412,9 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                             );
                                                         }
                                                     },
-                                                    index * 1 * 600
+                                                    index *
+                                                        Configuration.singleton
+                                                            .s3DispatchJobIntervalMs
                                                 );
 
                                                 // terminate all jobs when signaled from pubsub
