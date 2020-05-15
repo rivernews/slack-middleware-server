@@ -270,7 +270,8 @@ export class ScraperNodeScaler {
                 HUB_PORT: '4444',
                 START_XVFB: 'false'
             },
-            cpuLimit: Configuration.singleton.scraperDriverNodeCpuLimit
+            cpuLimit: Configuration.singleton.scraperDriverNodeCpuLimit,
+            memoryLimit: Configuration.singleton.scraperDriverNodeMemoryLimit
         });
     };
 

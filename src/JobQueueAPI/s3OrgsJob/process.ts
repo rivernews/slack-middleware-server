@@ -7,7 +7,8 @@ import {
     ScraperJobRequestData,
     ScraperMode,
     SupervisorJobRequestData,
-    ScraperProgressData
+    ScraperProgressData,
+    ScraperJobMessageType
 } from '../../services/jobQueue/types';
 import { Configuration } from '../../utilities/configuration';
 import { getPubsubChannelName } from '../../services/jobQueue/message';
@@ -16,6 +17,10 @@ import { S3Organization } from '../../services/s3/types';
 import { asyncSendSlackMessage } from '../../services/slack';
 import { ScraperNodeScaler } from '../../services/kubernetes/kubernetesScaling';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
+import {
+    JobQueueSharedRedisClientsSingleton,
+    RedisPubSubChannelName
+} from '../../services/redis';
 
 const asyncCleanUpS3Job = async () => {
     console.log('s3 job clean up supervisor job queue...');
@@ -209,67 +214,164 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     })
                     .then(scraperJobRequests => {
                         return Promise.all(
-                            scraperJobRequests.map((scraperJobRequest, index) =>
-                                // supervisorJobQueueManager.asyncAdd(
-                                //     scraperJobRequest
-                                // )
-                                new Promise(res =>
-                                    setTimeout(res, index * 1 * 600)
-                                ).then(() => {
-                                    return supervisorJobQueueManager.asyncAdd(
-                                        scraperJobRequest
+                            scraperJobRequests.map(
+                                (scraperJobRequest, index) => {
+                                    // supervisorJobQueueManager.asyncAdd(
+                                    //     scraperJobRequest
+                                    // )
+
+                                    JobQueueSharedRedisClientsSingleton.singleton.intialize(
+                                        'master'
                                     );
-                                })
+                                    JobQueueSharedRedisClientsSingleton.singleton.subscriberClient
+                                        ?.subscribe(
+                                            RedisPubSubChannelName.ADMIN
+                                        )
+                                        .then(count => {
+                                            console.log(
+                                                's3 subscribe to admin channel successfully; count',
+                                                count
+                                            );
+                                        });
+
+                                    return new Promise<string>((res, rej) => {
+                                        const scheduler = setTimeout(
+                                            async () => {
+                                                try {
+                                                    const job = await supervisorJobQueueManager.asyncAdd(
+                                                        scraperJobRequest
+                                                    );
+                                                    const result: string = await job.finished();
+
+                                                    await progressBarManager.increment();
+
+                                                    return res(result);
+                                                } catch (error) {
+                                                    let errorMessage: string;
+
+                                                    if (
+                                                        error instanceof Error
+                                                    ) {
+                                                        errorMessage =
+                                                            error.message;
+                                                    } else if (
+                                                        typeof error ===
+                                                        'string'
+                                                    ) {
+                                                        errorMessage = error;
+                                                    } else {
+                                                        errorMessage = JSON.stringify(
+                                                            error || {
+                                                                message:
+                                                                    'empty error'
+                                                            }
+                                                        );
+                                                    }
+
+                                                    // if it's a manual termination request, withdraw this s3 job
+                                                    // otherwise let us keep waiting other remaining job's .finished() to resolve
+                                                    const normalizedText = errorMessage.toLowerCase();
+                                                    if (
+                                                        normalizedText.includes(
+                                                            'manual'
+                                                        ) &&
+                                                        normalizedText.includes(
+                                                            'terminate'
+                                                        )
+                                                    ) {
+                                                        return rej(
+                                                            new Error(
+                                                                errorMessage
+                                                            )
+                                                        );
+                                                    }
+
+                                                    // s3 job move on anyway
+                                                    await progressBarManager.increment();
+                                                    return res(errorMessage);
+                                                }
+                                            },
+                                            index * 1 * 600
+                                        );
+
+                                        JobQueueSharedRedisClientsSingleton.singleton.subscriberClient?.on(
+                                            'message',
+                                            (
+                                                channel: string,
+                                                message: string
+                                            ) => {
+                                                const [
+                                                    type,
+                                                    messageTo,
+                                                    ...payload
+                                                ] = message.split(':');
+                                                const payloadAsString = payload.join(
+                                                    ':'
+                                                );
+
+                                                if (
+                                                    type ===
+                                                    ScraperJobMessageType.TERMINATE
+                                                ) {
+                                                    clearTimeout(scheduler);
+                                                    return res(
+                                                        `maunallyTerminated`
+                                                    );
+                                                }
+                                            }
+                                        );
+                                    });
+                                }
                             )
                         );
                     })
             )
-            .then(supervisorJobList =>
-                Promise.all(
-                    supervisorJobList.map(supervisorJob => {
-                        return new Promise<string>((res, rej) => {
-                            // note: if job is removed (like when in waiting state), .finish() won't resolve and s3 job will get stuck!
-                            // https://github.com/OptimalBits/bull/issues/1371
-                            supervisorJob
-                                .finished()
-                                .then(async result => {
-                                    console.log('fnish() -> then()');
-                                    await progressBarManager.increment();
-                                    return res(result);
-                                })
-                                .catch(async error => {
-                                    console.log('fnish() -> catch()');
+            // .then(supervisorJobList =>
+            //     Promise.all(
+            //         supervisorJobList.map(supervisorJob => {
+            //             return new Promise<string>((res, rej) => {
+            //                 // note: if job is removed (like when in waiting state), .finish() won't resolve and s3 job will get stuck!
+            //                 // https://github.com/OptimalBits/bull/issues/1371
+            //                 supervisorJob
+            //                     .finished()
+            //                     .then(async result => {
+            //                         console.log('fnish() -> then()');
+            //                         await progressBarManager.increment();
+            //                         return res(result);
+            //                     })
+            //                     .catch(async error => {
+            //                         console.log('fnish() -> catch()');
 
-                                    let errorMessage: string;
+            //                         let errorMessage: string;
 
-                                    if (error instanceof Error) {
-                                        errorMessage = error.message;
-                                    } else if (typeof error === 'string') {
-                                        errorMessage = error;
-                                    } else {
-                                        errorMessage = JSON.stringify(
-                                            error || { message: 'empty error' }
-                                        );
-                                    }
+            //                         if (error instanceof Error) {
+            //                             errorMessage = error.message;
+            //                         } else if (typeof error === 'string') {
+            //                             errorMessage = error;
+            //                         } else {
+            //                             errorMessage = JSON.stringify(
+            //                                 error || { message: 'empty error' }
+            //                             );
+            //                         }
 
-                                    // if it's a manual termination request, withdraw this s3 job
-                                    // otherwise let us keep waiting other remaining job's .finished() to resolve
-                                    const normalizedText = errorMessage.toLowerCase();
-                                    if (
-                                        normalizedText.includes('manual') &&
-                                        normalizedText.includes('terminate')
-                                    ) {
-                                        return rej(new Error(errorMessage));
-                                    }
+            //                         // if it's a manual termination request, withdraw this s3 job
+            //                         // otherwise let us keep waiting other remaining job's .finished() to resolve
+            //                         const normalizedText = errorMessage.toLowerCase();
+            //                         if (
+            //                             normalizedText.includes('manual') &&
+            //                             normalizedText.includes('terminate')
+            //                         ) {
+            //                             return rej(new Error(errorMessage));
+            //                         }
 
-                                    // s3 job move on anyway
-                                    await progressBarManager.increment();
-                                    return res(errorMessage);
-                                });
-                        });
-                    })
-                )
-            )
+            //                         // s3 job move on anyway
+            //                         await progressBarManager.increment();
+            //                         return res(errorMessage);
+            //                     });
+            //             });
+            //         })
+            //     )
+            // )
             .then(async (resultList: string[]) => {
                 await asyncCleanUpS3Job();
                 return resultList;

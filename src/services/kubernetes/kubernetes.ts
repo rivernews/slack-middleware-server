@@ -285,7 +285,9 @@ export class KubernetesService {
                 ],
                 resources: {
                     limits: {
-                        memory: '1200Mi',
+                        memory:
+                            Configuration.singleton
+                                .scraperDriverNodeMemoryLimit,
                         cpu: Configuration.singleton.scraperDriverNodeCpuLimit
                     },
                     requests: {
@@ -373,7 +375,7 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    DEBUG: 'true',
+                                    DEBUG: 'false',
 
                                     // use our selenium server container in this job
                                     WEBDRIVER_MODE: 'serverFromCustomHost',

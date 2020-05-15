@@ -35,7 +35,7 @@
         "@types/progress": "^2.0.3",
         "axios": "^0.19.2",
         "bull": "^3.13.0",
-        "bull-board": "^0.6.0",
+        "bull-board": "^0.7.0",
         "cheerio": "^1.0.0-rc.3",
         "cors": "^2.8.5",
         "dots-wrapper": "^3.1.8",
