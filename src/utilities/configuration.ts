@@ -98,10 +98,15 @@ export class Configuration {
                       .SELENIUM_ARCHITECTURE_TYPE as unknown) as SeleniumArchitectureType)
                 : SeleniumArchitectureType['pod-standalone'];
 
-        if (this.scraperCountPerWorkerNode <= 3) {
+        if (this.scraperCountPerWorkerNode <= 1) {
+            this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.SMALL_3G;
+        } else if (this.scraperCountPerWorkerNode <= 2) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.MEDIUM;
-        } else if (this.scraperCountPerWorkerNode <= 5) {
+        } else if (this.scraperCountPerWorkerNode <= 4) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.LARGE;
+        } else if (this.scraperCountPerWorkerNode <= 10) {
+            this.autoDigitaloceanDropletSize =
+                DigitalOceanDropletSize.LARGE_16G;
         } else {
             // default
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.MEDIUM;

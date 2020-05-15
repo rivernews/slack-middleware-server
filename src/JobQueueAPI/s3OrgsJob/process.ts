@@ -24,13 +24,14 @@ import {
 import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 const asyncCleanUpS3Job = async () => {
-    console.log('s3 job enter finalizing stage...');
+    console.log('s3 job enter finalizing stage');
 
     // TODO: remove this when we don't need s3 to wait till all supervisor job
     // perhaps created by s3 job or created manually be re-try or other source to complete
     //
     // as long as there is still supervisor job, we should never scale down so keep waiting
     await new Promise((res, rej) => {
+        console.log('waiting for all supervisor jobs finish');
         const scheduler = setInterval(async () => {
             try {
                 const vacancy = await supervisorJobQueueManager.checkConcurrency(
@@ -40,15 +41,27 @@ const asyncCleanUpS3Job = async () => {
                     undefined,
                     false
                 );
-                if (vacancy === 1) {
+                process.stdout.write('.' + vacancy);
+                if (vacancy === 0) {
                     console.log('s3 job clean up supervisor job queue...');
                     await supervisorJobQueueManager.asyncCleanUp();
                     clearInterval(scheduler);
                     return res();
                 }
             } catch (error) {
-                // no vacancy, which means stil some supervisor job running
-                // so let's wait till them finish
+                if (
+                    typeof error === 'string' &&
+                    error.includes('concurrency limit')
+                ) {
+                    // no vacancy, which means stil some supervisor job running
+                    // so let's wait till them finish
+                    return;
+                }
+
+                // sth is wrong, don't wait just abort s3 job
+                await supervisorJobQueueManager.asyncCleanUp();
+                clearInterval(scheduler);
+                return res();
             }
         }, 5 * 1000);
 

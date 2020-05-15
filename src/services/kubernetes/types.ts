@@ -6,8 +6,14 @@ export interface KubernetesClientResponse<T> {
 }
 
 export enum DigitalOceanDropletSize {
-    MEDIUM = 's-2vcpu-4gb',
-    LARGE = 's-4vcpu-8gb',
+    // will get 422, perhaps not available in k8
+    // SINGLE_UNIT = 's-1vcpu-1gb', // $5
+
+    SMALL_3G = 's-1vcpu-3gb', // $15
+
+    SMALL = 's-1vcpu-2gb', // $10
+    MEDIUM = 's-2vcpu-4gb', // $20
+    LARGE = 's-4vcpu-8gb', // $40
     LARGE_16G = 's-6vcpu-16gb', // $80, 1:4
 
     MEMORY_2CPU = 'm-16gb', // $75, 1:8

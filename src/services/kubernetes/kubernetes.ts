@@ -469,7 +469,11 @@ export class KubernetesService {
     public async _createScraperWorkerNodePool (
         digitaloceanDropletSize: DigitalOceanDropletSize
     ) {
-        console.log('create node pool()');
+        console.log(
+            'create node pool()',
+            digitaloceanDropletSize,
+            Configuration.singleton.scraperWorkerNodeCount
+        );
 
         await this.asyncInitialize();
         if (!this.kubernetesCluster?.id) {

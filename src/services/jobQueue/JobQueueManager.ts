@@ -268,7 +268,7 @@ export class JobQueueManager<JobRequestData> {
     }
 
     /**
-     * Throws a promise rejection if concurrency limit reached, or a resolve if not.
+     * Throws a promise rejection if concurrency limit reached, or a resolve if not and provides the count of jobs present right now.
      *
      * @param concurrency The concurrency limit for either the queue you pass in by `concurrencyCheckQueue`, or if you don't, this manager's own queue
      * @param concurrencyCheckQueue Queue you want to explicitly check concurrency for
