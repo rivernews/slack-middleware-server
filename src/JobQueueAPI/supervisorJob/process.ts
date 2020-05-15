@@ -11,6 +11,7 @@ import { asyncSendSlackMessage } from '../../services/slack';
 import { ProgressBarManager } from '../../services/jobQueue/ProgressBar';
 import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { Configuration } from '../../utilities/configuration';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 const handleManualTerminationForSupervisorJob = (jobResult: string) => {
     // treat manual termianation as failure at the supervisorJob level
@@ -68,11 +69,14 @@ const processRenewalJob = async (
         }
 
         console.log(`${logPrefix} renewal job ${renewalJob.id} finished`);
-        await asyncSendSlackMessage(
-            `${logPrefix} renewal job ${
-                renewalJob.id
-            } finished, return data:\n\`\`\`${JSON.stringify(jobResult)}\`\`\``
-        );
+        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
+            (await asyncSendSlackMessage(
+                `${logPrefix} renewal job ${
+                    renewalJob.id
+                } finished, return data:\n\`\`\`${JSON.stringify(
+                    jobResult
+                )}\`\`\``
+            ));
     } while (ScraperCrossRequest.isScraperCrossRequestData(jobResult));
 
     return;
@@ -166,13 +170,14 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
 
             const orgFirstJobReturnData: ScraperJobReturnData = await orgFirstJob.finished();
             console.log(`supervisorJob: job ${orgFirstJob.id} finished`);
-            await asyncSendSlackMessage(
-                `supervisorJob: job ${
-                    orgFirstJob.id
-                } finished, return data:\n\`\`\`${JSON.stringify(
-                    orgFirstJobReturnData
-                )}\`\`\``
-            );
+            process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT &&
+                (await asyncSendSlackMessage(
+                    `supervisorJob: job ${
+                        orgFirstJob.id
+                    } finished, return data:\n\`\`\`${JSON.stringify(
+                        orgFirstJobReturnData
+                    )}\`\`\``
+                ));
 
             if (
                 typeof orgFirstJobReturnData !== 'string' &&

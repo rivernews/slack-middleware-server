@@ -26,13 +26,23 @@ const asyncCleanUpS3Job = async () => {
     console.log('s3 job clean up supervisor job queue...');
     await supervisorJobQueueManager.asyncCleanUp();
 
-    // best effort scale down selenium resources and nodes
-    await asyncSendSlackMessage(
-        `S3 work done, best effort scaled down selenium microservice`
-    );
+    // cool down
+
+    try {
+        const res = await asyncSendSlackMessage(
+            `S3 work done, best effort scaled down selenium microservice`
+        );
+    } catch (error) {
+        console.log(
+            error instanceof Error ? error.message : error,
+            'slack request failed'
+        );
+    }
 
     console.log('about to scale down selenium, cool down for 10 seconds');
     await new Promise(res => setTimeout(res, 10 * 1000));
+
+    // best effort scale down selenium resources and nodes
 
     let scaledownError: Error | undefined;
     try {
@@ -47,15 +57,20 @@ const asyncCleanUpS3Job = async () => {
         scaledownError = error;
     }
 
-    const slackRes = await asyncSendSlackMessage(
-        `:\n\n\n\`\`\`${
-            scaledownError instanceof Error
-                ? scaledownError.message
-                : JSON.stringify(scaledownError || 'No error')
-        }\`\`\`\n`
-    );
-    console.log('s3 slack request', slackRes.data, slackRes.statusText);
-    return;
+    try {
+        await asyncSendSlackMessage(
+            `:\n\n\n\`\`\`${
+                scaledownError instanceof Error
+                    ? scaledownError.message
+                    : JSON.stringify(scaledownError || 'No error')
+            }\`\`\`\n`
+        );
+    } catch (error) {
+        console.log(
+            error instanceof Error ? error.message : error,
+            'slack request failed'
+        );
+    }
 };
 
 const getSplittedJobRequestData = (
@@ -213,26 +228,24 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                         return supervisorJobRequests;
                     })
                     .then(scraperJobRequests => {
+                        JobQueueSharedRedisClientsSingleton.singleton.intialize(
+                            'master'
+                        );
+                        JobQueueSharedRedisClientsSingleton.singleton.subscriberClient
+                            ?.subscribe(RedisPubSubChannelName.ADMIN)
+                            .then(count => {
+                                console.log(
+                                    's3 subscribed to admin channel successfully; count',
+                                    count
+                                );
+                            });
+
                         return Promise.all(
                             scraperJobRequests.map(
                                 (scraperJobRequest, index) => {
                                     // supervisorJobQueueManager.asyncAdd(
                                     //     scraperJobRequest
                                     // )
-
-                                    JobQueueSharedRedisClientsSingleton.singleton.intialize(
-                                        'master'
-                                    );
-                                    JobQueueSharedRedisClientsSingleton.singleton.subscriberClient
-                                        ?.subscribe(
-                                            RedisPubSubChannelName.ADMIN
-                                        )
-                                        .then(count => {
-                                            console.log(
-                                                's3 subscribe to admin channel successfully; count',
-                                                count
-                                            );
-                                        });
 
                                     return new Promise<string>((res, rej) => {
                                         const scheduler = setTimeout(
@@ -300,12 +313,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                 channel: string,
                                                 message: string
                                             ) => {
-                                                const [
-                                                    type,
-                                                    messageTo,
-                                                    ...payload
-                                                ] = message.split(':');
-                                                const payloadAsString = payload.join(
+                                                const [type] = message.split(
                                                     ':'
                                                 );
 
