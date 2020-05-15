@@ -228,6 +228,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                         return supervisorJobRequests;
                     })
                     .then(scraperJobRequests => {
+                        // register pubsub for job termination
                         JobQueueSharedRedisClientsSingleton.singleton.intialize(
                             'master'
                         );
@@ -240,13 +241,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 );
                             });
 
+                        // dispatch job and wait for job complete
                         return Promise.all(
                             scraperJobRequests.map(
                                 (scraperJobRequest, index) => {
-                                    // supervisorJobQueueManager.asyncAdd(
-                                    //     scraperJobRequest
-                                    // )
-
                                     return new Promise<string>((res, rej) => {
                                         const scheduler = setTimeout(
                                             async () => {
@@ -307,6 +305,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                             index * 1 * 600
                                         );
 
+                                        // terminate all jobs when signaled from pubsub
                                         JobQueueSharedRedisClientsSingleton.singleton.subscriberClient?.on(
                                             'message',
                                             (
