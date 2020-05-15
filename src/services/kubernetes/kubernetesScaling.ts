@@ -5,7 +5,6 @@ import {
     V1Service,
     V1VolumeMount,
     V1Volume,
-    V1LimitRange,
     V1ResourceRequirements,
     V1Probe,
     V1EnvVar
@@ -19,7 +18,6 @@ import {
 import { AssertionError } from 'assert';
 import { ServerError } from '../../utilities/serverExceptions';
 import Axios from 'axios';
-import { IncomingMessage } from 'http';
 import { Configuration } from '../../utilities/configuration';
 import { asyncSendSlackMessage } from '../slack';
 
