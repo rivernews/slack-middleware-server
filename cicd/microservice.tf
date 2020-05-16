@@ -54,18 +54,19 @@ module "slack_middleware_service" {
     S3_DISPATCH_JOB_INTERVAL_MS = "15000"
 
     # smaller job to prevent memory leak / RAM consumption going too high
-    # when `1000`, resulting in around 399 jobs
-    SCRAPER_JOB_SPLITTING_SIZE = "500"
+    # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
+    # when `500`, resulting around 753 jobs -> more job changes shift and when so, more likely to have overlap in node and memory consumption can spike high
+    SCRAPER_JOB_SPLITTING_SIZE = "800"
 
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
     # total jobs
     SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
-    SCRAPER_WORKER_NODE_COUNT = "10"
+    SCRAPER_WORKER_NODE_COUNT = "15"
     SCRAPER_COUNT_PER_WORKER_NODE = "2"
 
-    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1200Mi"
+    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1100Mi"
     SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".7"
   }
 

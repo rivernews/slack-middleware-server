@@ -98,6 +98,9 @@ export class Configuration {
                       .SELENIUM_ARCHITECTURE_TYPE as unknown) as SeleniumArchitectureType)
                 : SeleniumArchitectureType['pod-standalone'];
 
+        // choosing the optimal size with cost efficiency
+        // considering the 'Maximum Pod Allocatable Memory'
+        // https://www.digitalocean.com/docs/kubernetes/#allocatable-memory
         if (this.scraperCountPerWorkerNode <= 1) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.SMALL_3G;
         } else if (this.scraperCountPerWorkerNode <= 2) {

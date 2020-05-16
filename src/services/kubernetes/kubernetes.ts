@@ -29,6 +29,7 @@ import {
     SeleniumArchitectureType
 } from './types';
 import { Configuration } from '../../utilities/configuration';
+import { NodePoolSemaphore, NodePoolSemaphoreType } from './nodePoolSemaphore';
 
 // digitalocean client
 // https://github.com/pjpimentel/dots
@@ -59,7 +60,7 @@ export class KubernetesService {
     public kubernetesCoreClient?: CoreV1Api;
     public kubernetesAppClient?: AppsV1Api;
 
-    public jobVacancySemaphore?: Semaphore;
+    public jobVacancySemaphore: NodePoolSemaphoreType | undefined;
 
     private constructor () {
         if (!process.env.DIGITALOCEAN_ACCESS_TOKEN) {
@@ -81,21 +82,22 @@ export class KubernetesService {
         // Currently our k8 cluster is suitable for running up to 3 scraper job at most
         this.jobVacancySemaphore =
             Configuration.singleton.k8sJobConcurrency > 0
-                ? new Semaphore(
-                      JobQueueSharedRedisClientsSingleton.singleton.genericClient,
-                      'k8JobResourceLock',
-                      Configuration.singleton.k8sJobConcurrency,
-                      {
-                          // when k8 has no vacancy, this situation will be
-                          // detected after 6 sec when someone call `.acquire()`
-                          acquireTimeout: 20 * 1000,
-                          retryInterval: 5 * 1000,
+                ? NodePoolSemaphore
+                : // new Semaphore(
+                  //       JobQueueSharedRedisClientsSingleton.singleton.genericClient,
+                  //       'k8JobResourceLock',
+                  //       Configuration.singleton.k8sJobConcurrency,
+                  //       {
+                  //           // when k8 has no vacancy, this situation will be
+                  //           // detected after 6 sec when someone call `.acquire()`
+                  //           acquireTimeout: 20 * 1000,
+                  //           retryInterval: 5 * 1000,
 
-                          lockTimeout: 40 * 1000,
-                          refreshInterval: 20 * 1000
-                      }
-                  )
-                : undefined;
+                  //           lockTimeout: 40 * 1000,
+                  //           refreshInterval: 20 * 1000
+                  //       }
+                  //   )
+                  undefined;
     }
 
     public static get singleton () {
@@ -217,7 +219,7 @@ export class KubernetesService {
 
     private createK8JobTemplate (
         jobData: ScraperJobRequestData,
-        nodePoolName: string
+        nodeId: string
     ) {
         if (
             !(
@@ -341,7 +343,11 @@ export class KubernetesService {
                     nodeSelector: {
                         // use node selector to assign job to node
                         // https://www.digitalocean.com/community/questions/do-kubernetes-node-pool-tags-not-added-to-nodes-in-cluster
-                        'doks.digitalocean.com/node-pool': nodePoolName
+
+                        // digitalocean-enforced labels on nodes:
+                        // https://www.digitalocean.com/docs/kubernetes/resources/managed/#automatic-application-of-labels-to-nodes
+                        // 'doks.digitalocean.com/node-pool': nodePoolName,
+                        'doks.digitalocean.com/node-id': nodeId
                     },
                     containers: [
                         {
@@ -412,7 +418,10 @@ export class KubernetesService {
         return job;
     }
 
-    public async asyncAddScraperJob (jobData: ScraperJobRequestData) {
+    public async asyncAddScraperJob (
+        jobData: ScraperJobRequestData,
+        nodeId: string
+    ) {
         // check required resource
 
         await this.asyncInitialize();
@@ -420,16 +429,12 @@ export class KubernetesService {
             throw new Error('kubernetesBatchClient not initialized yet');
         }
 
-        const readyNodePool = await this.getReadyNodePool('scraperWorker');
-        if (!readyNodePool) {
-            throw new Error(`No ready node while adding k8s job`);
+        if (!nodeId) {
+            throw new Error(`NodeId not provided while trying to add k8s job`);
         }
 
         // create k8 job
-        const k8JobTemplate = this.createK8JobTemplate(
-            jobData,
-            readyNodePool.name
-        );
+        const k8JobTemplate = this.createK8JobTemplate(jobData, nodeId);
 
         try {
             const k8Job = await this.kubernetesBatchClient.createNamespacedJob(
@@ -475,6 +480,12 @@ export class KubernetesService {
             Configuration.singleton.scraperWorkerNodeCount
         );
 
+        if (NodePoolSemaphore.size !== 0) {
+            throw new Error(
+                `Node pool semaphore not empty while trying to create node pool. Did you clean up previous node pool first?`
+            );
+        }
+
         await this.asyncInitialize();
         if (!this.kubernetesCluster?.id) {
             throw new Error('Kubernetes cluster not initialized yet');
@@ -503,6 +514,23 @@ export class KubernetesService {
             data: { node_pool }
         } = await this.digitalOceanClient.kubernetes.createNodePool(
             nodeRequest
+        );
+
+        if (!node_pool.nodes || node_pool.nodes.length == 0) {
+            throw new Error(
+                `No nodes info from createNodePoolResponse, cannot setup node pool semaphore`
+            );
+        }
+
+        NodePoolSemaphore.assignNodes(
+            node_pool.nodes.map(node => {
+                if (!node.id) {
+                    throw new Error(
+                        `Node id missing, cannot setup node pool semaphore`
+                    );
+                }
+                return node.id;
+            })
         );
 
         return node_pool;
@@ -568,6 +596,8 @@ export class KubernetesService {
                 result.data
             );
         }
+
+        await NodePoolSemaphore.reset();
 
         return results;
     }

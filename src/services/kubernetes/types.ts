@@ -7,6 +7,8 @@ export interface KubernetesClientResponse<T> {
 
 export enum DigitalOceanDropletSize {
     // will get 422, perhaps not available in k8
+    // see all available sizes in k8
+    // https://www.digitalocean.com/docs/kubernetes/
     // SINGLE_UNIT = 's-1vcpu-1gb', // $5
 
     SMALL_3G = 's-1vcpu-3gb', // $15

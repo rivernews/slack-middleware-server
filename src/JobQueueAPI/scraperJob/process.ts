@@ -15,9 +15,6 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/tr
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
-import { RuntimeEnvironment } from '../../utilities/runtime';
-import { Configuration } from '../../utilities/configuration';
-import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -112,27 +109,44 @@ class ScraperJobProcessResourcesCleaner {
                 console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
-                KubernetesService.singleton.jobVacancySemaphore &&
-                    (await KubernetesService.singleton.jobVacancySemaphore.release());
+
+                try {
+                    KubernetesService.singleton.jobVacancySemaphore &&
+                        (await KubernetesService.singleton.jobVacancySemaphore.release(
+                            this.lastK8JobSemaphoreResourceString
+                        ));
+                } catch (error) {
+                    console.error(error);
+                }
+
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
-                TravisManager.singleton.travisJobResourceSemaphore &&
-                    (await TravisManager.singleton.travisJobResourceSemaphore.release());
+
+                try {
+                    TravisManager.singleton.travisJobResourceSemaphore &&
+                        (await TravisManager.singleton.travisJobResourceSemaphore.release());
+                } catch (error) {
+                    console.error(error);
+                }
+
                 this.lastTravisJobSemaphoreResourceString = undefined;
             }
 
             // release redis clients
-
-            await cleanupRedisSubscriptionConnection(
-                this.lastRedisPubsubChannelName,
-                this.lastRedisClientSubscription,
-                this.lastRedisClientPublish,
-                this.lastOrg,
-                this.lastJobIdString
-            );
+            try {
+                await cleanupRedisSubscriptionConnection(
+                    this.lastRedisPubsubChannelName,
+                    this.lastRedisClientSubscription,
+                    this.lastRedisClientPublish,
+                    this.lastOrg,
+                    this.lastJobIdString
+                );
+            } catch (error) {
+                console.error(error);
+            }
 
             // cancel any travis jobs
             const cancelResults = await TravisManager.singleton.cancelAllJobs();
@@ -146,65 +160,6 @@ class ScraperJobProcessResourcesCleaner {
 
             // cancel any travis manager schedulers
             TravisManager.singleton.clearAllSchedulers();
-
-            // clean up k8s jobs when selenium archi type is pod-standalone
-            // since selenium-standalone container will not stop thus job keep running
-            // if (
-            //     Configuration.singleton.seleniumArchitectureType ===
-            //     SeleniumArchitectureType['pod-standalone']
-            // ) {
-            //     console.log('clean up k8s job');
-            //     // check if it's k8s job, not travis job
-            //     // we will check this format:
-            //     // k8s//apis/batch/v1/namespaces/selenium-service/jobs/scraper-job-1589158544837
-            //     const normalizedDescriptor = (
-            //         this.runtimePlatformDescriptor || ''
-            //     ).toLowerCase();
-            //     if (
-            //         normalizedDescriptor.includes('k8s') &&
-            //         !normalizedDescriptor.includes('semaphore') &&
-            //         normalizedDescriptor.includes('apis/batch') &&
-            //         normalizedDescriptor.includes('/jobs/')
-            //     ) {
-            //         const tokens = normalizedDescriptor.split('/');
-            //         if (tokens.length) {
-            //             const jobName = tokens[tokens.length - 1];
-
-            //             console.log(
-            //                 this.lastOrg,
-            //                 'best effort deleting k8s job for',
-            //                 this.runtimePlatformDescriptor
-            //             );
-
-            //             // we must make sure that k8s job is cleaned up
-            //             // otherwise may lead to job resource leak -> memory leak for entire node
-            //             while (true) {
-            //                 try {
-            //                     await KubernetesService.singleton.asyncInitialize(
-            //                         true
-            //                     );
-            //                     const delJobResult = await KubernetesService.singleton.kubernetesBatchClient?.deleteNamespacedJob(
-            //                         jobName,
-            //                         KubernetesService.JOB_NAMESPACE
-            //                     );
-            //                     console.log(
-            //                         'delete k8s job result',
-            //                         delJobResult?.response.statusMessage
-            //                     );
-            //                     break;
-            //                 } catch (error) {
-            //                     console.error(
-            //                         'failed clean up k8s, try again after 10 seconds...',
-            //                         error
-            //                     );
-            //                     await new Promise(res =>
-            //                         setTimeout(res, 10 * 1000)
-            //                     );
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
 
             // reset all `last...` attribute so that in case this process is reused,
             // already cleaned resources don't get clean up again,
@@ -522,6 +477,16 @@ const superviseScraper = (
                                         return scraperSupervisorReject(error);
                                     }
 
+                                    const nodeId =
+                                        ScraperJobProcessResourcesCleaner
+                                            .singleton
+                                            .lastK8JobSemaphoreResourceString;
+                                    if (!nodeId) {
+                                        return scraperSupervisorReject(
+                                            `nodeId is empty, did not acquire semaphore successfully`
+                                        );
+                                    }
+
                                     console.log(
                                         `job ${job.id} got k8 job semaphore ${ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString}`
                                     );
@@ -529,7 +494,8 @@ const superviseScraper = (
                                     let k8Job;
                                     try {
                                         k8Job = await KubernetesService.singleton.asyncAddScraperJob(
-                                            job.data
+                                            job.data,
+                                            nodeId
                                         );
                                     } catch (error) {
                                         const errorMessage = `job ${
