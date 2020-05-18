@@ -1,6 +1,7 @@
 import { Semaphore } from 'redis-semaphore';
 import { JobQueueSharedRedisClientsSingleton } from '../services/redis';
 import IORedis from 'ioredis';
+import { RuntimeEnvironment } from './runtime';
 
 export class CustomSemaphore extends Semaphore {
     private redisClient: IORedis.Redis;
@@ -8,7 +9,7 @@ export class CustomSemaphore extends Semaphore {
     private semaphoreName: string;
 
     constructor (semaphoreName: string, limit: number) {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        JobQueueSharedRedisClientsSingleton.singleton.intialize();
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new Error(
                 'Cannot initialize shared redis client when initializing custom semaphore'
@@ -37,7 +38,8 @@ export class CustomSemaphore extends Semaphore {
         return `semaphore:${this.semaphoreName}`;
     }
 
-    public delete () {
-        return this.redisClient.del(this.key);
+    public async delete () {
+        console.log('deleting semaphore ' + this.semaphoreName);
+        return await this.redisClient.del(this.key);
     }
 }

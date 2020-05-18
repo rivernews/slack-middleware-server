@@ -8,6 +8,8 @@ This server act as a middleware to communicate with Slack API. It enables using 
 
 - `npm i`
 - `npm run dev` - this will spin up nodemon - a hot-reloading nodejs server for you.
+- `npx ts-node-dev --respawn --transpileOnly index.ts` for fast, auto-reload dev server, using [`ts-node-dev`](https://www.npmjs.com/package/ts-node-dev). **However when you press ^C, it will not gracefully exit; ** gracefully exiting only works in watching.
+    - In case above doesn't work, you can also try `npx nodemon --ext ts --signal SIGTERM --exec 'ts-node index.ts'` for auto-reload dev server.
 
 ### How to test
 

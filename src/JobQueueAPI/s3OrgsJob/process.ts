@@ -66,19 +66,14 @@ const asyncCleanUpS3Job = async () => {
         }, 5 * 1000);
 
         try {
-            JobQueueSharedRedisClientsSingleton.singleton.subscriberClient?.on(
-                'message',
-                async (channel: string, message: string) => {
-                    const [type] = message.split(':');
-
-                    if (type === ScraperJobMessageType.TERMINATE) {
-                        console.log(
-                            's3 job receives terminate signal while finalizing, will now force proceeding clean up'
-                        );
-                        await supervisorJobQueueManager.asyncCleanUp();
-                        clearInterval(scheduler);
-                        return res(`maunallyTerminated`);
-                    }
+            JobQueueSharedRedisClientsSingleton.singleton.onTerminate(
+                async () => {
+                    console.log(
+                        's3 job receives terminate signal while finalizing, will now force proceeding clean up'
+                    );
+                    await supervisorJobQueueManager.asyncCleanUp();
+                    clearInterval(scheduler);
+                    return res(`maunallyTerminated`);
                 }
             );
         } catch (error) {
@@ -155,6 +150,17 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
         s3OrgsJob
     );
 
+    // register pubsub for job termination
+    JobQueueSharedRedisClientsSingleton.singleton.intialize('s3Org');
+    JobQueueSharedRedisClientsSingleton.singleton.subscriberClient
+        ?.subscribe(RedisPubSubChannelName.ADMIN)
+        .then(count => {
+            console.log(
+                's3 subscribed to admin channel successfully; count',
+                count
+            );
+        });
+
     // first check if there's any node pool created
     return KubernetesService.singleton
         .getReadyNodePool('scraperWorker')
@@ -168,72 +174,89 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
             }
 
             // polling till all nodes in pool ready
-            await new Promise(resolvePollingPromise => {
-                const scheduler = setInterval(async () => {
-                    try {
-                        const readyNodePool = await KubernetesService.singleton.getReadyNodePool(
-                            'scraperWorker',
-                            true
-                        );
-                        if (readyNodePool) {
-                            console.log(
-                                'nodes are ready, next is to create selenium base...'
+            return await new Promise(
+                (resolvePollingPromise, rejectPollingPromise) => {
+                    console.log('polling node and selenium stack readiness');
+                    const scheduler = setInterval(async () => {
+                        try {
+                            const readyNodePool = await KubernetesService.singleton.getReadyNodePool(
+                                'scraperWorker',
+                                true
                             );
+                            if (readyNodePool) {
+                                console.log(
+                                    'nodes are ready, next is to create selenium base...'
+                                );
 
-                            // create selenium base
-                            const res = await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
+                                // create selenium base
+                                const res = await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
 
-                            // if pod-standalone architecuture, then no need to wait for additional resources
-                            if (
-                                Configuration.singleton
-                                    .seleniumArchitectureType ===
-                                SeleniumArchitectureType['pod-standalone']
-                            ) {
-                                // wait for 10 seconds to cool down
-                                console.log(
-                                    'selenium base created, cooling down before starting s3...'
-                                );
-                                await new Promise(res =>
-                                    setTimeout(res, 10 * 1000)
-                                );
-                            } else if (
-                                Configuration.singleton
-                                    .seleniumArchitectureType ===
-                                SeleniumArchitectureType['hub-node']
-                            ) {
-                                // TODO:
-                                // if node-chrome architecture, need to further deploy chrome nodes and
-                                // wait for 1) hub deployment 2) all chrome nodes deployment status
-                                // to be 'has minimum availability'
-                                await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
-                                // here we just blindly wait for 5 minutes, but ideally we want to
-                                // do polling and see deployments are ready
-                                console.log(
-                                    'nodes are ready, selenium base and chrome node deployment created. Wait 5 minutes before starting s3 job'
-                                );
-                                await new Promise(res =>
-                                    setTimeout(res, 5 * 60 * 1000)
-                                );
-                            } else {
-                                // unknown selenium archi type, move forward anyway
-                                console.log(
-                                    'unknown selenium archi type, s3 job move forward anyway'
-                                );
+                                // if pod-standalone architecuture, then no need to wait for additional resources
+                                if (
+                                    Configuration.singleton
+                                        .seleniumArchitectureType ===
+                                    SeleniumArchitectureType['pod-standalone']
+                                ) {
+                                    // wait for 10 seconds to cool down
+                                    console.log(
+                                        'selenium base created, cooling down before starting s3...'
+                                    );
+                                    await new Promise(res =>
+                                        setTimeout(res, 10 * 1000)
+                                    );
+                                } else if (
+                                    Configuration.singleton
+                                        .seleniumArchitectureType ===
+                                    SeleniumArchitectureType['hub-node']
+                                ) {
+                                    // TODO:
+                                    // if node-chrome architecture, need to further deploy chrome nodes and
+                                    // wait for 1) hub deployment 2) all chrome nodes deployment status
+                                    // to be 'has minimum availability'
+                                    await ScraperNodeScaler.singleton.orderSeleniumChromeNodeProvisioning();
+                                    // here we just blindly wait for 5 minutes, but ideally we want to
+                                    // do polling and see deployments are ready
+                                    console.log(
+                                        'nodes are ready, selenium base and chrome node deployment created. Wait 5 minutes before starting s3 job'
+                                    );
+                                    await new Promise(res =>
+                                        setTimeout(res, 5 * 60 * 1000)
+                                    );
+                                } else {
+                                    // unknown selenium archi type, move forward anyway
+                                    console.log(
+                                        'unknown selenium archi type, s3 job move forward anyway'
+                                    );
+                                }
+
+                                clearInterval(scheduler);
+                                return resolvePollingPromise();
                             }
 
+                            process.stdout.write('.');
+                        } catch (error) {
                             clearInterval(scheduler);
-                            return resolvePollingPromise();
+                            throw error;
                         }
+                    }, 10 * 1000);
 
-                        console.log(
-                            'still polling node and selenium stack readiness..'
+                    try {
+                        JobQueueSharedRedisClientsSingleton.singleton.onTerminate(
+                            () => {
+                                clearInterval(scheduler);
+                                return resolvePollingPromise(
+                                    `manuallyTerminated`
+                                );
+                            }
                         );
                     } catch (error) {
                         clearInterval(scheduler);
-                        throw error;
+                        return rejectPollingPromise(
+                            `failed to register redis termination signal while polling node pool in s3 job`
+                        );
                     }
-                }, 10 * 1000);
-            });
+                }
+            );
         })
         .then(() =>
             s3ArchiveManager
@@ -347,19 +370,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             return supervisorJobRequests;
                         })
                         .then(scraperJobRequests => {
-                            // register pubsub for job termination
-                            JobQueueSharedRedisClientsSingleton.singleton.intialize(
-                                'master'
-                            );
-                            JobQueueSharedRedisClientsSingleton.singleton.subscriberClient
-                                ?.subscribe(RedisPubSubChannelName.ADMIN)
-                                .then(count => {
-                                    console.log(
-                                        's3 subscribed to admin channel successfully; count',
-                                        count
-                                    );
-                                });
-
                             // dispatch job and wait for job complete
                             return Promise.all(
                                 scraperJobRequests.map(
@@ -431,27 +441,12 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                 );
 
                                                 // terminate all jobs when signaled from pubsub
-                                                JobQueueSharedRedisClientsSingleton.singleton.subscriberClient?.on(
-                                                    'message',
-                                                    (
-                                                        channel: string,
-                                                        message: string
-                                                    ) => {
-                                                        const [
-                                                            type
-                                                        ] = message.split(':');
-
-                                                        if (
-                                                            type ===
-                                                            ScraperJobMessageType.TERMINATE
-                                                        ) {
-                                                            clearTimeout(
-                                                                scheduler
-                                                            );
-                                                            return res(
-                                                                `maunallyTerminated`
-                                                            );
-                                                        }
+                                                JobQueueSharedRedisClientsSingleton.singleton.onTerminate(
+                                                    () => {
+                                                        clearTimeout(scheduler);
+                                                        return res(
+                                                            `maunallyTerminated`
+                                                        );
                                                     }
                                                 );
                                             }
@@ -515,5 +510,9 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                     await asyncCleanUpS3Job();
                     throw error;
                 })
-        );
+        )
+        .catch(error => {
+            // s3 job failed to initialize
+            throw error;
+        });
 };

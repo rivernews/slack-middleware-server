@@ -4,6 +4,7 @@ import {
     RUNTIME_CI_ENVIRONMENT
 } from '../utilities/runtime';
 import IORedis, { RedisOptions } from 'ioredis';
+import { ScraperJobMessageType } from './jobQueue/types';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub
@@ -93,13 +94,15 @@ export class JobQueueSharedRedisClientsSingleton {
     public genericClient?: IORedis.Redis;
     public subscriberClient?: IORedis.Redis;
 
-    private processName: string = '';
+    private processName: string = 'process' + process.pid;
     private jobQueueIORedisClientsRecord: Array<IORedis.Redis> = [];
 
     private constructor () {}
 
-    public intialize (processName: string) {
-        this.processName = processName;
+    public intialize (processName?: string) {
+        if (processName && this.processName !== 'process' + process.pid) {
+            this.processName = processName;
+        }
 
         if (!this.genericClient) {
             this.genericClient = this.newJobQueueIORedisClient(
@@ -156,5 +159,27 @@ export class JobQueueSharedRedisClientsSingleton {
             this.jobQueueIORedisClientsRecord
         );
         this.jobQueueIORedisClientsRecord = [];
+    }
+
+    public async onTerminate (
+        callback: (...args: any[]) => Promise<void> | void,
+        ...args: any[]
+    ) {
+        if (!JobQueueSharedRedisClientsSingleton._singleton.subscriberClient) {
+            throw new Error(
+                `Cannot register on redis terminate signal because subscriber client not yet initialized`
+            );
+        }
+
+        JobQueueSharedRedisClientsSingleton._singleton.subscriberClient.on(
+            'message',
+            (channel: string, message: string) => {
+                const [type] = message.split(':');
+
+                if (type === ScraperJobMessageType.TERMINATE) {
+                    callback(...args);
+                }
+            }
+        );
     }
 }

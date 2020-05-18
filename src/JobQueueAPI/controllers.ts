@@ -187,9 +187,7 @@ export const terminateAllJobsController = async (
 ) => {
     console.debug('terminate job controller');
 
-    JobQueueSharedRedisClientsSingleton.singleton.intialize(
-        'master process: terminate controller'
-    );
+    JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
         return next(new ServerError(`Shared redis client did not initialize`));
     }

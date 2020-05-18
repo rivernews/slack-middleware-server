@@ -19,7 +19,9 @@ export class Configuration {
     public scraperCountPerWorkerNode: number;
 
     public scraperDriverNodeCpuLimit: string;
+    public scraperDriverNodeCpuRequest: string;
     public scraperDriverNodeMemoryLimit: string;
+    public scraperDriverNodeMemoryRequest: string;
 
     public seleniumArchitectureType: SeleniumArchitectureType;
 
@@ -69,8 +71,12 @@ export class Configuration {
 
         this.scraperDriverNodeCpuLimit =
             process.env.SCRAPER_DRIVER_NDOE_CPU_LIMIT || '.5';
+        this.scraperDriverNodeCpuRequest =
+            process.env.SCRAPER_DRIVER_NDOE_CPU_REQUEST || '.2';
         this.scraperDriverNodeMemoryLimit =
             process.env.SCRAPER_DRIVER_NDOE_MEMORY_LIMIT || '1000Mi';
+        this.scraperDriverNodeMemoryRequest =
+            process.env.SCRAPER_DRIVER_NDOE_MEMORY_REQUEST || '300Mi';
 
         // Concurrency
 

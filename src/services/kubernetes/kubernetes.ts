@@ -72,7 +72,7 @@ export class KubernetesService {
             token: this.digitalOceanToken
         });
 
-        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        JobQueueSharedRedisClientsSingleton.singleton.intialize();
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new ServerError(
                 'KubernetesService:jobVacancySemaphore: Shared job queue redis client did not initialize'
@@ -293,8 +293,10 @@ export class KubernetesService {
                         cpu: Configuration.singleton.scraperDriverNodeCpuLimit
                     },
                     requests: {
-                        // memory: '500Mi',
-                        cpu: '.25'
+                        memory:
+                            Configuration.singleton
+                                .scraperDriverNodeMemoryRequest,
+                        cpu: Configuration.singleton.scraperDriverNodeCpuRequest
                     }
                 },
                 env: [
@@ -381,7 +383,11 @@ export class KubernetesService {
                                     SLACK_WEBHOOK_URL:
                                         process.env.SLACK_TOKEN_INCOMING_URL,
 
-                                    DEBUG: 'false',
+                                    DEBUG:
+                                        process.env.NODE_ENV ===
+                                        RuntimeEnvironment.DEVELOPMENT
+                                            ? 'true'
+                                            : 'false',
 
                                     // use our selenium server container in this job
                                     WEBDRIVER_MODE: 'serverFromCustomHost',
@@ -480,7 +486,7 @@ export class KubernetesService {
             Configuration.singleton.scraperWorkerNodeCount
         );
 
-        if (NodePoolSemaphore.size !== 0) {
+        if ((await NodePoolSemaphore.asyncGetSize) !== 0) {
             throw new Error(
                 `Node pool semaphore not empty while trying to create node pool. Did you clean up previous node pool first?`
             );
@@ -521,17 +527,6 @@ export class KubernetesService {
                 `No nodes info from createNodePoolResponse, cannot setup node pool semaphore`
             );
         }
-
-        NodePoolSemaphore.assignNodes(
-            node_pool.nodes.map(node => {
-                if (!node.id) {
-                    throw new Error(
-                        `Node id missing, cannot setup node pool semaphore`
-                    );
-                }
-                return node.id;
-            })
-        );
 
         return node_pool;
     }
@@ -591,7 +586,7 @@ export class KubernetesService {
             results.push(result);
 
             console.log(
-                'delete status for node pool',
+                'delete result for node pool',
                 nodePool.name,
                 result.data
             );
@@ -634,6 +629,16 @@ export class KubernetesService {
                     // otherwise move on next node pool (if any) -> next loop round
                 }
             }
+        }
+
+        if (
+            nodePoolGroup === 'scraperWorker' &&
+            readyNodePool &&
+            Array.isArray(readyNodePool.nodes)
+        ) {
+            await NodePoolSemaphore.asyncAssignSemaphoreCollection(
+                readyNodePool
+            );
         }
 
         return readyNodePool;

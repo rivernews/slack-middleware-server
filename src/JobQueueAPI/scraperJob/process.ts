@@ -15,6 +15,8 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/tr
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
+import { Configuration } from '../../utilities/configuration';
+import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -86,6 +88,69 @@ class ScraperJobProcessResourcesCleaner {
         return ScraperJobProcessResourcesCleaner._singleton;
     }
 
+    /**
+     * According to obervation, the pods will be kept for 4-5 minutes even if
+     * job completes, which will cause memory utilization overlap when the next
+     * job starts. The overlap can lead to memory spike and crashes the node.
+     * To avoid this, we explicitly clean up the jobs so those pods can release
+     * resources immediately.
+     *
+     * However, this also means we are not able to check job logs.
+     * When debugging, you may disable this func.
+     */
+    private async asyncCleanupK8sJob () {
+        // the descriptor is of this format
+        // `k8s//apis/batch/v1/namespaces/selenium-service/jobs/scraper-job-1589158544837`
+        const k8sJobDescriptor = (
+            this.runtimePlatformDescriptor || ''
+        ).toLowerCase();
+
+        if (
+            !(
+                k8sJobDescriptor.includes('k8s') &&
+                k8sJobDescriptor.includes('apis/batch') &&
+                k8sJobDescriptor.includes('/jobs/')
+            )
+        ) {
+            return;
+        }
+
+        const jobName = k8sJobDescriptor.split('/').pop();
+        if (!jobName) {
+            return;
+        }
+
+        console.log(
+            this.processName,
+            this.pid,
+            this.lastOrg,
+            'best effort deleting k8s job:',
+            jobName
+        );
+
+        // make sure pods are removed immediately along with job deletion, so that they don't occupy memory resources
+        // https://github.com/kubernetes/kubernetes/issues/20902#issuecomment-321216843
+        const gracePeriod = 0;
+        const propogationPolicy = 'Foreground';
+        const res = await KubernetesService.singleton.kubernetesBatchClient?.deleteNamespacedJob(
+            jobName,
+            KubernetesService.JOB_NAMESPACE,
+            undefined,
+            undefined,
+            gracePeriod,
+            undefined,
+            propogationPolicy
+        );
+        console.log(
+            res?.body.message,
+            res?.response.statusMessage,
+            res?.body.status,
+            'got deleted job result'
+        );
+
+        return res;
+    }
+
     public async asyncCleanup () {
         console.log(
             `asyncCleanup(): descriptor:`,
@@ -116,7 +181,7 @@ class ScraperJobProcessResourcesCleaner {
                             this.lastK8JobSemaphoreResourceString
                         ));
                 } catch (error) {
-                    console.error(error);
+                    console.error(error, 'failed to release k8 semaphore');
                 }
 
                 this.lastK8JobSemaphoreResourceString = undefined;
@@ -146,6 +211,15 @@ class ScraperJobProcessResourcesCleaner {
                 );
             } catch (error) {
                 console.error(error);
+            }
+
+            // delete k8s jobs
+            if (this.runtimePlatformDescriptor) {
+                try {
+                    await this.asyncCleanupK8sJob();
+                } catch (error) {
+                    console.error(error, 'error cleaning up k8s job');
+                }
             }
 
             // cancel any travis jobs

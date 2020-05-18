@@ -42,7 +42,7 @@ export class TravisManager {
     public travisJobResourceSemaphore?: Semaphore;
 
     private constructor () {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+        JobQueueSharedRedisClientsSingleton.singleton.intialize();
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new ServerError(
                 'KubernetesService:jobVacancySemaphore: Shared job queue redis client did not initialize'
