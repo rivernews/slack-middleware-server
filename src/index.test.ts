@@ -29,7 +29,9 @@ after(() => {
                 'mocha: express server clean up finished, still waiting...'
             );
 
-            asyncDump();
+            // TODO: remove this and replace by a more effective way
+            // to debug hanging async which prevents process from exiting
+            // asyncDump();
 
             gracefulExpressServer.close(() => {
                 console.log('mocha done() - safely terminated all processes');

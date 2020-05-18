@@ -88,16 +88,18 @@ app.use(
     ) => {
         // if it is indeed an ErrorResponse object
         if (err.status && err.message) {
-            res.status(err.status)
-                .json({
-                    message: err.message,
-                    status: err.status
-                })
-                .header('Access-Control-Allow-Origin', '*')
-                .header('Access-Control-Allow-Headers', '*')
-                .header('Access-Control-Allow-Methods', '*');
+            return res.status(err.status).json({
+                message: err.message,
+                status: err.status
+            });
+            // TODO: this will cause error 'Error: Can't set headers after they are sent to the client'
+            // since the error response is finalized at this point
+            // we need to find other ways to set these CORS header before error response finalized
+            // .header('Access-Control-Allow-Origin', '*')
+            // .header('Access-Control-Allow-Headers', '*')
+            // .header('Access-Control-Allow-Methods', '*');
         } else {
-            next(err);
+            return next(err);
         }
     }
 );

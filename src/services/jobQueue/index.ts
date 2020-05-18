@@ -107,5 +107,12 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
 
     console.log(`In ${processName} process: all job queues closed`);
 
+    // TODO: remove this if not needed and mocha test can finish w/o hang
+    // try {
+    //     await JobQueueSharedRedisClientsSingleton.singleton.resetAllClientResources('master');
+    // } catch (error) {
+    //     console.error(error, 'failed to clean up shared redis clients');
+    // }
+
     return;
 };
