@@ -20,5 +20,8 @@ export const supervisorJobQueueManager = new JobQueueManager<
         //     every: 60 * (60 * 1000)
         // }
     },
-    jobConcurrency: Configuration.singleton.scraperConcurrency
+    jobConcurrency: Math.floor(
+        Configuration.singleton.scraperConcurrency /
+            Configuration.singleton.slackMiddlewareServiceReplica
+    )
 });

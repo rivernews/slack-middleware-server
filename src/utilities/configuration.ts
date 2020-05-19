@@ -17,6 +17,7 @@ export class Configuration {
 
     public scraperWorkerNodeCount: number;
     public scraperCountPerWorkerNode: number;
+    public slackMiddlewareServiceReplica: number;
 
     public scraperDriverNodeCpuLimit: string;
     public scraperDriverNodeCpuRequest: string;
@@ -66,6 +67,11 @@ export class Configuration {
             '1'
         );
 
+        this.slackMiddlewareServiceReplica = this._getNumberFromEnvVar(
+            'SLK_REPLICA',
+            '1'
+        );
+
         const maximumScraperCapacity =
             this.scraperWorkerNodeCount * this.scraperCountPerWorkerNode;
 
@@ -90,12 +96,10 @@ export class Configuration {
             this.scraperConcurrency.toString()
         );
 
-        // this.travisJobConcurrency = this._getNumberFromEnvVar(
-        //     'PLATFORM_CONCURRENCY_TRAVIS',
-        //     '0'
-        // );
-        this.travisJobConcurrency =
-            this.scraperConcurrency - this.k8sJobConcurrency;
+        this.travisJobConcurrency = this._getNumberFromEnvVar(
+            'PLATFORM_CONCURRENCY_TRAVIS',
+            (this.scraperConcurrency - this.k8sJobConcurrency).toString()
+        );
 
         this.seleniumArchitectureType =
             process.env.SELENIUM_ARCHITECTURE_TYPE &&
