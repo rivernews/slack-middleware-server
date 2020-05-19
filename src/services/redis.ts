@@ -155,8 +155,7 @@ export class JobQueueSharedRedisClientsSingleton {
         }
 
         console.debug(
-            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`,
-            this.jobQueueIORedisClientsRecord
+            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`
         );
         this.jobQueueIORedisClientsRecord = [];
     }

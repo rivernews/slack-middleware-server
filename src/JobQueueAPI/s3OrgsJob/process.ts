@@ -71,8 +71,8 @@ const asyncCleanUpS3Job = async () => {
                     console.log(
                         's3 job receives terminate signal while finalizing, will now force proceeding clean up'
                     );
-                    await supervisorJobQueueManager.asyncCleanUp();
                     clearInterval(scheduler);
+                    await supervisorJobQueueManager.asyncCleanUp();
                     return res(`maunallyTerminated`);
                 }
             );

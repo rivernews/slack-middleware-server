@@ -109,7 +109,7 @@ export class Configuration {
         // https://www.digitalocean.com/docs/kubernetes/#allocatable-memory
         if (this.scraperCountPerWorkerNode <= 1) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.SMALL_3G;
-        } else if (this.scraperCountPerWorkerNode <= 2) {
+        } else if (this.scraperCountPerWorkerNode <= 3) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.MEDIUM;
         } else if (this.scraperCountPerWorkerNode <= 4) {
             this.autoDigitaloceanDropletSize = DigitalOceanDropletSize.LARGE;

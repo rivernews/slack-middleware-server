@@ -6,13 +6,14 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = ">= v0.1.16"
+  version = ">= v0.1.17"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
   aws_secret_key = var.aws_secret_key
   cluster_name   = "project-shaungc-digitalocean-cluster"
-  node_pool_name = "project-shaungc-digitalocean-node-pool"
+  node_pool_name = "slack-node-pool"
+  scale = 2
 
   app_label               = "slack-middleware-service"
   app_exposed_port        = 8002
@@ -56,18 +57,18 @@ module "slack_middleware_service" {
     # smaller job to prevent memory leak / RAM consumption going too high
     # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
     # when `500`, resulting around 753 jobs -> more job changes shift and when so, more likely to have overlap in node and memory consumption can spike high
-    SCRAPER_JOB_SPLITTING_SIZE = "800"
+    SCRAPER_JOB_SPLITTING_SIZE = "400"
 
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
     # total jobs
     SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
-    SCRAPER_WORKER_NODE_COUNT = "12"
+    SCRAPER_WORKER_NODE_COUNT = "2"
     SCRAPER_COUNT_PER_WORKER_NODE = "2"
 
-    SCRAPER_DRIVER_NDOE_MEMORY_REQUEST = "300Mi"
-    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1200Mi"
+    SCRAPER_DRIVER_NDOE_MEMORY_REQUEST = "200Mi"
+    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1050Mi"
     SCRAPER_DRIVER_NDOE_CPU_REQUEST = ".2"
     SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".7"
   }
