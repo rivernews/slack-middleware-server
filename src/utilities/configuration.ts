@@ -19,6 +19,9 @@ export class Configuration {
     public scraperCountPerWorkerNode: number;
     public slackMiddlewareServiceReplica: number;
 
+    public globalMaximumScraperCapacity: number;
+    public localMaximumScraperCapacity: number;
+
     public scraperDriverNodeCpuLimit: string;
     public scraperDriverNodeCpuRequest: string;
     public scraperDriverNodeMemoryLimit: string;
@@ -57,23 +60,29 @@ export class Configuration {
 
         // Resources
 
-        this.scraperWorkerNodeCount = this._getNumberFromEnvVar(
-            'SCRAPER_WORKER_NODE_COUNT',
+        this.slackMiddlewareServiceReplica = this._getNumberFromEnvVar(
+            'SLK_REPLICA',
             '1'
         );
+
+        this.scraperWorkerNodeCount =
+            this._getNumberFromEnvVar('SCRAPER_WORKER_NODE_COUNT', '1') *
+            this.slackMiddlewareServiceReplica;
 
         this.scraperCountPerWorkerNode = this._getNumberFromEnvVar(
             'SCRAPER_COUNT_PER_WORKER_NODE',
             '1'
         );
 
-        this.slackMiddlewareServiceReplica = this._getNumberFromEnvVar(
-            'SLK_REPLICA',
-            '1'
-        );
-
-        const maximumScraperCapacity =
+        // this value is across replica
+        this.globalMaximumScraperCapacity =
             this.scraperWorkerNodeCount * this.scraperCountPerWorkerNode;
+
+        // this value is within this replica
+        this.localMaximumScraperCapacity = Math.floor(
+            this.globalMaximumScraperCapacity /
+                this.slackMiddlewareServiceReplica
+        );
 
         this.scraperDriverNodeCpuLimit =
             process.env.SCRAPER_DRIVER_NDOE_CPU_LIMIT || '.5';
@@ -88,7 +97,7 @@ export class Configuration {
 
         this.scraperConcurrency = this._getNumberFromEnvVar(
             'SCRAPER_CONCURRENCY',
-            maximumScraperCapacity.toString()
+            this.localMaximumScraperCapacity.toString()
         );
 
         this.k8sJobConcurrency = this._getNumberFromEnvVar(

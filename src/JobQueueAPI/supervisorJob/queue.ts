@@ -21,7 +21,6 @@ export const supervisorJobQueueManager = new JobQueueManager<
         // }
     },
     jobConcurrency: Math.floor(
-        Configuration.singleton.scraperConcurrency /
-            Configuration.singleton.slackMiddlewareServiceReplica
+        Configuration.singleton.localMaximumScraperCapacity
     )
 });

@@ -31,10 +31,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         // }
     },
 
-    // each replica will register job queue an concurrency
-    // but this concurrency will pile up, so we need to normalize to maintain a fixed amount of scraper concurrency
     jobConcurrency: Math.floor(
-        Configuration.singleton.scraperConcurrency /
-            Configuration.singleton.slackMiddlewareServiceReplica
+        Configuration.singleton.localMaximumScraperCapacity
     )
 });

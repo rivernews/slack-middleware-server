@@ -123,7 +123,7 @@ module.exports = function (supervisorJob: Bull.Job<SupervisorJobRequestData>) {
     return gdOrgReviewScraperJobQueueManager
         .checkConcurrency(
             // TODO: we shouldn't need to check concurrency ourselves anymore since we rely on Bull to limit concurrency
-            Configuration.singleton.scraperConcurrency,
+            Configuration.singleton.globalMaximumScraperCapacity,
             undefined,
             supervisorJob,
             JobQueueName.GD_ORG_REVIEW_SUPERVISOR_JOB

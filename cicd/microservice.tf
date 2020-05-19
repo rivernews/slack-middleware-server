@@ -13,7 +13,7 @@ module "slack_middleware_service" {
   aws_secret_key = var.aws_secret_key
   cluster_name   = "project-shaungc-digitalocean-cluster"
   node_pool_name = "slack-node-pool"
-  scale = 2
+  scale = local.slk_scale
 
   app_label               = "slack-middleware-service"
   app_exposed_port        = 8002
@@ -64,9 +64,13 @@ module "slack_middleware_service" {
     # total jobs
     SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
+    SLK_REPLICA = tostring(local.slk_scale)
+    
+    # this number is only within each replica, the total worker nodes are
+    # SLK_REPLICA * SCRAPER_WORKER_NODE_COUNT
     SCRAPER_WORKER_NODE_COUNT = "2"
+    
     SCRAPER_COUNT_PER_WORKER_NODE = "2"
-    SLK_REPLICA = "2"
 
     SCRAPER_DRIVER_NDOE_MEMORY_REQUEST = "200Mi"
     SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1050Mi"
@@ -75,6 +79,10 @@ module "slack_middleware_service" {
   }
 
   use_recreate_deployment_strategy = true
+}
+
+locals {
+  slk_scale = 2
 }
 
 # module "selenium_service" {
