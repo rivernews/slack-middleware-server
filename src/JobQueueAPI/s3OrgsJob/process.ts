@@ -7,8 +7,7 @@ import {
     ScraperJobRequestData,
     ScraperMode,
     SupervisorJobRequestData,
-    ScraperProgressData,
-    ScraperJobMessageType
+    ScraperProgressData
 } from '../../services/jobQueue/types';
 import { Configuration } from '../../utilities/configuration';
 import { getPubsubChannelName } from '../../services/jobQueue/message';
@@ -34,15 +33,15 @@ const asyncCleanUpS3Job = async () => {
         console.log('waiting for all supervisor jobs finish');
         const scheduler = setInterval(async () => {
             try {
-                const vacancy = await supervisorJobQueueManager.checkConcurrency(
+                const jobPresentCount = await supervisorJobQueueManager.checkConcurrency(
                     1,
                     undefined,
                     undefined,
                     undefined,
                     false
                 );
-                process.stdout.write('.' + vacancy);
-                if (vacancy === 0) {
+                process.stdout.write('.' + jobPresentCount);
+                if (jobPresentCount === 0) {
                     console.log('s3 job clean up supervisor job queue...');
                     await supervisorJobQueueManager.asyncCleanUp();
                     clearInterval(scheduler);
@@ -99,7 +98,13 @@ const asyncCleanUpS3Job = async () => {
 
     // best effort scale down selenium resources and nodes
 
-    await ScraperNodeScaler.singleton.scaleDown();
+    await ScraperNodeScaler.singleton.scaleDown().then(async () => {
+        try {
+            await asyncSendSlackMessage(
+                `S3 job scaled down node pools, finalize stage complete.`
+            );
+        } catch (error) {}
+    });
 };
 
 const getSplittedJobRequestData = (

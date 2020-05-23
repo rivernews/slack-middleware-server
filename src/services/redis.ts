@@ -160,7 +160,7 @@ export class JobQueueSharedRedisClientsSingleton {
         this.jobQueueIORedisClientsRecord = [];
     }
 
-    public async onTerminate (
+    public onTerminate (
         callback: (...args: any[]) => Promise<void> | void,
         ...args: any[]
     ) {
