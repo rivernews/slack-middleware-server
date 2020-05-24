@@ -14,8 +14,9 @@ import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/travis';
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
-import { KubernetesService } from '../../services/kubernetes';
-import { RuntimeEnvironment } from '../../utilities/runtime';
+import { KubernetesService } from '../../services/kubernetes/kubernetes';
+import { Configuration } from '../../utilities/configuration';
+import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -60,7 +61,7 @@ const cleanupRedisSubscriptionConnection = async (
 };
 
 class ScraperJobProcessResourcesCleaner {
-    private static _singleton = new ScraperJobProcessResourcesCleaner();
+    private static _singleton: ScraperJobProcessResourcesCleaner;
 
     private pid: number;
 
@@ -80,10 +81,82 @@ class ScraperJobProcessResourcesCleaner {
     }
 
     public static get singleton () {
+        if (!ScraperJobProcessResourcesCleaner._singleton) {
+            ScraperJobProcessResourcesCleaner._singleton = new ScraperJobProcessResourcesCleaner();
+        }
+
         return ScraperJobProcessResourcesCleaner._singleton;
     }
 
+    /**
+     * According to obervation, the pods will be kept for 4-5 minutes even if
+     * job completes, which will cause memory utilization overlap when the next
+     * job starts. The overlap can lead to memory spike and crashes the node.
+     * To avoid this, we explicitly clean up the jobs so those pods can release
+     * resources immediately.
+     *
+     * However, this also means we are not able to check job logs.
+     * When debugging, you may disable this func.
+     */
+    private async asyncCleanupK8sJob () {
+        // the descriptor is of this format
+        // `k8s//apis/batch/v1/namespaces/selenium-service/jobs/scraper-job-1589158544837`
+        const k8sJobDescriptor = (
+            this.runtimePlatformDescriptor || ''
+        ).toLowerCase();
+
+        if (
+            !(
+                k8sJobDescriptor.includes('k8s') &&
+                k8sJobDescriptor.includes('apis/batch') &&
+                k8sJobDescriptor.includes('/jobs/')
+            )
+        ) {
+            return;
+        }
+
+        const jobName = k8sJobDescriptor.split('/').pop();
+        if (!jobName) {
+            return;
+        }
+
+        console.log(
+            this.processName,
+            this.pid,
+            this.lastOrg,
+            'best effort deleting k8s job:',
+            jobName
+        );
+
+        // make sure pods are removed immediately along with job deletion, so that they don't occupy memory resources
+        // https://github.com/kubernetes/kubernetes/issues/20902#issuecomment-321216843
+        const gracePeriod = 0;
+        const propogationPolicy = 'Foreground';
+        const res = await KubernetesService.singleton.kubernetesBatchClient?.deleteNamespacedJob(
+            jobName,
+            KubernetesService.JOB_NAMESPACE,
+            undefined,
+            undefined,
+            gracePeriod,
+            undefined,
+            propogationPolicy
+        );
+        console.log(
+            res?.body.message,
+            res?.response.statusMessage,
+            res?.body.status,
+            'got deleted job result'
+        );
+
+        return res;
+    }
+
     public async asyncCleanup () {
+        console.log(
+            `asyncCleanup(): descriptor:`,
+            this.runtimePlatformDescriptor
+        );
+
         if (
             this.lastRedisPubsubChannelName &&
             this.lastRedisClientSubscription &&
@@ -91,7 +164,7 @@ class ScraperJobProcessResourcesCleaner {
             this.lastOrg &&
             this.lastJobIdString
         ) {
-            console.debug(
+            console.log(
                 `In ${this.processName} process pid ${this.pid}, redis cleaner starting...`
             );
 
@@ -101,32 +174,53 @@ class ScraperJobProcessResourcesCleaner {
                 console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastK8JobSemaphoreResourceString}`
                 );
-                await KubernetesService.singleton.jobVacancySemaphore.release();
+
+                try {
+                    KubernetesService.singleton.jobVacancySemaphore &&
+                        (await KubernetesService.singleton.jobVacancySemaphore.release(
+                            this.lastK8JobSemaphoreResourceString
+                        ));
+                } catch (error) {
+                    console.error(error, 'failed to release k8 semaphore');
+                }
+
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.log(
                     `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
-                TravisManager.singleton.travisJobResourceSemaphore &&
-                    (await TravisManager.singleton.travisJobResourceSemaphore.release());
+
+                try {
+                    TravisManager.singleton.travisJobResourceSemaphore &&
+                        (await TravisManager.singleton.travisJobResourceSemaphore.release());
+                } catch (error) {
+                    console.error(error);
+                }
+
                 this.lastTravisJobSemaphoreResourceString = undefined;
             }
 
             // release redis clients
+            try {
+                await cleanupRedisSubscriptionConnection(
+                    this.lastRedisPubsubChannelName,
+                    this.lastRedisClientSubscription,
+                    this.lastRedisClientPublish,
+                    this.lastOrg,
+                    this.lastJobIdString
+                );
+            } catch (error) {
+                console.error(error);
+            }
 
-            await cleanupRedisSubscriptionConnection(
-                this.lastRedisPubsubChannelName,
-                this.lastRedisClientSubscription,
-                this.lastRedisClientPublish,
-                this.lastOrg,
-                this.lastJobIdString
-            );
-
-            // reset all `last...` attribute so that in case this process is reused,
-            // already cleaned resources don't get clean up again,
-            // which will cause issues like accidentally releasing other process's
-            // travis semaphore, even if this process uses k8 job semaphore
-            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.runtimePlatformDescriptor = undefined;
+            // delete k8s jobs
+            if (this.runtimePlatformDescriptor) {
+                try {
+                    await this.asyncCleanupK8sJob();
+                } catch (error) {
+                    console.error(error, 'error cleaning up k8s job');
+                }
+            }
 
             // cancel any travis jobs
             const cancelResults = await TravisManager.singleton.cancelAllJobs();
@@ -140,6 +234,12 @@ class ScraperJobProcessResourcesCleaner {
 
             // cancel any travis manager schedulers
             TravisManager.singleton.clearAllSchedulers();
+
+            // reset all `last...` attribute so that in case this process is reused,
+            // already cleaned resources don't get clean up again,
+            // which will cause issues like accidentally releasing other process's
+            // travis semaphore, even if this process uses k8 job semaphore
+            this.lastRedisPubsubChannelName = this.lastRedisClientSubscription = this.lastRedisClientPublish = this.lastOrg = this.lastJobIdString = this.runtimePlatformDescriptor = undefined;
 
             return;
         }
@@ -425,19 +525,15 @@ const superviseScraper = (
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
 
-                                const travisSemaphoreResourceString =
-                                    process.env.NODE_ENV !==
-                                        RuntimeEnvironment.DEVELOPMENT &&
-                                    parseInt(
-                                        process.env
-                                            .PLATFORM_CONCURRENCY_TRAVIS || '6'
-                                    ) > 0
-                                        ? await checkTravisHasVacancy(
-                                              redisPubsubChannelName
-                                          )
-                                        : null;
+                                const travisSemaphoreResourceString = await checkTravisHasVacancy(
+                                    redisPubsubChannelName
+                                );
 
-                                if (!travisSemaphoreResourceString) {
+                                if (
+                                    KubernetesService.singleton
+                                        .jobVacancySemaphore &&
+                                    !travisSemaphoreResourceString
+                                ) {
                                     // run on k8s
 
                                     processResourceCleaner.runtimePlatformDescriptor =
@@ -455,6 +551,16 @@ const superviseScraper = (
                                         return scraperSupervisorReject(error);
                                     }
 
+                                    const nodeId =
+                                        ScraperJobProcessResourcesCleaner
+                                            .singleton
+                                            .lastK8JobSemaphoreResourceString;
+                                    if (!nodeId) {
+                                        return scraperSupervisorReject(
+                                            `nodeId is empty, did not acquire semaphore successfully`
+                                        );
+                                    }
+
                                     console.log(
                                         `job ${job.id} got k8 job semaphore ${ScraperJobProcessResourcesCleaner.singleton.lastK8JobSemaphoreResourceString}`
                                     );
@@ -462,17 +568,22 @@ const superviseScraper = (
                                     let k8Job;
                                     try {
                                         k8Job = await KubernetesService.singleton.asyncAddScraperJob(
-                                            job.data
+                                            job.data,
+                                            nodeId
                                         );
                                     } catch (error) {
                                         const errorMessage = `job ${
                                             job.id
                                         } error when requesting k8 job: ${JSON.stringify(
-                                            error
+                                            error instanceof Error
+                                                ? error.message
+                                                : JSON.stringify(error)
                                         )}`;
                                         console.error(
                                             `job ${job.id} error when requesting k8 job:`,
-                                            error
+                                            error instanceof Error
+                                                ? error.message
+                                                : JSON.stringify(error)
                                         );
                                         return scraperSupervisorReject(
                                             errorMessage
@@ -487,13 +598,27 @@ const superviseScraper = (
                                             : ''
                                     }`;
 
+                                    if (
+                                        !processResourceCleaner.runtimePlatformDescriptor
+                                    ) {
+                                        return scraperSupervisorReject(
+                                            `k8s job bad creation result: ${JSON.stringify(
+                                                k8Job.body
+                                            )}`
+                                        );
+                                    }
+
                                     console.log(
                                         `job ${job.id} request k8 job successfully:`,
-                                        k8Job.body.metadata
+                                        processResourceCleaner.runtimePlatformDescriptor
                                     );
 
                                     return;
-                                } else {
+                                } else if (
+                                    TravisManager.singleton
+                                        .travisJobResourceSemaphore &&
+                                    travisSemaphoreResourceString
+                                ) {
                                     // run on travis
 
                                     processResourceCleaner.runtimePlatformDescriptor =
@@ -517,6 +642,10 @@ const superviseScraper = (
                                         .join(',')}`;
 
                                     return;
+                                } else {
+                                    return scraperSupervisorReject(
+                                        `No platform available to run scraper, please check platform concurrency config`
+                                    );
                                 }
                             });
                     }

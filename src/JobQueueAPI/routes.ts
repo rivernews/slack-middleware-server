@@ -7,8 +7,8 @@ import {
     resumeAllQueuesController,
     pauseAllQueuesController
 } from './controllers';
-import cors from 'cors';
 import { RuntimeEnvironment } from '../utilities/runtime';
+import { corsConfig } from '../utilities/authenticators';
 
 export const gdOrgReviewRenewalRouter = express.Router();
 
@@ -25,15 +25,7 @@ export const pauseAllQueuesEndpoint = '/pause-all-queues';
 // add more endpoints of controllers...
 
 // register controllers
-gdOrgReviewRenewalRouter.use(
-    cors({
-        origin:
-            process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
-                ? // TODO: use env var to configure this
-                  `https://slack.shaungc.com`
-                : true
-    })
-); // TODO: needs to secure origin to only production site. cors(): https://expressjs.com/en/resources/middleware/cors.html#installation
+gdOrgReviewRenewalRouter.use(corsConfig);
 gdOrgReviewRenewalRouter.post(s3OrgsJobEndpoint, s3OrgsJobController);
 gdOrgReviewRenewalRouter.post(singleOrgJobEndpoint, singleOrgJobController);
 gdOrgReviewRenewalRouter.post(

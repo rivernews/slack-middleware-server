@@ -12,14 +12,6 @@ import {
     S3JobRequestData
 } from './types';
 
-export const SCRAPER_JOB_POOL_MAX_CONCURRENCY = process.env
-    .SCRAPER_JOB_POOL_MAX_CONCURRENCY
-    ? parseInt(process.env.SCRAPER_JOB_POOL_MAX_CONCURRENCY)
-    : 4;
-export const SUPERVISOR_JOB_CONCURRENCY = process.env.SUPERVISOR_JOB_CONCURRENCY
-    ? parseInt(process.env.SUPERVISOR_JOB_CONCURRENCY)
-    : 4;
-
 interface JobQueueManagerProps {
     __processDirname: string;
     relativePathWithoutExtension: string;
@@ -276,7 +268,7 @@ export class JobQueueManager<JobRequestData> {
     }
 
     /**
-     * Throws a promise rejection if concurrency limit reached, or a resolve if not.
+     * Throws a promise rejection if concurrency limit reached, or a resolve if not and provides the count of jobs present right now.
      *
      * @param concurrency The concurrency limit for either the queue you pass in by `concurrencyCheckQueue`, or if you don't, this manager's own queue
      * @param concurrencyCheckQueue Queue you want to explicitly check concurrency for

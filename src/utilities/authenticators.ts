@@ -1,5 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
 import { NotAuthenticatedResponse, ServerError } from './serverExceptions';
+import { RuntimeEnvironment } from './runtime';
+
+// TODO: needs to secure origin to only production site. cors(): https://expressjs.com/en/resources/middleware/cors.html#installation
+export const corsConfig = cors({
+    origin:
+        process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
+            ? // TODO: use env var to configure this
+              [`https://slack.shaungc.com`, `http://slack.shaungc.com`]
+            : true
+});
 
 // factory function to generate auth middleware
 export const getAuthenticateByTokenMiddleware = (tokenToVerfy?: string) => {
@@ -34,7 +45,7 @@ export const jobQueueDashboardAuthenticateMiddleware = (
         if (relativePathToRouteBaseWithQuery === '/') {
             const requesterToken = req.query.token || req.body.token;
 
-            if (!process.env.TRAVIS_TOKEN) {
+            if (!process.env.SLACK_TOKEN_OUTGOING_LAUNCH) {
                 return next(new ServerError(`Misconfigured credential`));
             }
 
@@ -42,7 +53,7 @@ export const jobQueueDashboardAuthenticateMiddleware = (
                 return next(new NotAuthenticatedResponse());
             }
 
-            if (requesterToken !== process.env.TRAVIS_TOKEN) {
+            if (requesterToken !== process.env.SLACK_TOKEN_OUTGOING_LAUNCH) {
                 return next(new NotAuthenticatedResponse());
             }
         }
@@ -52,7 +63,7 @@ export const jobQueueDashboardAuthenticateMiddleware = (
 };
 
 export const jobQueueAuthenticateMiddleware = getAuthenticateByTokenMiddleware(
-    process.env.TRAVIS_TOKEN
+    process.env.SLACK_TOKEN_OUTGOING_LAUNCH
 );
 
 export const slackAuthenticateMiddleware = getAuthenticateByTokenMiddleware(

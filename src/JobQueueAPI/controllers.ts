@@ -187,9 +187,7 @@ export const terminateAllJobsController = async (
 ) => {
     console.debug('terminate job controller');
 
-    JobQueueSharedRedisClientsSingleton.singleton.intialize(
-        'master process: terminate controller'
-    );
+    JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
     if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
         return next(new ServerError(`Shared redis client did not initialize`));
     }
@@ -248,7 +246,7 @@ export const pauseAllQueuesController = async (
     res: Response,
     next: NextFunction
 ) => {
-    console.debug('pause all queues controller');
+    console.log('pause all queues controller');
 
     for (const queue of [
         s3OrgsJobQueueManager.queue,

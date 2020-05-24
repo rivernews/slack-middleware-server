@@ -30,7 +30,7 @@ export const gdOrgReviewRenewalDescribe = describe('GdOrgReviewRenewal integrati
             try {
                 const res = await axios.post(
                     `${baseUrl}${gdOrgReviewRenewalBaseUrl}${singleOrgJobEndpoint}`,
-                    { token: process.env.TRAVIS_TOKEN }
+                    { token: process.env.SLACK_TOKEN_OUTGOING_LAUNCH }
                 );
                 throw new Error('Should trigger error');
             } catch (error) {

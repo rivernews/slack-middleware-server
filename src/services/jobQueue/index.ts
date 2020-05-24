@@ -41,13 +41,12 @@ const registerJobQueuesToDashboard = () => {
 };
 
 export const startJobQueues = () => {
+    JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
+
     if (
         process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT ||
         process.env.FLUSHDB_ON_START === 'true'
     ) {
-        JobQueueSharedRedisClientsSingleton.singleton.intialize(
-            'master:startJobQueues'
-        );
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new ServerError(
                 `master: Shared redis client did not initialize`
@@ -107,6 +106,13 @@ export const asyncCleanupJobQueuesAndRedisClients = async ({
     // Add more queue clean up here ...
 
     console.log(`In ${processName} process: all job queues closed`);
+
+    // TODO: remove this if not needed and mocha test can finish w/o hang
+    // try {
+    //     await JobQueueSharedRedisClientsSingleton.singleton.resetAllClientResources('master');
+    // } catch (error) {
+    //     console.error(error, 'failed to clean up shared redis clients');
+    // }
 
     return;
 };

@@ -4,6 +4,7 @@ import {
     RUNTIME_CI_ENVIRONMENT
 } from '../utilities/runtime';
 import IORedis, { RedisOptions } from 'ioredis';
+import { ScraperJobMessageType } from './jobQueue/types';
 
 // node-redis pubsub doc
 // https://github.com/NodeRedis/node-redis#pubsub
@@ -72,7 +73,13 @@ class RedisManagerSingleton {
             //
             // retryStrategy
             // https://github.com/luin/ioredis#auto-reconnect
-            retryStrategy: times => null
+            retryStrategy: times => {
+                console.log(
+                    'redis connection failed, retrying redis in 5 seconds...'
+                );
+                return 5 * 1000;
+            },
+            connectTimeout: 30 * 1000
         });
         console.log('created redis client');
         return newRedisClient;
@@ -87,13 +94,15 @@ export class JobQueueSharedRedisClientsSingleton {
     public genericClient?: IORedis.Redis;
     public subscriberClient?: IORedis.Redis;
 
-    private processName: string = '';
+    private processName: string = 'process' + process.pid;
     private jobQueueIORedisClientsRecord: Array<IORedis.Redis> = [];
 
     private constructor () {}
 
-    public intialize (processName: string) {
-        this.processName = processName;
+    public intialize (processName?: string) {
+        if (processName && this.processName !== 'process' + process.pid) {
+            this.processName = processName;
+        }
 
         if (!this.genericClient) {
             this.genericClient = this.newJobQueueIORedisClient(
@@ -146,9 +155,30 @@ export class JobQueueSharedRedisClientsSingleton {
         }
 
         console.debug(
-            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`,
-            this.jobQueueIORedisClientsRecord
+            `${callerName} in ${this.processName} process, shared redis: resetting additional ${this.jobQueueIORedisClientsRecord.length} clients:`
         );
         this.jobQueueIORedisClientsRecord = [];
+    }
+
+    public onTerminate (
+        callback: (...args: any[]) => Promise<void> | void,
+        ...args: any[]
+    ) {
+        if (!JobQueueSharedRedisClientsSingleton._singleton.subscriberClient) {
+            throw new Error(
+                `Cannot register on redis terminate signal because subscriber client not yet initialized`
+            );
+        }
+
+        JobQueueSharedRedisClientsSingleton._singleton.subscriberClient.on(
+            'message',
+            (channel: string, message: string) => {
+                const [type] = message.split(':');
+
+                if (type === ScraperJobMessageType.TERMINATE) {
+                    callback(...args);
+                }
+            }
+        );
     }
 }

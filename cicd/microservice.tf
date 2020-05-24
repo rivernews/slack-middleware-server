@@ -6,12 +6,14 @@ variable "app_container_image_tag" {}
 
 module "slack_middleware_service" {
   source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = ">= v0.1.14"
+  version = ">= v0.1.17"
 
   aws_region     = var.aws_region
   aws_access_key = var.aws_access_key
   aws_secret_key = var.aws_secret_key
   cluster_name   = "project-shaungc-digitalocean-cluster"
+  node_pool_name = "project-shaungc-digitalocean-node-pool"
+  scale = local.slk_scale
 
   app_label               = "slack-middleware-service"
   app_exposed_port        = 8002
@@ -50,45 +52,66 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
+    S3_DISPATCH_JOB_INTERVAL_MS = "15000"
+
+    # smaller job to prevent memory leak / RAM consumption going too high
+    # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
+    # when `500`, resulting around 753 jobs -> more job changes shift and when so, more likely to have overlap in node and memory consumption can spike high
+    # when `300`, got around 12~1300 jobs
     SCRAPER_JOB_SPLITTING_SIZE = "300"
+
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
-    PLATFORM_CONCURRENCY_K8S = "4"
-    PLATFORM_CONCURRENCY_TRAVIS = "0"
+    # total jobs
+    SELENIUM_ARCHITECTURE_TYPE = "pod-standalone"
 
-    SUPERVISOR_JOB_CONCURRENCY = "4"
-    SCRAPER_JOB_POOL_MAX_CONCURRENCY = "4"
+    SLK_REPLICA = tostring(local.slk_scale)
+    
+    # this number is only within each replica, the total worker nodes are
+    # SLK_REPLICA * SCRAPER_WORKER_NODE_COUNT
+    SCRAPER_WORKER_NODE_COUNT = "20"
+    
+    SCRAPER_COUNT_PER_WORKER_NODE = "3"
+
+    SCRAPER_DRIVER_NDOE_MEMORY_REQUEST = "200Mi"
+    SCRAPER_DRIVER_NDOE_MEMORY_LIMIT = "1000Mi"
+    SCRAPER_DRIVER_NDOE_CPU_REQUEST = ".2"
+    SCRAPER_DRIVER_NDOE_CPU_LIMIT = ".6"
   }
 
   use_recreate_deployment_strategy = true
 }
 
-module "selenium_service" {
-  source  = "rivernews/kubernetes-microservice/digitalocean"
-  version = ">= v0.1.14"
-
-  aws_region     = var.aws_region
-  aws_access_key = var.aws_access_key
-  aws_secret_key = var.aws_secret_key
-  cluster_name   = "project-shaungc-digitalocean-cluster"
-
-  app_label                = "selenium-service"
-  app_exposed_port         = 4444
-
-  # Docker Selenium
-  # https://github.com/SeleniumHQ/docker-selenium
-  app_container_image     = "selenium/standalone-chrome"
-  app_container_image_tag = "3.141.59-zirconium"
-
-  use_recreate_deployment_strategy = true
-  
-  share_host_memory = true
-
-  # specifying unit
-  # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
-  memory_guaranteed = "128Mi"
-  memory_max_allowed = "6.5G"
+locals {
+  slk_scale = 1
 }
+
+# module "selenium_service" {
+#   source  = "rivernews/kubernetes-microservice/digitalocean"
+#   version = ">= v0.1.14"
+
+#   aws_region     = var.aws_region
+#   aws_access_key = var.aws_access_key
+#   aws_secret_key = var.aws_secret_key
+#   cluster_name   = "project-shaungc-digitalocean-cluster"
+
+#   app_label                = "selenium-service"
+#   app_exposed_port         = 4444
+
+#   # Docker Selenium
+#   # https://github.com/SeleniumHQ/docker-selenium
+#   app_container_image     = "selenium/standalone-chrome"
+#   app_container_image_tag = "3.141.59-zirconium"
+
+#   use_recreate_deployment_strategy = true
+  
+#   share_host_memory = true
+
+#   # specifying unit
+#   # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory
+#   memory_guaranteed = "128Mi"
+#   memory_max_allowed = "6.5G"
+# }
 
 // See the logs of production server
 // logs

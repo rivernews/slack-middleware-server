@@ -25,7 +25,10 @@ import {
     gdOrgReviewRenewalRouter
 } from './JobQueueAPI/routes';
 import { UI } from 'bull-board';
-import { redisManager } from './services/redis';
+import {
+    kubernetesApiBaseUrl,
+    kubernetesApiRouter
+} from './KubernetesAPI/routes';
 
 // Constants
 if (!process.env.PORT) {
@@ -59,12 +62,15 @@ app.use(
     slackAuthenticateMiddleware,
     qualitativeOrgReviewRouter
 );
-// test single job: curl -v -X POST http://localhost:8080/queues/single-org-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
-// test s3 orgs job: curl -v -X POST http://localhost:8080/queues/s3-orgs-job\?token\=REl9oGZ-RLVWU7eK8ZVloQ
 app.use(
     gdOrgReviewRenewalBaseUrl,
     jobQueueAuthenticateMiddleware,
     gdOrgReviewRenewalRouter
+);
+app.use(
+    kubernetesApiBaseUrl,
+    jobQueueAuthenticateMiddleware,
+    kubernetesApiRouter
 );
 app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, UI);
 
@@ -82,12 +88,18 @@ app.use(
     ) => {
         // if it is indeed an ErrorResponse object
         if (err.status && err.message) {
-            res.status(err.status).json({
+            return res.status(err.status).json({
                 message: err.message,
                 status: err.status
             });
+            // TODO: this will cause error 'Error: Can't set headers after they are sent to the client'
+            // since the error response is finalized at this point
+            // we need to find other ways to set these CORS header before error response finalized
+            // .header('Access-Control-Allow-Origin', '*')
+            // .header('Access-Control-Allow-Headers', '*')
+            // .header('Access-Control-Allow-Methods', '*');
         } else {
-            next(err);
+            return next(err);
         }
     }
 );

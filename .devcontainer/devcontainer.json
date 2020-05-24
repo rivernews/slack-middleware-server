@@ -36,6 +36,7 @@
 	// Add the IDs of extensions you want installed when the container is created in the array below.
 	"extensions": [
 		"esbenp.prettier-vscode",
-		"ms-azuretools.vscode-docker"
+		"ms-azuretools.vscode-docker",
+		// "mauve.terraform"
 	]
 }
