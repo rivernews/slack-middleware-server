@@ -1,5 +1,5 @@
 import { supervisorJobQueueManager } from '../../JobQueueAPI/supervisorJob/queue';
-import { setQueues } from 'bull-board';
+import { setQueues } from '@shaungc/bull-board';
 import { gdOrgReviewScraperJobQueueManager } from '../../JobQueueAPI/scraperJob/queue';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { s3OrgsJobQueueManager } from '../../JobQueueAPI/s3OrgsJob/queue';
@@ -25,15 +25,20 @@ const registerJobQueuesToDashboard = () => {
         );
     }
 
-    const jobUISetQueuesQueueNames = Object.keys(
-        // bull-board repo & doc
-        // https://github.com/vcapretz/bull-board
-        setQueues([
-            supervisorJobQueueManager.queue,
-            gdOrgReviewScraperJobQueueManager.queue,
-            s3OrgsJobQueueManager.queue
-        ])
-    );
+    // bull-board repo & doc
+    // https://github.com/vcapretz/bull-board
+    setQueues([
+        supervisorJobQueueManager.queue,
+        gdOrgReviewScraperJobQueueManager.queue,
+        s3OrgsJobQueueManager.queue
+    ]);
+
+    const jobUISetQueuesQueueNames = [
+        supervisorJobQueueManager.queue.name,
+        gdOrgReviewScraperJobQueueManager.queue.name,
+        s3OrgsJobQueueManager.queue.name
+    ];
+
     console.log(
         'registered job queues to job UI dashboard',
         jobUISetQueuesQueueNames
