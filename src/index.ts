@@ -24,7 +24,7 @@ import {
     gdOrgReviewRenewalBaseUrl,
     gdOrgReviewRenewalRouter
 } from './JobQueueAPI/routes';
-import { UI } from 'bull-board';
+import { UI as BullBoardRouter } from '@shaungc/bull-board';
 import {
     kubernetesApiBaseUrl,
     kubernetesApiRouter
@@ -72,7 +72,7 @@ app.use(
     jobQueueAuthenticateMiddleware,
     kubernetesApiRouter
 );
-app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, UI);
+app.use('/dashboard', jobQueueDashboardAuthenticateMiddleware, BullBoardRouter);
 
 // TravisCI API
 // https://developer.travis-ci.com/resource/requests#Requests

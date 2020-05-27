@@ -52,7 +52,7 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
-    S3_DISPATCH_JOB_INTERVAL_MS = "15000"
+    S3_DISPATCH_JOB_INTERVAL_MS = "10000"
 
     # smaller job to prevent memory leak / RAM consumption going too high
     # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
@@ -69,6 +69,7 @@ module "slack_middleware_service" {
     
     # this number is only within each replica, the total worker nodes are
     # SLK_REPLICA * SCRAPER_WORKER_NODE_COUNT
+    # `22` may cause memory pressure on SLK on a 4v8G machine, especially when accessing grafana
     SCRAPER_WORKER_NODE_COUNT = "20"
     
     SCRAPER_COUNT_PER_WORKER_NODE = "3"
