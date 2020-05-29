@@ -58,7 +58,7 @@ module "slack_middleware_service" {
     # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
     # when `500`, resulting around 753 jobs -> more job changes shift and when so, more likely to have overlap in node and memory consumption can spike high
     # when `300`, got around 12~1300 jobs
-    SCRAPER_JOB_SPLITTING_SIZE = "300"
+    SCRAPER_JOB_SPLITTING_SIZE = "280"
 
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
@@ -70,7 +70,7 @@ module "slack_middleware_service" {
     # this number is only within each replica, the total worker nodes are
     # SLK_REPLICA * SCRAPER_WORKER_NODE_COUNT
     # `22` may cause memory pressure on SLK on a 4v8G machine, especially when accessing grafana
-    SCRAPER_WORKER_NODE_COUNT = "20"
+    SCRAPER_WORKER_NODE_COUNT = "17"
     
     SCRAPER_COUNT_PER_WORKER_NODE = "3"
 
