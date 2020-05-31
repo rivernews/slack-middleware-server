@@ -258,7 +258,7 @@ const abortSubscription = (
     timeoutTimer: NodeJS.Timer,
     rejector: (reason?: string) => void
 ) => {
-    const errorMessage = `${message}, payload:` + payload;
+    const errorMessage = `${message}, payload: ` + payload;
     console.warn(errorMessage);
     clearTimeout(timeoutTimer);
     return rejector(errorMessage);
