@@ -263,6 +263,13 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                 }
             );
         })
+        .then(async () => {
+            try {
+                return await asyncSendSlackMessage(
+                    'Now proceed s3 job dispatching'
+                );
+            } catch {}
+        })
         .then(() =>
             s3ArchiveManager
                 .asyncGetAllOrgsForS3Job()
