@@ -239,6 +239,14 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             }
 
                             process.stdout.write('.');
+                            try {
+                                await asyncSendSlackMessage(
+                                    'Polling node pool status. ' +
+                                        `\`\`\`${JSON.stringify(
+                                            readyNodePool || 'None'
+                                        )}\`\`\`\n`
+                                );
+                            } catch (error) {}
                         } catch (error) {
                             clearInterval(scheduler);
                             throw error;
