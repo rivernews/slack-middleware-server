@@ -168,10 +168,12 @@ class NodePoolSemaphoreSingleton {
 
         const semaphoreCollection = this.sessionSemaphoreCollection;
 
+        const releaseResult = await semaphoreCollection[nodeId].release();
+
         // allow the next acquire() to start a new session
         this.sessionSemaphoreCollection = undefined;
 
-        return await semaphoreCollection[nodeId].release();
+        return releaseResult;
     }
 
     /**
@@ -195,6 +197,9 @@ class NodePoolSemaphoreSingleton {
         deletedCounts.push(await this._removeNodeIdList());
 
         console.log('complete reset node pool semaphores', deletedCounts);
+
+        // make sure local semaphore objects are flushed
+        this.sessionSemaphoreCollection = undefined;
 
         return deletedCounts;
     }

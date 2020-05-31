@@ -58,7 +58,7 @@ module "slack_middleware_service" {
     # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry
     # when `500`, resulting around 753 jobs -> more job changes shift and when so, more likely to have overlap in node and memory consumption can spike high
     # when `300`, got around 12~1300 jobs
-    SCRAPER_JOB_SPLITTING_SIZE = "280"
+    SCRAPER_JOB_SPLITTING_SIZE = "300"
 
     CROSS_SESSION_TIME_LIMIT_MINUTES = "45"
     
