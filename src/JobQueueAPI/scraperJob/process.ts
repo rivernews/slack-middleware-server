@@ -15,8 +15,6 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/tr
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
-import { Configuration } from '../../utilities/configuration';
-import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -187,7 +185,7 @@ class ScraperJobProcessResourcesCleaner {
                 this.lastK8JobSemaphoreResourceString = undefined;
             } else if (this.lastTravisJobSemaphoreResourceString) {
                 console.log(
-                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing k8 job semaphore ${this.lastTravisJobSemaphoreResourceString}`
+                    `In ${this.processName} process pid ${this.pid}, redis cleaner releasing travis job semaphore ${this.lastTravisJobSemaphoreResourceString}`
                 );
 
                 try {
@@ -198,6 +196,12 @@ class ScraperJobProcessResourcesCleaner {
                 }
 
                 this.lastTravisJobSemaphoreResourceString = undefined;
+            } else {
+                try {
+                    await asyncSendSlackMessage(
+                        `🔴 In ${this.processName} process pid ${this.pid}, redis cleaner does not release any semaphore`
+                    );
+                } catch (error) {}
             }
 
             // release redis clients
@@ -653,6 +657,18 @@ const superviseScraper = (
         );
 };
 
+const cleanupBestEffortHandler = async (pubsubChannelName: string) => {
+    try {
+        await processResourceCleaner.asyncCleanup();
+    } catch (error) {
+        try {
+            await asyncSendSlackMessage(
+                `🔴 Scraper job \`${pubsubChannelName}\` clean up failed, you may experience resource error in following jobs`
+            );
+        } catch (error) {}
+    }
+};
+
 module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
     console.log(
         `scraper job ${job.id} started processing, with params`,
@@ -681,8 +697,15 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
         redisClientSubscription,
         redisClientPublish
     )
-        .then(resultMessage => Promise.resolve(resultMessage))
-        .catch(error => {
+        .then(async resultMessage => {
+            await cleanupBestEffortHandler(patchedJob.data.pubsubChannelName);
+            return resultMessage;
+        })
+        .catch(async error => {
+            await cleanupBestEffortHandler(patchedJob.data.pubsubChannelName);
+
+            // throw error
+
             if (typeof error === 'string') {
                 throw new Error(
                     `platform: ${
@@ -695,10 +718,12 @@ module.exports = function (job: Bull.Job<ScraperJobRequestData>) {
             }
 
             throw error;
-        })
-        .finally(() => {
-            return processResourceCleaner.asyncCleanup();
         });
+    // TODO: if above await cleanupBestEffortHandler does the work, we can remove this finally
+    // because we suspect finally does not handle or wait aysnc func
+    // .finally(() => {
+    //     return processResourceCleaner.asyncCleanup();
+    // });
 };
 
 (['SIGINT', 'SIGTERM', 'SIGHUP'] as NodeJS.Signals[]).forEach(
