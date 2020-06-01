@@ -3,6 +3,10 @@
 import axios from 'axios';
 import express from 'express';
 import { ServerError } from '../utilities/serverExceptions';
+import {
+    RUNTIME_CI_ENVIRONMENT,
+    RuntimeEnvironment
+} from '../utilities/runtime';
 
 const SLACK_TOKEN_INCOMING_URL: string =
     process.env.SLACK_TOKEN_INCOMING_URL || '';
@@ -24,7 +28,10 @@ export const asyncSendSlackMessage = async (
     if (process.env.TRAVIS && process.env.CI && process.env.USER === 'travis') {
         channelOption['channel'] = '#build';
         finalMessage = '(FROM TRAVIS TEST) ' + finalMessage;
-    } else if (process.env.NODE_ENV !== 'production') {
+    } else if (
+        process.env.NODE_ENV !== 'production' &&
+        RUNTIME_CI_ENVIRONMENT === RuntimeEnvironment.TESTING
+    ) {
         channelOption['channel'] = '#build';
         finalMessage = '(LOCAL DEBUG MODE) ' + finalMessage;
     }
