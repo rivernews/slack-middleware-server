@@ -179,7 +179,22 @@ class ScraperJobProcessResourcesCleaner {
                             this.lastK8JobSemaphoreResourceString
                         ));
                 } catch (error) {
-                    console.error(error, 'failed to release k8 semaphore');
+                    console.log(error, 'failed to release k8 semaphore');
+                    try {
+                        await asyncSendSlackMessage(
+                            `🔴 In scraper job \`${
+                                this.lastRedisPubsubChannelName
+                            }\`, redis cleaner failed to release k8 node semaphore \`${this
+                                .lastK8JobSemaphoreResourceString ||
+                                '(none)'}\`\n` +
+                                `Error: \`${
+                                    error instanceof Error
+                                        ? error.message
+                                        : error
+                                }\`\n` +
+                                `Semaphores may not operate correctly for following jobs.`
+                        );
+                    } catch (error) {}
                 }
 
                 this.lastK8JobSemaphoreResourceString = undefined;
@@ -361,6 +376,12 @@ const onReceiveScraperJobMessage = async (
     } else if (type === ScraperJobMessageType.ERROR) {
         // travis job should end soon so don't bother cleaning up travis job
         TravisManager.singleton.resetTrackingJobs();
+
+        try {
+            await asyncSendSlackMessage(
+                `job ${jobId} scraper job reported error: \`\`\`${payloadAsString}\`\`\`\n`
+            );
+        } catch (error) {}
 
         return abortSubscription(
             `job ${jobId} scraper job reported error`,
