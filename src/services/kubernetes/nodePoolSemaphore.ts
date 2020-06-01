@@ -4,6 +4,7 @@ import { RuntimeEnvironment } from '../../utilities/runtime';
 import IORedis from 'ioredis';
 import { JobQueueSharedRedisClientsSingleton } from '../redis';
 import { IKubernetesClusterNodePool } from 'dots-wrapper/dist/modules/kubernetes';
+import { asyncSendSlackMessage } from '../slack';
 
 // redis data type (Lists)
 // https://redis.io/topics/data-types
@@ -133,7 +134,6 @@ class NodePoolSemaphoreSingleton {
         }
 
         const semaphoreCollection = await this.retrieveSemaphoreCollection();
-        this.sessionSemaphoreCollection = semaphoreCollection;
 
         const nodeIds = Object.keys(semaphoreCollection);
         if (nodeIds.length === 0) {
@@ -146,6 +146,9 @@ class NodePoolSemaphoreSingleton {
             const semaphore = semaphoreCollection[nodeId];
             try {
                 await semaphore.acquire();
+                // acquire succeed, now store session semaphore object, which
+                // should only be cleaned up by a following .release() or .reset()
+                this.sessionSemaphoreCollection = semaphoreCollection;
                 return nodeId;
             } catch (error) {}
 
@@ -172,6 +175,15 @@ class NodePoolSemaphoreSingleton {
 
         // allow the next acquire() to start a new session
         this.sessionSemaphoreCollection = undefined;
+
+        try {
+            await asyncSendSlackMessage(
+                `🟢 PID ${process.pid}: Released semaphore for node id \`${nodeId}\``
+            );
+        } catch (error) {}
+        console.log(
+            `PID ${process.pid}: Released semaphore for node id \`${nodeId}\` `
+        );
 
         return releaseResult;
     }
