@@ -11,6 +11,7 @@ This server act as a middleware to communicate with Slack API. It enables using 
 - `npx ts-node-dev --respawn --transpileOnly index.ts` for fast, auto-reload dev server, using [`ts-node-dev`](https://www.npmjs.com/package/ts-node-dev). **However when you press ^C, it will not gracefully exit; ** gracefully exiting only works in watching.
     - In case above doesn't work, you can also try `npx nodemon --ext ts --signal SIGTERM --exec 'ts-node index.ts'` for auto-reload dev server.
 - To log in terminal and write to file at the same time, run `kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment 2>&1 | tee server.log`
+- To inspect redis content, you can run `npx redis-commander --redis-host api.shaungc.com --redis-port 6378 --redis-password REDIS_PASSWORD --redis-db 5`
 
 ### How to test
 
