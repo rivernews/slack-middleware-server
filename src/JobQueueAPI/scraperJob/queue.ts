@@ -2,6 +2,7 @@ import { JobQueueName } from '../../services/jobQueue/jobQueueName';
 import { ScraperJobRequestData } from '../../services/jobQueue/types';
 import { JobQueueManager } from '../../services/jobQueue/JobQueueManager';
 import { Configuration } from '../../utilities/configuration';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
     ScraperJobRequestData
@@ -18,7 +19,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         // unless we resolve terminated jobs instead of reject
         // attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 2 : 1
         // we should already solve manual termination issue by succeed terminated scraper job (but fail supervisor job)
-        attempts: 3
+        attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 3 : 1
 
         // TODO: enable repeat opt when in prod
         // repeat: {
