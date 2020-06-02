@@ -19,7 +19,7 @@ export const gdOrgReviewScraperJobQueueManager = new JobQueueManager<
         // unless we resolve terminated jobs instead of reject
         // attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 2 : 1
         // we should already solve manual termination issue by succeed terminated scraper job (but fail supervisor job)
-        attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 3 : 1
+        attempts: process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION ? 5 : 1
 
         // TODO: enable repeat opt when in prod
         // repeat: {
