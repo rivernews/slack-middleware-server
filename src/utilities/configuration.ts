@@ -36,7 +36,10 @@ export class Configuration {
     public s3DispatchJobIntervalMs: number;
 
     private constructor () {
-        this.logLevel = process.env.LOG_LEVEL;
+        this.logLevel =
+            (process.env.LOG_LEVEL || '') in LogLevel
+                ? (process.env.LOG_LEVEL as LogLevel)
+                : LogLevel.warn;
 
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
             'GLASSDOOR_REVIEW_COUNT_PER_PAGE',
