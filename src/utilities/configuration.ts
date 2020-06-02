@@ -1,11 +1,13 @@
 import {
     SeleniumArchitectureType,
-    SeleniumMicroserviceType,
     DigitalOceanDropletSize
 } from '../services/kubernetes/types';
+import { LogLevel } from './commonTypes';
 
 export class Configuration {
     private static _singleton: Configuration;
+
+    public logLevel: LogLevel;
 
     public gdReviewCountPerPage: number;
     public scraperJobSplittingSize: number;
@@ -34,6 +36,8 @@ export class Configuration {
     public s3DispatchJobIntervalMs: number;
 
     private constructor () {
+        this.logLevel = process.env.LOG_LEVEL;
+
         this.gdReviewCountPerPage = this._getNumberFromEnvVar(
             'GLASSDOOR_REVIEW_COUNT_PER_PAGE',
             '10'
