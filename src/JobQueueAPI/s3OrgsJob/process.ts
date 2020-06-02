@@ -113,6 +113,9 @@ const getSplittedJobRequestData = (
     incrementalPageAmount: number,
     shardIndex: number
 ) => {
+    const jobSplitedSize =
+        incrementalPageAmount * Configuration.singleton.gdReviewCountPerPage;
+
     return {
         // job splitting params
         nextReviewPageUrl: getMiddleReviewPageUrl(
@@ -135,9 +138,10 @@ const getSplittedJobRequestData = (
         lastProgress: {
             processed: 0,
             wentThrough: 0,
-            total:
-                incrementalPageAmount *
-                Configuration.singleton.gdReviewCountPerPage,
+            total: Math.min(
+                jobSplitedSize,
+                org.localReviewCount % jobSplitedSize
+            ),
             durationInMilli: '1',
             page: pageNumberPointer,
             processedSession: 0
@@ -349,14 +353,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     ]
                                         .splittedScraperJobRequestData as ScraperJobRequestData)
                                         .stopPage;
-                                    // let last splitted job just use local review count instead of incremental amount
-                                    // since it may vary
-                                    ((supervisorJobRequests[
-                                        supervisorJobRequests.length - 1
-                                    ]
-                                        .splittedScraperJobRequestData as ScraperJobRequestData)
-                                        .lastProgress as ScraperProgressData).total =
-                                        org.localReviewCount;
 
                                     continue;
                                 }
