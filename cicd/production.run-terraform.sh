@@ -28,13 +28,13 @@ shaungc/terraform-kubectl-image bash -c '\
     && echo "" \
     && echo "Inside terraform temp container" \
     && env \
-    && /bin/terraform init \
+    && terraform init \
         -backend-config="access_key=${TF_VAR_aws_access_key}" \
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
         -backend-config="region=${TF_BACKEND_region}" \
-    && /bin/terraform validate \
-    && /bin/terraform plan -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
-    && /bin/terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
+    && terraform validate \
+    && terraform plan -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
+    && terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
 '
 
 set -o history
