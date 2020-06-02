@@ -108,7 +108,7 @@ export class JobQueueManager<JobRequestData> {
                 maxStalledCount: 0,
 
                 // avoid job being moved to stalled, usually happens for CPU-intensive jobs
-                lockDuration: 7 * 60 * 1000
+                lockDuration: 5 * 60 * 1000
             },
 
             // reuse redis connection
