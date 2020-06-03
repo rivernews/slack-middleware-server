@@ -8,6 +8,8 @@ env:
 jobs:
   include:
   - stage: test
+    # only build if it's master branch
+    if: branch = master
     name: Test the code
     install:
     # add redis port-forwarding
@@ -52,7 +54,9 @@ jobs:
   - stage: deploy
     
     # only deploy if it's master branch
-    if: branch = master
+    if: |
+      branch = master OR \
+      branch = release
 
     name: Run terraform and deploy
     install: skip
