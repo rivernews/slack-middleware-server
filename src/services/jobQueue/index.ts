@@ -1,5 +1,5 @@
 import { supervisorJobQueueManager } from '../../JobQueueAPI/supervisorJob/queue';
-import { setQueues } from '@shaungc/bull-board';
+import { setQueues } from 'bull-board';
 import { gdOrgReviewScraperJobQueueManager } from '../../JobQueueAPI/scraperJob/queue';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { s3OrgsJobQueueManager } from '../../JobQueueAPI/s3OrgsJob/queue';

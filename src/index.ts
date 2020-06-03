@@ -24,7 +24,7 @@ import {
     gdOrgReviewRenewalBaseUrl,
     gdOrgReviewRenewalRouter
 } from './JobQueueAPI/routes';
-import { UI as BullBoardRouter } from '@shaungc/bull-board';
+import { UI as BullBoardRouter } from 'bull-board';
 import {
     kubernetesApiBaseUrl,
     kubernetesApiRouter
