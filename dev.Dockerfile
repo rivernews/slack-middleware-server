@@ -14,11 +14,16 @@ WORKDIR ${WORKSPACE}
 # install tools that are useful for development
 ENV TERM=${TERM}
 ENV COLORTERM=${COLORTERM}
+
+ENV TERRAFORM_VERSION=0.12.18
+ENV DOCTL_VERSION=1.36.0
+
 # install latest git 2.20, husky requires > X.13
 RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/apt/sources.list.d/stretch-backports.list \
   && apt-get update -y \
   && apt-get install -t stretch-backports git -y \
   && git --version \
+  #
   # install zsh
   && apt-get install zsh -y \
   # install oh-my-zsh for useful cli alias: https://github.com/ohmyzsh/ohmyzsh
@@ -30,9 +35,9 @@ RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/ap
   && exec zsh
   # you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
 
+
 COPY src/package*.json ${WORKSPACE}/
 RUN npm install
-
 
 
 # https://github.com/microsoft/vscode-dev-containers/tree/master/containers/docker-in-docker
@@ -44,6 +49,21 @@ RUN echo "Installing docker CE CLI..." \
   && apt-get update \
   && apt-get install -y docker-ce-cli
 
+
+RUN echo 'Install deploy tools' && \
+  # install terraform
+  cd /tmp &&  \
+  wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+  unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/bin && \
+  # install kubectl
+  # https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux
+  curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.15.2/bin/linux/amd64/kubectl && \
+  mv ./kubectl /usr/bin/kubectl && \
+  chmod +x /usr/bin/kubectl && \
+  # install doctl
+  # https://github.com/digitalocean/doctl#downloading-a-release-from-github
+  curl -OL https://github.com/digitalocean/doctl/releases/download/v${DOCTL_VERSION}/doctl-${DOCTL_VERSION}-linux-amd64.tar.gz && \
+  tar xf doctl-${DOCTL_VERSION}-linux-amd64.tar.gz --directory /usr/bin
 
 
 # do not copy any source file while using vscode remote container
