@@ -30,9 +30,11 @@ RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/ap
   && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
   # install powerlevel10k
   && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
-  && echo "source ~/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc \
-  && cd ~/powerlevel10k \
-  && exec zsh
+  && echo "\nsource ~/powerlevel10k/powerlevel10k.zsh-theme" >> ~/.zshrc \
+  # install zsh autocomplete hint plugin
+  && git clone https://github.com/zsh-users/zsh-autosuggestions $ZSH_CUSTOM/plugins/zsh-autosuggestions \
+  && echo 'plugins+=(zsh-autosuggestions)' >> ~/.zshrc
+  #
   # you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
 
 
