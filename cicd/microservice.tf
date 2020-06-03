@@ -52,7 +52,7 @@ module "slack_middleware_service" {
   ]
 
   environment_variables = {
-    S3_DISPATCH_JOB_INTERVAL_MS = "10000"
+    S3_DISPATCH_JOB_INTERVAL_MS = "6500"
 
     # smaller job to prevent memory leak / RAM consumption going too high
     # when `1000`, resulting in around 399 jobs -> when job failed, cost more and take longer to retry

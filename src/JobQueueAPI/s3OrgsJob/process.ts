@@ -111,11 +111,9 @@ const getSplittedJobRequestData = (
     org: S3Organization,
     pageNumberPointer: number,
     incrementalPageAmount: number,
-    shardIndex: number
+    shardIndex: number,
+    jobSplitedSize: number
 ) => {
-    const jobSplitedSize =
-        incrementalPageAmount * Configuration.singleton.gdReviewCountPerPage;
-
     return {
         // job splitting params
         nextReviewPageUrl: getMiddleReviewPageUrl(
@@ -138,10 +136,7 @@ const getSplittedJobRequestData = (
         lastProgress: {
             processed: 0,
             wentThrough: 0,
-            total: Math.min(
-                jobSplitedSize,
-                org.localReviewCount % jobSplitedSize
-            ),
+            total: jobSplitedSize,
             durationInMilli: '1',
             page: pageNumberPointer,
             processedSession: 0
@@ -293,7 +288,6 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             const supervisorJobRequests: SupervisorJobRequestData[] = [];
                             for (const org of orgList) {
                                 // dispatch for large org (splitted job)
-
                                 if (
                                     org.reviewPageUrl &&
                                     org.localReviewCount &&
@@ -307,6 +301,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                             Configuration.singleton
                                                 .gdReviewCountPerPage
                                     );
+                                    const jobSplitedSize =
+                                        incrementalPageAmount *
+                                        Configuration.singleton
+                                            .gdReviewCountPerPage;
                                     let pageNumberPointer = 0;
                                     let shardIndex = 0;
 
@@ -316,7 +314,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                             org,
                                             pageNumberPointer,
                                             incrementalPageAmount,
-                                            shardIndex
+                                            shardIndex,
+                                            jobSplitedSize
                                         )
                                     });
 
@@ -339,7 +338,8 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                                 org,
                                                 pageNumberPointer,
                                                 incrementalPageAmount,
-                                                shardIndex
+                                                shardIndex,
+                                                jobSplitedSize
                                             )
                                         });
 
@@ -353,6 +353,14 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     ]
                                         .splittedScraperJobRequestData as ScraperJobRequestData)
                                         .stopPage;
+
+                                    // correct last splitted job to use the remained value
+                                    ((supervisorJobRequests[
+                                        supervisorJobRequests.length - 1
+                                    ]
+                                        .splittedScraperJobRequestData as ScraperJobRequestData)
+                                        .lastProgress as ScraperProgressData).total =
+                                        org.localReviewCount % jobSplitedSize;
 
                                     continue;
                                 }
