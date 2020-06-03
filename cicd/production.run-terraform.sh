@@ -17,6 +17,11 @@ echo ""
 echo "In travisCI"
 env
 
+if [ "$TRAVIS_BRANCH" == "release" ];
+then
+    SHORT_TRAVIS_COMMIT=latest
+fi
+
 docker run --rm -v $(pwd):$(pwd) -w $(pwd) \
 --env TF_VAR_aws_access_key=${TF_VAR_aws_access_key} \
 --env TF_VAR_aws_secret_key=${TF_VAR_aws_secret_key} \
@@ -33,7 +38,6 @@ shaungc/terraform-kubectl-image bash -c '\
         -backend-config="secret_key=${TF_VAR_aws_secret_key}" \
         -backend-config="region=${TF_BACKEND_region}" \
     && terraform validate \
-    && terraform plan -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
     && terraform apply -auto-approve -var="app_container_image_tag=${SHORT_TRAVIS_COMMIT}" \
 '
 
