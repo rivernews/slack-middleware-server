@@ -17,13 +17,7 @@
     "appPort": ["8080:8080"],
 
 	// Uncomment the next line to run commands after the container is created.
-	"postCreateCommand": [
-		// https://github.com/romkatv/powerlevel10k#configuration-wizard
-		"cd src && npm i && p10k configure",
-		"DIGITALOCEAN_ACCESS_TOKEN=$DIGITALOCEAN_ACCESS_TOKEN doctl auth init",
-		"mkdir -p ~/.kube",
-		"doctl k8s cluster kubeconfig show project-shaungc-digitalocean-cluster > ~/.kube/config"
-	],
+	"postCreateCommand": "zsh devcontainer-post-install.sh",
 	
 	// "workspaceFolder": "/usr/src",
     

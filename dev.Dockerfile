@@ -15,6 +15,8 @@ WORKDIR ${WORKSPACE}
 ENV TERM=${TERM}
 ENV COLORTERM=${COLORTERM}
 
+ENV ZSH_CUSTOM=/root/.oh-my-zsh/custom
+
 ENV TERRAFORM_VERSION=0.12.18
 ENV DOCTL_VERSION=1.36.0
 
@@ -31,9 +33,9 @@ RUN echo "deb http://ftp.debian.org/debian stretch-backports main" | tee /etc/ap
   # install powerlevel10k
   && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k \
   && echo "\nsource ~/powerlevel10k/powerlevel10k.zsh-theme" >> ~/.zshrc \
-  # install zsh autocomplete hint plugin
+  # install zsh autosuggestion hint plugin
   && git clone https://github.com/zsh-users/zsh-autosuggestions $ZSH_CUSTOM/plugins/zsh-autosuggestions \
-  && echo 'plugins+=(zsh-autosuggestions)' >> ~/.zshrc
+  && sed -i.bak '/plugins=(git)/a plugins+=(zsh-autosuggestions)' ~/.zshrc
   #
   # you have to install fonts on your laptop (where your IDE editor/machine is running on) instead of inside the container
 
