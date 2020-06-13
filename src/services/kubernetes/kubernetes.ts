@@ -268,14 +268,19 @@ export class KubernetesService {
             console.log('adding standalone selenium ...');
             additionalContainers.push({
                 name: `selenium-container`,
-                // TODO: remove this
-                // image: 'selenium/standalone-chrome:latest',
-                image: 'shaungc/gd-selenium-standalone:latest',
+                image:
+                    process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
+                        ? 'shaungc/gd-selenium-standalone:latest'
+                        : 'shaungc/gd-selenium-standalone-debug:latest',
                 imagePullPolicy: 'Always',
                 ports: [
                     {
                         name: 'port-4444',
                         containerPort: 4444
+                    },
+                    {
+                        name: 'port-5900',
+                        containerPort: 5900
                     }
                 ],
                 volumeMounts: [
@@ -300,10 +305,14 @@ export class KubernetesService {
                     }
                 },
                 env: [
-                    {
-                        name: 'START_XVFB',
-                        value: 'false'
-                    }
+                    ...(process.env.NODE_ENV === RuntimeEnvironment.PRODUCTION
+                        ? [
+                              {
+                                  name: 'START_XVFB',
+                                  value: 'false'
+                              }
+                          ]
+                        : [])
                 ]
                 // TODO: wait if we want probe (it may kill container), else remove probe stuff
                 // readinessProbe: healthProbe,
