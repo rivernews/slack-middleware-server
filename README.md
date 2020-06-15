@@ -22,3 +22,10 @@ Also will force test upon git push.
 ### Howo to use
 
 - To trigger S3 job, run `curl -X POST http://localhost:8080/queues/s3-orgs-job?token=`
+
+### How to debug selenium
+
+We use selenium container as pod in each Kubernetes job, so we need to (🛑 Some how this is not working, cannot port forward inside the container):
+1. Check out the job name: `kubectl -n selenium-service get jobs -w`
+1. Port-forward into job container `kubectl -n selenium-service port-forward job/jobname 5900:5900`
+1. Use VNC-Viewer at `localhost:5900`
