@@ -364,6 +364,7 @@ export class KubernetesService {
                         {
                             name: 'scraper-job-container',
                             image: 'shaungc/gd-scraper:latest',
+                            imagePullPolicy: 'Always',
                             volumeMounts: [...getAdditionalVolumeMounts(false)],
                             env: KubernetesService.getKubernetesEnvVarsFromEnvVarPairs(
                                 {
