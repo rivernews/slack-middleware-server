@@ -44,7 +44,7 @@ export const s3OrgsJobController = async (
         );
 
         console.debug(
-            `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, ready to dispatch job`
+            `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, proceed to dispatch job anyway`
         );
 
         const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(null);
