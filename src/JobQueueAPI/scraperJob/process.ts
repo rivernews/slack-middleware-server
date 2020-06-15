@@ -15,6 +15,7 @@ import { TRAVIS_SCRAPER_JOB_REPORT_INTERVAL_TIMEOUT_MS } from '../../services/tr
 import { composePubsubMessage } from '../../services/jobQueue/message';
 import IORedis from 'ioredis';
 import { KubernetesService } from '../../services/kubernetes/kubernetes';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 // Sandbox threaded job
 // https://github.com/OptimalBits/bull#separate-processes
@@ -549,6 +550,22 @@ const superviseScraper = (
 
                                 // `ioredis` will only run this callback once upon subscribed
                                 // so no need to filter out which channel it is, as oppose to `node-redis`
+
+                                if (
+                                    process.env.NODE_ENV !==
+                                    RuntimeEnvironment.PRODUCTION
+                                ) {
+                                    const readyNodePool = await KubernetesService.singleton.getReadyNodePool(
+                                        'scraperWorker'
+                                    );
+                                    if (!readyNodePool) {
+                                        return scraperSupervisorReject(
+                                            new Error(
+                                                `No ready node pool available`
+                                            )
+                                        );
+                                    }
+                                }
 
                                 const travisSemaphoreResourceString = await checkTravisHasVacancy(
                                     redisPubsubChannelName
