@@ -9,7 +9,6 @@ import {
     V1Volume,
     V1VolumeMount
 } from '@kubernetes/client-node';
-import { Semaphore } from 'redis-semaphore';
 import { createApiClient as createDigitalOceanClient } from 'dots-wrapper';
 import { IKubernetesCluster } from 'dots-wrapper/dist/modules/kubernetes/types/kubernetes-cluster';
 import { ScraperJobRequestData } from '../jobQueue/types';
@@ -621,7 +620,7 @@ export class KubernetesService {
                 ? nodePools.scraperWorkerNodePools
                 : nodePools.primaryNodePools;
         for (const nodepool of nodePoolList) {
-            const readyNodes = nodepool.nodes.filter(
+            const readyNodes = ((nodepool || {}).nodes || []).filter(
                 node => node.status.state === 'running'
             );
             if (readyNodes.length) {
