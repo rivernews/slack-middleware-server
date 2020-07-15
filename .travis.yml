@@ -53,7 +53,7 @@ jobs:
   
   - stage: deploy
     
-    # only deploy if it's master branch
+    # TODO: consider only deploy if it's release branch
     if: |
       branch = master OR \
       branch = release
