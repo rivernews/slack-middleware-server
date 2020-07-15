@@ -7,14 +7,16 @@ import { Request, Response, NextFunction } from 'express';
 import { supervisorJobQueueManager } from './supervisorJob/queue';
 import {
     ParameterRequirementNotMet,
-    ServerError
+    ServerError,
+    getErrorAsString
 } from '../utilities/serverExceptions';
 import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,
     ScraperJobMessageType,
-    ScraperJobMessageTo
+    ScraperJobMessageTo,
+    S3JobControllerResponse
 } from '../services/jobQueue/types';
 import {
     JobQueueSharedRedisClientsSingleton,
@@ -37,30 +39,98 @@ export const s3OrgsJobController = async (
         );
     }
 
+    let resJson: S3JobControllerResponse = {
+        status: 'unknown'
+    };
+
     try {
-        // make sure only one s3 job present at a time
-        const jobsPresentCount = await s3OrgsJobQueueManager.checkConcurrency(
-            1
+        if (req.body.singleton) {
+            // already finished
+            if ((await s3OrgsJobQueueManager.queue.getFailedCount()) > 0) {
+                resJson.status = 'failed';
+            } else if (
+                (await s3OrgsJobQueueManager.queue.getCompletedCount()) > 0
+            ) {
+                resJson.status = 'completed';
+            }
+        }
+
+        if (resJson.status === 'unknown') {
+            // make sure only one s3 job present at a time
+            const jobsPresentCount = await s3OrgsJobQueueManager.checkConcurrency(
+                1
+            );
+
+            console.debug(
+                `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, proceed to dispatch job anyway`
+            );
+
+            const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(null);
+
+            resJson = {
+                ...resJson,
+                id: s3OrgsJob.id,
+                progress: s3OrgsJob.progress(),
+                returnvalue: s3OrgsJob.returnvalue,
+                opts: { attempts: s3OrgsJob.opts.attempts },
+                status: 'running'
+            };
+        }
+    } catch (dispatchNewS3JobError) {
+        const dispatchNewS3JobErrorMessage = getErrorAsString(
+            dispatchNewS3JobError
         );
+        resJson = { ...resJson, error: dispatchNewS3JobErrorMessage };
 
-        console.debug(
-            `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, proceed to dispatch job anyway`
-        );
+        try {
+            if ((await s3OrgsJobQueueManager.queue.getActiveCount()) > 0) {
+                const s3Jobs = await s3OrgsJobQueueManager.queue.getActive();
+                if (s3Jobs.length > 0) {
+                    const s3Job = s3Jobs[0];
 
-        const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(null);
+                    resJson = {
+                        ...resJson,
+                        status: 'running',
+                        jobError: '',
+                        progress: await s3Job.progress()
+                    };
+                }
+            } else if (
+                (await s3OrgsJobQueueManager.queue.getCompletedCount()) > 0
+            ) {
+                const s3Jobs = await s3OrgsJobQueueManager.queue.getCompleted();
+                if (s3Jobs.length > 0) {
+                    const s3Job = s3Jobs[0];
 
-        await asyncSendSlackMessage(
-            `added ${
-                JobQueueName.GD_ORG_REVIEW_S3_ORGS_JOB
-            } \`\`\`${JSON.stringify(s3OrgsJob)}\`\`\``
-        );
+                    resJson = {
+                        ...resJson,
+                        status: 'completed',
+                        jobError: '',
+                        progress: await s3Job.progress()
+                    };
+                }
+            } else if (
+                (await s3OrgsJobQueueManager.queue.getFailedCount()) > 0
+            ) {
+                const s3Jobs = await s3OrgsJobQueueManager.queue.getFailed();
+                if (s3Jobs.length > 0) {
+                    const s3Job = s3Jobs[0];
 
-        return res.json(s3OrgsJob);
-    } catch (error) {
-        res.json({
-            error
-        });
+                    resJson = {
+                        ...resJson,
+                        status: 'failed',
+                        jobError:
+                            getErrorAsString(s3Job.returnvalue) ||
+                            s3Job.stacktrace.join('\n'),
+                        progress: await s3Job.progress()
+                    };
+                }
+            }
+        } catch (error) {}
     }
+
+    res.json(resJson);
+    return;
 };
 
 export const singleOrgJobController = async (

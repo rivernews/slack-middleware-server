@@ -16,7 +16,7 @@ import { S3Organization } from './types';
 // https://www.npmjs.com/package/@aws-sdk/client-s3-node#troubleshooting
 
 class S3ArchiveManager {
-    private static _singleton = new S3ArchiveManager();
+    private static _singleton: S3ArchiveManager;
 
     public accessKeyId: string;
     public secretAccessKey: string;
@@ -52,6 +52,9 @@ class S3ArchiveManager {
     }
 
     public static get singleton () {
+        if (!S3ArchiveManager._singleton) {
+            S3ArchiveManager._singleton = new S3ArchiveManager();
+        }
         return S3ArchiveManager._singleton;
     }
 
@@ -189,7 +192,7 @@ class S3ArchiveManager {
         return this._asyncListKeys('all-urls');
     }
 
-    public async asyncGetAllOrgsForS3Job () {
+    public asyncGetAllOrgsForS3Job = async () => {
         console.log('asyncGetAllOrgsForS3Job()');
         const rootDirectoryKeys = await this._asyncListKeys('', true);
 
@@ -244,7 +247,7 @@ class S3ArchiveManager {
         }
 
         return s3Orgs;
-    }
+    };
 }
 
 export const s3ArchiveManager = S3ArchiveManager.singleton;

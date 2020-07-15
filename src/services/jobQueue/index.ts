@@ -3,7 +3,6 @@ import { setQueues } from 'bull-board';
 import { gdOrgReviewScraperJobQueueManager } from '../../JobQueueAPI/scraperJob/queue';
 import { redisManager, JobQueueSharedRedisClientsSingleton } from '../redis';
 import { s3OrgsJobQueueManager } from '../../JobQueueAPI/s3OrgsJob/queue';
-import { RuntimeEnvironment } from '../../utilities/runtime';
 import { ServerError } from '../../utilities/serverExceptions';
 
 const initializeJobQueues = () => {
@@ -48,10 +47,7 @@ const registerJobQueuesToDashboard = () => {
 export const startJobQueues = () => {
     JobQueueSharedRedisClientsSingleton.singleton.intialize('master');
 
-    if (
-        process.env.NODE_ENV === RuntimeEnvironment.DEVELOPMENT ||
-        process.env.FLUSHDB_ON_START === 'true'
-    ) {
+    if (process.env.FLUSHDB_ON_START === 'true') {
         if (!JobQueueSharedRedisClientsSingleton.singleton.genericClient) {
             throw new ServerError(
                 `master: Shared redis client did not initialize`

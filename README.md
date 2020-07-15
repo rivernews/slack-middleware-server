@@ -7,7 +7,14 @@ This server act as a middleware to communicate with Slack API. It enables using 
 ### How to run locally
 
 - `npm i`
-- `npm run dev` - this will spin up nodemon - a hot-reloading nodejs server for you.
+- `npm run dev` will start the server.
+
+#### How to develop
+- If not planning to use hot-reload, then always run `npm run dev`, when you finish making code changes and ready to test, abort the process and re-run `npm run dev` manually.
+- If you want to have hot-reload server for code change, run `npm run fast-dev`, just make sure everytime we save file to refresh, wait till the resources get clean up before saving file again. Seems this will clean up things correctly and redis client connection doesn't surge.
+  - Avoid using `npm run watch`, since we observed a surge in redis client connection. See issue #88.
+
+Some previous notes:
 - `npx ts-node-dev --respawn --transpileOnly index.ts` for fast, auto-reload dev server, using [`ts-node-dev`](https://www.npmjs.com/package/ts-node-dev). **However when you press ^C, it will not gracefully exit; ** gracefully exiting only works in watching.
     - In case above doesn't work, you can also try `npx nodemon --ext ts --signal SIGTERM --exec 'ts-node index.ts'` for auto-reload dev server.
 - To log in terminal and write to file at the same time, run `kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment 2>&1 | tee server.log`

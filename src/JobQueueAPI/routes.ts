@@ -7,7 +7,6 @@ import {
     resumeAllQueuesController,
     pauseAllQueuesController
 } from './controllers';
-import { RuntimeEnvironment } from '../utilities/runtime';
 import { corsConfig } from '../utilities/authenticators';
 
 export const gdOrgReviewRenewalRouter = express.Router();
