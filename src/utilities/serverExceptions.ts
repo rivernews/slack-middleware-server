@@ -63,6 +63,10 @@ export const getErrorAsString = (error: any) => {
     } else if (error instanceof Error) {
         return error.message;
     } else {
-        return JSON.stringify(error);
+        try {
+            return JSON.stringify(error);
+        } catch (error) {
+            return '(error not able to be stringified)';
+        }
     }
 };
