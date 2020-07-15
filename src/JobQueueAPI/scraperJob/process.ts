@@ -348,7 +348,7 @@ const onReceiveScraperJobMessage = async (
             progressData
         );
 
-        jobProgressBar.syncSetRelativePercentage(
+        await jobProgressBar.syncSetRelativePercentage(
             progressData.wentThrough,
             progressData.total
         );

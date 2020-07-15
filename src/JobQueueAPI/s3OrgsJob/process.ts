@@ -284,7 +284,7 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                 .then(orgList =>
                     progressBarManager
                         .increment()
-                        .then(() => {
+                        .then(async () => {
                             const supervisorJobRequests: SupervisorJobRequestData[] = [];
                             for (const org of orgList) {
                                 // dispatch for large org (splitted job)
@@ -380,16 +380,18 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                             }
 
                             // report progress after job planning complete
-                            if (!supervisorJobRequests.length) {
-                                progressBarManager.syncSetAbsolutePercentage(
-                                    100
-                                );
-                            } else {
-                                progressBarManager.syncSetRelativePercentage(
-                                    0,
-                                    supervisorJobRequests.length
-                                );
-                            }
+                            try {
+                                if (!supervisorJobRequests.length) {
+                                    await progressBarManager.syncSetAbsolutePercentage(
+                                        100
+                                    );
+                                } else {
+                                    await progressBarManager.syncSetRelativePercentage(
+                                        0,
+                                        supervisorJobRequests.length
+                                    );
+                                }
+                            } catch (error) {}
 
                             return supervisorJobRequests;
                         })
