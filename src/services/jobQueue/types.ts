@@ -1,4 +1,5 @@
 import { ServerError } from '../../utilities/serverExceptions';
+import Bull from 'bull';
 
 // type guards in Typescript
 // https://www.typescriptlang.org/docs/handbook/advanced-types.html#user-defined-type-guards
@@ -168,3 +169,18 @@ export class ScraperProgress {
         return true;
     }
 }
+
+interface S3JobControllerResponseAdditionalTypes {
+    status: 'completed' | 'failed' | 'running' | 'unknown';
+
+    // error for dispatching s3 job
+    error?: string;
+    // error for s3 job execution
+    jobError?: string;
+
+    progress?: number;
+}
+
+export type S3JobControllerResponse =
+    | Bull.Job<null>
+    | S3JobControllerResponseAdditionalTypes;
