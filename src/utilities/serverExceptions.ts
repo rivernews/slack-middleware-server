@@ -56,3 +56,13 @@ export class ParameterRequirementNotMet extends ErrorResponse {
         super(message, status);
     }
 }
+
+export const getErrorAsString = (error: any) => {
+    if (typeof error === 'string') {
+        return error;
+    } else if (error instanceof Error) {
+        return error.message;
+    } else {
+        return JSON.stringify(error);
+    }
+};
