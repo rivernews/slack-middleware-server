@@ -187,13 +187,31 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                 'scraperWorker',
                                 true
                             );
+
+                            try {
+                                if (!readyNodePool) {
+                                    await asyncSendSlackMessage(
+                                        `Polling node pool status: \`(No ready node pool yet)\`.`
+                                    );
+                                } else {
+                                    await asyncSendSlackMessage(
+                                        'Polling node pool status:' +
+                                            `\`\`\`${JSON.stringify(
+                                                readyNodePool
+                                            )}\`\`\`\n`
+                                    );
+                                }
+                            } catch (error) {}
+
                             if (readyNodePool) {
+                                clearInterval(scheduler);
+
                                 console.log(
                                     'nodes are ready, next is to create selenium base...'
                                 );
 
                                 // create selenium base
-                                const res = await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
+                                await ScraperNodeScaler.singleton.orderSeleniumBaseProvisioning();
 
                                 // if pod-standalone architecuture, then no need to wait for additional resources
                                 if (
@@ -233,19 +251,10 @@ module.exports = function (s3OrgsJob: Bull.Job<null>) {
                                     );
                                 }
 
-                                clearInterval(scheduler);
                                 return resolvePollingPromise();
                             }
 
                             process.stdout.write('.');
-                            try {
-                                await asyncSendSlackMessage(
-                                    'Polling node pool status. ' +
-                                        `\`\`\`${JSON.stringify(
-                                            readyNodePool || 'None'
-                                        )}\`\`\`\n`
-                                );
-                            } catch (error) {}
                         } catch (error) {
                             clearInterval(scheduler);
                             throw error;
