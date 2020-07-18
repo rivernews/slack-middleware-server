@@ -5,7 +5,10 @@ import {
     GetObjectCommand,
     GetObjectInput
 } from '@aws-sdk/client-s3-node';
-import { ServerError } from '../../utilities/serverExceptions';
+import {
+    ServerError,
+    getErrorAsString
+} from '../../utilities/serverExceptions';
 import { Readable } from 'stream';
 import { S3Organization } from './types';
 
@@ -207,14 +210,32 @@ class S3ArchiveManager {
         const s3Orgs: Array<S3Organization> = [];
         for (const orgDirectory of orgDirectories) {
             const orgMetaObjectKey = `${orgDirectory}meta/latest.json`;
-            const reviewsMetaObjectKey = `${orgDirectory}reviews-meta/latest.json`;
+            let orgMetaObjectRawString;
+            try {
+                orgMetaObjectRawString = await this._asyncGetObjectContent(
+                    orgMetaObjectKey
+                );
+            } catch (error) {
+                throw new Error(
+                    `Error getting s3 object at key ${orgMetaObjectKey}: ${getErrorAsString(
+                        error
+                    )}`
+                );
+            }
 
-            const orgMetaObjectRawString = await this._asyncGetObjectContent(
-                orgMetaObjectKey
-            );
-            const reviewsMetaObjectRawString = await this._asyncGetObjectContent(
-                reviewsMetaObjectKey
-            );
+            const reviewsMetaObjectKey = `${orgDirectory}reviews-meta/latest.json`;
+            let reviewsMetaObjectRawString;
+            try {
+                reviewsMetaObjectRawString = await this._asyncGetObjectContent(
+                    reviewsMetaObjectKey
+                );
+            } catch (error) {
+                throw new Error(
+                    `Error getting s3 object at key ${reviewsMetaObjectKey}: ${getErrorAsString(
+                        error
+                    )}`
+                );
+            }
 
             const orgMetaObject = JSON.parse(orgMetaObjectRawString);
             const reviewsMetaObject = JSON.parse(reviewsMetaObjectRawString);
