@@ -20,6 +20,10 @@ Some previous notes:
 - To log in terminal and write to file at the same time, run `kubectl -n slack-middleware-service logs --follow deploy/slack-middleware-service-deployment 2>&1 | tee server.log`
 - To inspect redis content, you can run `npx redis-commander --redis-host api.shaungc.com --redis-port 6378 --redis-password REDIS_PASSWORD --redis-db 5`
 
+### How to deploy
+- Commit and push to `master`, then also merge and push to `release`
+- Make sure Travis build the `master` job - this one will build the SLK image used by Kubernetes deployment. The `release` branch will not trigger docker build on Travis.
+
 ### How to test
 
 - `npm test` - that's all, other things (like spinning up / off test server) are all handled for you.

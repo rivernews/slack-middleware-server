@@ -54,8 +54,8 @@ jobs:
   - stage: deploy
     
     # TODO: consider only deploy if it's release branch
+    # To allow multiple branches, you can use `branch = master OR branch = release`
     if: |
-      branch = master OR \
       branch = release
 
     name: Run terraform and deploy
