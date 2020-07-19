@@ -53,7 +53,7 @@ app.use(
 
 app.get('/', async (req, res) => {
     res.send(
-        'Hello! This is our slack service.' +
+        'Hello! This is our slack service SLK.' +
             'Visit the <a href="https://slack.shaungc.com">frontend website</a>.'
     );
 });
