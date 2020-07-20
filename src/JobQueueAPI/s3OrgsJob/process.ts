@@ -23,6 +23,7 @@ import {
     RedisPubSubChannelName
 } from '../../services/redis';
 import { SeleniumArchitectureType } from '../../services/kubernetes/types';
+import { RuntimeEnvironment } from '../../utilities/runtime';
 
 const asyncCleanUpS3Job = async ({
     k8sHeadServicekeepAliveScheduler
@@ -207,7 +208,7 @@ module.exports = function (s3OrgsJob: Bull.Job<S3JobRequestData>) {
                                     );
                                 } else {
                                     await asyncSendSlackMessage(
-                                        'Polling node pool status:' +
+                                        'Polling node pool status:\n' +
                                             `\`\`\`${JSON.stringify(
                                                 readyNodePool
                                             )}\`\`\`\n`
@@ -294,7 +295,9 @@ module.exports = function (s3OrgsJob: Bull.Job<S3JobRequestData>) {
         .then(async () => {
             try {
                 return await asyncSendSlackMessage(
-                    'Now proceed s3 job dispatching'
+                    `Now proceed s3 job dispatching, s3 job data:\n\`\`\`${JSON.stringify(
+                        s3OrgsJob.data || 'Null'
+                    )}\`\`\` `
                 );
             } catch {}
         })
@@ -305,7 +308,10 @@ module.exports = function (s3OrgsJob: Bull.Job<S3JobRequestData>) {
                 : setInterval(async () => {
                       try {
                           await fetch(
-                              `https://k8s-cluster-head-service.herokuapp.com/`
+                              process.env.NODE_ENV ===
+                                  RuntimeEnvironment.DEVELOPMENT
+                                  ? `http://host.docker.internal:3010/`
+                                  : `https://k8s-cluster-head-service.herokuapp.com/`
                           );
                       } catch (error) {}
                   }, 30 * 1000);
