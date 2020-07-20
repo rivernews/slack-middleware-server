@@ -210,9 +210,9 @@ module.exports = function (s3OrgsJob: Bull.Job<S3JobRequestData>) {
                                 } else {
                                     await asyncSendSlackMessage(
                                         'Polling node pool status:\n' +
-                                            `\`\`\`${JSON.stringify(
+                                            `\`\`\`\n${JSON.stringify(
                                                 readyNodePool
-                                            )}\`\`\`\n`
+                                            )}\n\`\`\`\n`
                                     );
                                 }
                             } catch (error) {}
