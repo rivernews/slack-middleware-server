@@ -24,6 +24,7 @@ import {
 } from '../../services/redis';
 import { SeleniumArchitectureType } from '../../services/kubernetes/types';
 import { RuntimeEnvironment } from '../../utilities/runtime';
+import axios from 'axios';
 
 const asyncCleanUpS3Job = async ({
     k8sHeadServicekeepAliveScheduler
@@ -302,19 +303,21 @@ module.exports = function (s3OrgsJob: Bull.Job<S3JobRequestData>) {
             } catch {}
         })
         .then(() => {
+            // keep alive for k8s head service hosted on Heroku
+            // we're polling per 60 seconds, but should be just fine at least polling once for an hour
             const k8sHeadServicekeepAliveScheduler = s3OrgsJob.data
                 ?.keepAliveK8sHeadService
-                ? undefined
-                : setInterval(async () => {
+                ? setInterval(async () => {
                       try {
-                          await fetch(
+                          await axios.get(
                               process.env.NODE_ENV ===
                                   RuntimeEnvironment.DEVELOPMENT
                                   ? `http://host.docker.internal:3010/`
                                   : `https://k8s-cluster-head-service.herokuapp.com/`
                           );
                       } catch (error) {}
-                  }, 30 * 1000);
+                  }, 60 * 1000)
+                : undefined;
 
             return (
                 s3ArchiveManager

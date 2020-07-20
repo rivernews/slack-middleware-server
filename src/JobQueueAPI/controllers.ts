@@ -10,7 +10,6 @@ import {
     ServerError,
     getErrorAsString
 } from '../utilities/serverExceptions';
-import { JobQueueName } from '../services/jobQueue/jobQueueName';
 import { RuntimeEnvironment } from '../utilities/runtime';
 import {
     ScraperCrossRequest,
@@ -33,15 +32,20 @@ export const s3OrgsJobController = async (
     res: Response,
     next: NextFunction
 ) => {
+    let resJson: S3JobControllerResponse = {
+        status: 'unknown'
+    };
+
     if (!s3OrgsJobQueueManager.queue) {
+        resJson = {
+            status: 'failed',
+            error: 's3OrgsJobQueueManager queue not yet initialized'
+        };
+        res.json(resJson);
         throw new ServerError(
             `s3OrgsJobQueueManager queue not yet initialized`
         );
     }
-
-    let resJson: S3JobControllerResponse = {
-        status: 'unknown'
-    };
 
     try {
         if (req.body.singleton === 'true') {
