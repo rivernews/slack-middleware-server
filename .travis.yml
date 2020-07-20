@@ -9,7 +9,7 @@ jobs:
   include:
   - stage: test
     # only build if it's master branch
-    if: branch = master
+    if: branch = release
     name: Test the code
     install:
     # add redis port-forwarding
