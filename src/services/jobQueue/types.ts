@@ -23,7 +23,15 @@ export enum ScraperMode {
     RENEWAL = 'renewal'
 }
 
-export type S3JobRequestData = null;
+interface S3JobOptions {
+    keepAliveK8sHeadService: boolean;
+}
+
+export type S3JobRequestData = null | S3JobOptions;
+
+export interface S3JobCleanUpArgs {
+    k8sHeadServicekeepAliveScheduler?: NodeJS.Timeout;
+}
 
 export interface SupervisorJobRequestData {
     scraperJobRequestData?: ScraperJobRequestData;

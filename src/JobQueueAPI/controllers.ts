@@ -44,7 +44,7 @@ export const s3OrgsJobController = async (
     };
 
     try {
-        if (req.body.singleton) {
+        if (req.body.singleton === 'true') {
             // already finished
             if ((await s3OrgsJobQueueManager.queue.getFailedCount()) > 0) {
                 resJson.status = 'failed';
@@ -65,7 +65,11 @@ export const s3OrgsJobController = async (
                 `s3OrgsJobController: existing s3 job count ${jobsPresentCount}, proceed to dispatch job anyway`
             );
 
-            const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(null);
+            const s3OrgsJob = await s3OrgsJobQueueManager.asyncAdd(
+                req.body.keepAliveK8sHeadService === 'true'
+                    ? { keepAliveK8sHeadService: true }
+                    : null
+            );
 
             resJson = {
                 ...resJson,
