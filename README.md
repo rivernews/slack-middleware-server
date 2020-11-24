@@ -2,7 +2,11 @@
 
 [![Build Status](https://travis-ci.com/rivernews/slack-middleware-server.svg?branch=master)](https://travis-ci.com/rivernews/slack-middleware-server)
 
-This server act as a middleware to communicate with Slack API. It enables using slack to trigger some cool task on the cloud 🚀.
+This server act as a middleware to between Slack API and our glassdoor scrapers. It enables using slack to trigger some cool task on the cloud 🚀 - scraping glassdoor using a distributed workload.
+
+Here is a diagram summarizing how each component interact
+![glassdoor scraper system diagram](https://iriversland2-media.s3.amazonaws.com/editor_uploads/case-studies/2020-11-23-46/glassdoor-scraper-diagram.png)
+
 
 ### How to run locally
 
