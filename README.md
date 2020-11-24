@@ -2,10 +2,16 @@
 
 [![Build Status](https://travis-ci.com/rivernews/slack-middleware-server.svg?branch=master)](https://travis-ci.com/rivernews/slack-middleware-server)
 
-This server act as a middleware to between Slack API and our glassdoor scrapers. It enables using slack to trigger some cool task on the cloud 🚀 - scraping glassdoor using a distributed workload.
+This server act as a middleware between Slack API and our glassdoor scrapers. It enables using slack to trigger some cool task on the cloud 🚀 - scraping data from glassdoor! Another important role is it manages distributed workload to scrape at scale.
 
 Here is a diagram summarizing how each component interact
 ![glassdoor scraper system diagram](https://iriversland2-media.s3.amazonaws.com/editor_uploads/case-studies/2020-11-23-46/glassdoor-scraper-diagram.png)
+
+Relevant repositories:
+
+- **[Selenium Scraper (in Java)](https://github.com/rivernews/review-scraper-java-development-environment)**: the actual scraper that interacts with the webpage, and outputs modeled data to S3. Also reports its status and sync state with Slack Middleware Service using Redis and PubSub.
+- **[Kubernetes Head Service (in Golang)](https://github.com/rivernews/k8s-cluster-head-service)**: a separate service living outside of kubernetes cluster, which is used to dynamically scale up the entire k8 cluster and launch jobs. Once jobs finished, it scales down the entire cluster and saves us enormous amount of cost!
+- **[Supervisor Portal (in React/TypeScript)](https://github.com/rivernews/supervisor-scraper-job-queue)**: provide UI for job observability, and help manage jobs, i.e., start single, start in batch, abort, progress monitoring, error message check etc.
 
 
 ### How to run locally
