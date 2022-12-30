@@ -55,7 +55,7 @@
         "chai": "^4.2.0",
         "husky": "^4.2.3",
         "lint-staged": "^10.0.7",
-        "mocha": "^7.0.1",
+        "mocha": "^10.2.0",
         "nodemon": "^2.0.2",
         "prettier-standard": "^16.1.0",
         "redis-commander": "^0.7.0",
